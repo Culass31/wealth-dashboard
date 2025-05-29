@@ -6,7 +6,7 @@ import sys
 from backend.data.data_loader import DataLoader
 from backend.models.database import DatabaseManager
 
-def load_user_data(user_id: str = "luc-nazarian-demo"):
+def load_user_data(user_id: str = "luc-nazarian"):
     """Load data for a specific user"""
     print(f"📥 Loading data for user: {user_id}")
     
@@ -51,5 +51,5 @@ def load_user_data(user_id: str = "luc-nazarian-demo"):
     return success_count > 0
 
 if __name__ == "__main__":
-    user_id = sys.argv[1] if len(sys.argv) > 1 else "luc-nazarian-demo"
+    user_id = sys.argv[1] if len(sys.argv) > 1 else "29dec51d-0772-4e3a-8e8f-1fece8fefe0e"
     load_user_data(user_id)

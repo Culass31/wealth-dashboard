@@ -2,7 +2,6 @@
 from supabase import create_client, Client
 import pandas as pd
 from typing import List, Dict, Any, Optional
-import uuid
 import os
 from dotenv import load_dotenv
 

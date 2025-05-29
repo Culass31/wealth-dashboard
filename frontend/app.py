@@ -8,21 +8,21 @@ from datetime import datetime, timedelta
 import sys
 import os
 
-# Add backend to path
+# Ajouter le backend au path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from backend.models.database import DatabaseManager
 from backend.data.data_loader import DataLoader
 
-# Page config
+# Configuration de la page
 st.set_page_config(
-    page_title="Wealth Dashboard",
+    page_title="Tableau de Bord Patrimoine",
     page_icon="💰",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS
+# CSS personnalisé
 st.markdown("""
 <style>
     .metric-container {
@@ -46,180 +46,237 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 @st.cache_data
-def load_user_data(user_id: str):
-    """Load user data with caching"""
+def charger_donnees_utilisateur(user_id: str):
+    """Charger les données utilisateur avec mise en cache"""
     db = DatabaseManager()
-    investments_df = db.get_user_investments(user_id)
-    cash_flows_df = db.get_user_cash_flows(user_id)
-    return investments_df, cash_flows_df
+    investissements_df = db.get_user_investments(user_id)
+    flux_tresorerie_df = db.get_user_cash_flows(user_id)
+    return investissements_df, flux_tresorerie_df
 
-def calculate_metrics(investments_df: pd.DataFrame, cash_flows_df: pd.DataFrame):
-    """Calculate key metrics"""
-    metrics = {}
+def calculer_metriques(investissements_df: pd.DataFrame, flux_tresorerie_df: pd.DataFrame):
+    """Calculer les métriques clés avec logique corrigée"""
+    metriques = {}
     
-    if not investments_df.empty:
-        # Total invested
-        metrics['total_invested'] = investments_df['invested_amount'].sum()
+    if not investissements_df.empty:
+        # Total investi (montant réel investi)
+        metriques['total_investi'] = investissements_df['invested_amount'].sum()
         
-        # Platform breakdown
-        platform_breakdown = investments_df.groupby('platform')['invested_amount'].sum()
-        metrics['platform_breakdown'] = platform_breakdown
+        # Répartition par plateforme
+        repartition_plateforme = investissements_df.groupby('platform')['invested_amount'].sum()
+        metriques['repartition_plateforme'] = repartition_plateforme
         
-        # Status breakdown
-        status_counts = investments_df['status'].value_counts()
-        metrics['status_breakdown'] = status_counts
+        # Répartition par statut
+        repartition_statut = investissements_df['status'].value_counts()
+        metriques['repartition_statut'] = repartition_statut
         
-        # Asset class breakdown
-        asset_breakdown = investments_df.groupby('asset_class')['invested_amount'].sum()
-        metrics['asset_breakdown'] = asset_breakdown
+        # Répartition par classe d'actifs
+        repartition_actifs = investissements_df.groupby('asset_class')['invested_amount'].sum()
+        metriques['repartition_actifs'] = repartition_actifs
     
-    if not cash_flows_df.empty:
-        # Total returns
-        cash_flows_df['transaction_date'] = pd.to_datetime(cash_flows_df['transaction_date'])
+    if not flux_tresorerie_df.empty:
+        # Convertir les dates
+        flux_tresorerie_df['transaction_date'] = pd.to_datetime(flux_tresorerie_df['transaction_date'], errors='coerce')
         
-        inflows = cash_flows_df[cash_flows_df['flow_direction'] == 'in']['net_amount'].sum()
-        outflows = abs(cash_flows_df[cash_flows_df['flow_direction'] == 'out']['net_amount'].sum())
+        # Séparer les flux entrants et sortants
+        flux_entrants = flux_tresorerie_df[flux_tresorerie_df['flow_direction'] == 'in']
+        flux_sortants = flux_tresorerie_df[flux_tresorerie_df['flow_direction'] == 'out']
         
-        metrics['total_inflows'] = inflows
-        metrics['total_outflows'] = outflows
-        metrics['net_cash_flow'] = inflows - outflows
+        # Calculer les totaux
+        total_entrees = flux_entrants['gross_amount'].sum()
+        total_sorties = flux_sortants['gross_amount'].sum()
         
-        # Monthly cash flows
-        cash_flows_df['year_month'] = cash_flows_df['transaction_date'].dt.to_period('M')
-        monthly_flows = cash_flows_df.groupby('year_month')['net_amount'].sum()
-        metrics['monthly_flows'] = monthly_flows
+        # Séparer les différents types de flux
+        interets_bruts = flux_entrants[flux_entrants['flow_type'] == 'interest']['gross_amount'].sum()
+        remboursements_capital = flux_entrants[flux_entrants['flow_type'] == 'repayment']['capital_amount'].sum()
+        frais_fiscaux = flux_sortants[flux_sortants['flow_type'] == 'fee']['gross_amount'].sum()
+        
+        # Calculs corrigés
+        metriques['total_entrees'] = total_entrees
+        metriques['total_sorties'] = total_sorties
+        metriques['interets_bruts'] = interets_bruts
+        metriques['frais_fiscaux'] = frais_fiscaux
+        metriques['remboursements_capital'] = remboursements_capital
+        metriques['performance_nette'] = total_entrees - total_sorties
+        
+        # Taux de réinvestissement (nouveau calcul)
+        if metriques.get('total_investi', 0) > 0:
+            # Capital récupéré qui a été réinvesti
+            capital_reinvesti = max(0, metriques['total_investi'] - 
+                                  (total_entrees - interets_bruts))  # Approximation
+            metriques['taux_reinvestissement'] = (capital_reinvesti / metriques['total_investi']) * 100
+        else:
+            metriques['taux_reinvestissement'] = 0
+        
+        # Flux mensuels
+        flux_tresorerie_df_clean = flux_tresorerie_df.dropna(subset=['transaction_date'])
+        if not flux_tresorerie_df_clean.empty:
+            flux_tresorerie_df_clean['annee_mois'] = flux_tresorerie_df_clean['transaction_date'].dt.to_period('M')
+            flux_mensuels = flux_tresorerie_df_clean.groupby('annee_mois')['net_amount'].sum()
+            metriques['flux_mensuels'] = flux_mensuels
     
-    return metrics
+    return metriques
 
 def main():
-    st.title("💰 Wealth Dashboard")
+    st.title("💰 Tableau de Bord Patrimoine")
     st.markdown("---")
     
-    # Sidebar
+    # Barre latérale
     with st.sidebar:
         st.header("Navigation")
         
-        # For development - simulate user
-        user_id = st.text_input("User ID (for dev)", value="demo-user-123")
+        # Pour le développement - simuler un utilisateur
+        user_id = st.text_input("ID Utilisateur (développement)", value="demo-user-123")
         
-        # Data loading section
-        st.subheader("Data Management")
+        # Section de gestion des données
+        st.subheader("Gestion des Données")
         
-        if st.button("🔄 Refresh Data"):
+        if st.button("🔄 Actualiser les Données"):
             st.cache_data.clear()
-            st.success("Data refreshed!")
+            st.success("Données actualisées !")
         
-        uploaded_file = st.file_uploader(
-            "Upload Platform File", 
+        fichier_upload = st.file_uploader(
+            "Télécharger un Fichier de Plateforme", 
             type=['xlsx'],
-            help="Upload Excel file from crowdfunding platform"
+            help="Télécharger un fichier Excel de plateforme de crowdfunding"
         )
         
-        platform = st.selectbox(
-            "Select Platform",
+        plateforme = st.selectbox(
+            "Sélectionner la Plateforme",
             ["LBP", "PretUp", "BienPreter", "Homunity"]
         )
         
-        if uploaded_file and st.button("Load Data"):
+        if fichier_upload and st.button("Charger les Données"):
             try:
-                # Save uploaded file temporarily
-                with open(f"temp_{uploaded_file.name}", "wb") as f:
-                    f.write(uploaded_file.getbuffer())
+                # Sauvegarder le fichier temporairement
+                with open(f"temp_{fichier_upload.name}", "wb") as f:
+                    f.write(fichier_upload.getbuffer())
                 
-                # Load data
+                # Charger les données
                 loader = DataLoader()
-                success = loader.load_platform_data(
-                    f"temp_{uploaded_file.name}", 
-                    platform.lower(), 
+                succes = loader.load_platform_data(
+                    f"temp_{fichier_upload.name}", 
+                    plateforme.lower(), 
                     user_id
                 )
                 
-                if success:
-                    st.success(f"✅ Data loaded from {platform}!")
-                    st.cache_data.clear()  # Clear cache to reload data
-                    os.remove(f"temp_{uploaded_file.name}")  # Cleanup
+                if succes:
+                    st.success(f"✅ Données chargées depuis {plateforme} !")
+                    st.cache_data.clear()  # Vider le cache pour recharger les données
+                    os.remove(f"temp_{fichier_upload.name}")  # Nettoyage
                 else:
-                    st.error("❌ Failed to load data")
+                    st.error("❌ Échec du chargement des données")
                     
             except Exception as e:
-                st.error(f"Error: {e}")
+                st.error(f"Erreur : {e}")
     
-    # Main content
+    # Contenu principal
     try:
-        # Load data
-        investments_df, cash_flows_df = load_user_data(user_id)
+        # Charger les données
+        investissements_df, flux_tresorerie_df = charger_donnees_utilisateur(user_id)
         
-        if investments_df.empty and cash_flows_df.empty:
-            st.warning("No data found. Please upload some files using the sidebar.")
+        if investissements_df.empty and flux_tresorerie_df.empty:
+            st.warning("Aucune donnée trouvée. Veuillez télécharger des fichiers via la barre latérale.")
             st.info("""
-            **To get started:**
-            1. Select a platform (LBP, PretUp, BienPreter, Homunity)
-            2. Upload your Excel file from that platform
-            3. Click 'Load Data'
+            **Pour commencer :**
+            1. Sélectionnez une plateforme (LBP, PretUp, BienPreter, Homunity)
+            2. Téléchargez votre fichier Excel de cette plateforme
+            3. Cliquez sur 'Charger les Données'
             """)
             return
         
-        # Calculate metrics
-        metrics = calculate_metrics(investments_df, cash_flows_df)
+        # Calculer les métriques
+        metriques = calculer_metriques(investissements_df, flux_tresorerie_df)
         
-        # Key Metrics Row
+        # Ligne des métriques clés
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            total_invested = metrics.get('total_invested', 0)
+            total_investi = metriques.get('total_investi', 0)
             st.metric(
-                "💸 Total Invested",
-                f"€{total_invested:,.0f}",
-                help="Total amount invested across all platforms"
+                "💸 Total Investi",
+                f"{total_investi:,.0f} €",
+                help="Montant total investi sur toutes les plateformes"
             )
         
         with col2:
-            total_inflows = metrics.get('total_inflows', 0)
+            total_entrees = metriques.get('total_entrees', 0)
             st.metric(
-                "💰 Total Returns",
-                f"€{total_inflows:,.0f}",
-                help="Total returns received"
+                "💰 Total des Retours",
+                f"{total_entrees:,.0f} €",
+                help="Total des retours reçus (capital + intérêts)"
             )
         
         with col3:
-            net_cash_flow = metrics.get('net_cash_flow', 0)
-            delta_color = "normal" if net_cash_flow >= 0 else "inverse"
+            performance_nette = metriques.get('performance_nette', 0)
+            couleur_delta = "normal" if performance_nette >= 0 else "inverse"
             st.metric(
-                "📊 Net Performance",
-                f"€{net_cash_flow:,.0f}",
-                f"{(net_cash_flow/total_invested)*100:.1f}%" if total_invested > 0 else "0%",
-                delta_color=delta_color
+                "📊 Performance Nette",
+                f"{performance_nette:,.0f} €",
+                f"{(performance_nette/total_investi)*100:.1f}%" if total_investi > 0 else "0%",
+                delta_color=couleur_delta
             )
         
         with col4:
-            active_projects = len(investments_df[investments_df['status'] == 'active']) if not investments_df.empty else 0
+            taux_reinvestissement = metriques.get('taux_reinvestissement', 0)
             st.metric(
-                "🏗️ Active Projects",
-                active_projects
+                "🔄 Taux Réinvestissement",
+                f"{taux_reinvestissement:.1f}%",
+                help="Pourcentage du capital récupéré qui a été réinvesti"
+            )
+        
+        # Nouvelle ligne de métriques détaillées
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            projets_actifs = len(investissements_df[investissements_df['status'] == 'active']) if not investissements_df.empty else 0
+            st.metric(
+                "🏗️ Projets Actifs",
+                projets_actifs
+            )
+        
+        with col2:
+            interets_bruts = metriques.get('interets_bruts', 0)
+            st.metric(
+                "🎯 Intérêts Bruts",
+                f"{interets_bruts:,.0f} €"
+            )
+        
+        with col3:
+            frais_fiscaux = metriques.get('frais_fiscaux', 0)
+            st.metric(
+                "🏛️ Frais Fiscaux",
+                f"{frais_fiscaux:,.0f} €"
+            )
+        
+        with col4:
+            remboursements_capital = metriques.get('remboursements_capital', 0)
+            st.metric(
+                "💵 Capital Remboursé",
+                f"{remboursements_capital:,.0f} €"
             )
         
         st.markdown("---")
         
-        # Charts Row 1
+        # Ligne des graphiques 1
         col1, col2 = st.columns(2)
         
         with col1:
-            st.subheader("📊 Investment by Platform")
-            if 'platform_breakdown' in metrics:
+            st.subheader("📊 Investissements par Plateforme")
+            if 'repartition_plateforme' in metriques and not metriques['repartition_plateforme'].empty:
                 fig = px.pie(
-                    values=metrics['platform_breakdown'].values,
-                    names=metrics['platform_breakdown'].index,
-                    title="Platform Allocation"
+                    values=metriques['repartition_plateforme'].values,
+                    names=metriques['repartition_plateforme'].index,
+                    title="Répartition par Plateforme"
                 )
                 fig.update_traces(textposition='inside', textinfo='percent+label')
                 st.plotly_chart(fig, use_container_width=True)
             else:
-                st.info("No investment data available")
+                st.info("Aucune donnée d'investissement disponible")
         
         with col2:
-            st.subheader("🎯 Project Status")
-            if 'status_breakdown' in metrics:
-                status_colors = {
+            st.subheader("🎯 Statut des Projets")
+            if 'repartition_statut' in metriques and not metriques['repartition_statut'].empty:
+                couleurs_statut = {
                     'active': '#2ca02c',
                     'completed': '#1f77b4', 
                     'delayed': '#ff7f0e',
@@ -228,104 +285,147 @@ def main():
                 }
                 
                 fig = px.bar(
-                    x=metrics['status_breakdown'].index,
-                    y=metrics['status_breakdown'].values,
-                    title="Projects by Status",
-                    color=metrics['status_breakdown'].index,
-                    color_discrete_map=status_colors
+                    x=metriques['repartition_statut'].index,
+                    y=metriques['repartition_statut'].values,
+                    title="Projets par Statut",
+                    color=metriques['repartition_statut'].index,
+                    color_discrete_map=couleurs_statut
                 )
                 fig.update_layout(showlegend=False)
                 st.plotly_chart(fig, use_container_width=True)
             else:
-                st.info("No status data available")
+                st.info("Aucune donnée de statut disponible")
         
-        # Charts Row 2
+        # Ligne des graphiques 2
         col1, col2 = st.columns(2)
         
         with col1:
-            st.subheader("💰 Monthly Cash Flows")
-            if 'monthly_flows' in metrics and not metrics['monthly_flows'].empty:
-                monthly_flows = metrics['monthly_flows']
+            st.subheader("💰 Flux de Trésorerie Mensuels")
+            if 'flux_mensuels' in metriques and not metriques['flux_mensuels'].empty:
+                flux_mensuels = metriques['flux_mensuels']
                 
                 fig = go.Figure()
                 fig.add_trace(go.Bar(
-                    x=[str(period) for period in monthly_flows.index],
-                    y=monthly_flows.values,
-                    marker_color=['green' if x > 0 else 'red' for x in monthly_flows.values],
-                    name="Monthly Flow"
+                    x=[str(periode) for periode in flux_mensuels.index],
+                    y=flux_mensuels.values,
+                    marker_color=['green' if x > 0 else 'red' for x in flux_mensuels.values],
+                    name="Flux Mensuel"
                 ))
                 
                 fig.update_layout(
-                    title="Monthly Cash Flow Trend",
-                    xaxis_title="Month",
-                    yaxis_title="Amount (€)",
+                    title="Évolution des Flux de Trésorerie",
+                    xaxis_title="Mois",
+                    yaxis_title="Montant (€)",
                     showlegend=False
                 )
                 st.plotly_chart(fig, use_container_width=True)
             else:
-                st.info("No cash flow data available")
+                st.info("Aucune donnée de flux de trésorerie disponible")
         
         with col2:
-            st.subheader("🏠 Asset Class Distribution")
-            if 'asset_breakdown' in metrics:
-                fig = px.donut(
-                    values=metrics['asset_breakdown'].values,
-                    names=metrics['asset_breakdown'].index,
-                    title="Asset Class Allocation"
+            st.subheader("🏠 Répartition par Classe d'Actifs")
+            if 'repartition_actifs' in metriques and not metriques['repartition_actifs'].empty:
+                # Utiliser px.pie au lieu de px.donut qui n'existe pas
+                fig = px.pie(
+                    values=metriques['repartition_actifs'].values,
+                    names=metriques['repartition_actifs'].index,
+                    title="Allocation par Classe d'Actifs",
+                    hole=0.4  # Ceci crée l'effet "donut"
                 )
                 st.plotly_chart(fig, use_container_width=True)
             else:
-                st.info("No asset class data available")
+                st.info("Aucune donnée de classe d'actifs disponible")
         
-        # Data Tables
+        # Tableaux de données
         st.markdown("---")
         
-        tab1, tab2 = st.tabs(["📈 Investments", "💸 Cash Flows"])
+        tab1, tab2 = st.tabs(["📈 Investissements", "💸 Flux de Trésorerie"])
         
         with tab1:
-            st.subheader("Investment Portfolio")
-            if not investments_df.empty:
-                # Format the dataframe for display
-                display_df = investments_df[[
-                    'platform', 'project_name', 'invested_amount', 
-                    'annual_rate', 'investment_date', 'status'
-                ]].copy()
+            st.subheader("Portefeuille d'Investissements")
+            if not investissements_df.empty:
+                # Formater le dataframe pour l'affichage
+                colonnes_affichage = ['platform', 'project_name', 'invested_amount', 
+                                    'annual_rate', 'investment_date', 'status']
                 
-                display_df['invested_amount'] = display_df['invested_amount'].apply(lambda x: f"€{x:,.0f}")
-                display_df['annual_rate'] = display_df['annual_rate'].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
+                # Vérifier que les colonnes existent
+                colonnes_existantes = [col for col in colonnes_affichage if col in investissements_df.columns]
                 
-                st.dataframe(
-                    display_df,
-                    use_container_width=True,
-                    hide_index=True
-                )
+                if colonnes_existantes:
+                    affichage_df = investissements_df[colonnes_existantes].copy()
+                    
+                    # Formater les colonnes si elles existent
+                    if 'invested_amount' in affichage_df.columns:
+                        affichage_df['invested_amount'] = affichage_df['invested_amount'].apply(lambda x: f"{x:,.0f} €" if pd.notna(x) else "N/A")
+                    if 'annual_rate' in affichage_df.columns:
+                        affichage_df['annual_rate'] = affichage_df['annual_rate'].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
+                    
+                    # Renommer les colonnes en français
+                    noms_colonnes = {
+                        'platform': 'Plateforme',
+                        'project_name': 'Nom du Projet',
+                        'invested_amount': 'Montant Investi',
+                        'annual_rate': 'Taux Annuel',
+                        'investment_date': 'Date d\'Investissement',
+                        'status': 'Statut'
+                    }
+                    
+                    affichage_df = affichage_df.rename(columns=noms_colonnes)
+                    
+                    st.dataframe(
+                        affichage_df,
+                        use_container_width=True,
+                        hide_index=True
+                    )
+                else:
+                    st.warning("Colonnes d'affichage non trouvées dans les données")
             else:
-                st.info("No investment data to display")
+                st.info("Aucune donnée d'investissement à afficher")
         
         with tab2:
-            st.subheader("Recent Cash Flows")
-            if not cash_flows_df.empty:
-                # Show recent transactions
-                recent_flows = cash_flows_df.sort_values('transaction_date', ascending=False).head(20)
+            st.subheader("Flux de Trésorerie Récents")
+            if not flux_tresorerie_df.empty:
+                # Montrer les transactions récentes
+                flux_recents = flux_tresorerie_df.sort_values('created_at', ascending=False).head(20)
                 
-                display_flows = recent_flows[[
-                    'transaction_date', 'flow_type', 'gross_amount', 
-                    'flow_direction', 'description'
-                ]].copy()
+                colonnes_flux = ['transaction_date', 'flow_type', 'gross_amount', 
+                               'flow_direction', 'description']
                 
-                display_flows['gross_amount'] = display_flows['gross_amount'].apply(lambda x: f"€{x:,.2f}")
+                colonnes_existantes = [col for col in colonnes_flux if col in flux_recents.columns]
                 
-                st.dataframe(
-                    display_flows,
-                    use_container_width=True,
-                    hide_index=True
-                )
+                if colonnes_existantes:
+                    affichage_flux = flux_recents[colonnes_existantes].copy()
+                    
+                    if 'gross_amount' in affichage_flux.columns:
+                        affichage_flux['gross_amount'] = affichage_flux['gross_amount'].apply(lambda x: f"{x:,.2f} €" if pd.notna(x) else "N/A")
+                    
+                    # Renommer les colonnes en français
+                    noms_colonnes_flux = {
+                        'transaction_date': 'Date Transaction',
+                        'flow_type': 'Type de Flux',
+                        'gross_amount': 'Montant Brut',
+                        'flow_direction': 'Direction',
+                        'description': 'Description'
+                    }
+                    
+                    affichage_flux = affichage_flux.rename(columns=noms_colonnes_flux)
+                    
+                    st.dataframe(
+                        affichage_flux,
+                        use_container_width=True,
+                        hide_index=True
+                    )
+                else:
+                    st.warning("Colonnes de flux non trouvées dans les données")
             else:
-                st.info("No cash flow data to display")
+                st.info("Aucune donnée de flux de trésorerie à afficher")
         
     except Exception as e:
-        st.error(f"Error loading dashboard: {e}")
-        st.info("Please check your database connection and data.")
+        st.error(f"Erreur lors du chargement du tableau de bord : {e}")
+        st.info("Veuillez vérifier votre connexion à la base de données et vos données.")
+        # Afficher plus de détails de l'erreur pour le débogage
+        import traceback
+        st.text(traceback.format_exc())
 
 if __name__ == "__main__":
     main()
