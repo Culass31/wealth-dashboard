@@ -2,6 +2,8 @@
 from backend.models.database import DatabaseManager
 from backend.data.unified_parser import UnifiedPortfolioParser
 import os
+from typing import Dict
+import pandas as pd
 
 class CorrectedDataLoader:
     """DataLoader corrigé utilisant le parser unifié expert"""

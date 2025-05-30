@@ -58,7 +58,7 @@ def validate_data_files(data_folder: str) -> bool:
     print(f"🔍 Validation des fichiers dans {data_folder}...")
     
     try:
-        from backend.data.corrected_data_loader import CorrectedDataLoader
+        from backend.data.data_loader import CorrectedDataLoader
         
         loader = CorrectedDataLoader()
         validation_report = loader.validate_all_files(data_folder)
@@ -90,7 +90,7 @@ def load_user_data(user_id: str, data_folder: str) -> bool:
     print(f"📥 Chargement des données pour {user_id}...")
     
     try:
-        from backend.data.corrected_data_loader import load_user_data_auto
+        from backend.data.data_loader import load_user_data_auto
         
         success = load_user_data_auto(user_id, data_folder)
         
@@ -112,7 +112,7 @@ def test_database_connection() -> bool:
     print("🔌 Test de la connexion base de données...")
     
     try:
-        from backend.models.corrected_database import ExpertDatabaseManager
+        from backend.models.database import ExpertDatabaseManager
         
         db = ExpertDatabaseManager()
         if db.test_connection():
@@ -164,7 +164,7 @@ def run_analysis_only(user_id: str) -> bool:
     print(f"📊 Analyse des données pour {user_id}...")
     
     try:
-        from backend.models.corrected_database import ExpertDatabaseManager
+        from backend.models.database import ExpertDatabaseManager
         from backend.analytics.expert_metrics import ExpertPatrimoineCalculator
         
         # Charger données

@@ -13,7 +13,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from backend.models.database import DatabaseManager
-from backend.data.corrected_data_loader import CorrectedDataLoader
+from backend.data.data_loader import CorrectedDataLoader
 from backend.analytics.expert_metrics import ExpertPatrimoineCalculator
 
 # Configuration de la page
@@ -617,7 +617,7 @@ def sidebar_expert():
         with col2:
             if st.button("📥 Charger Données"):
                 with st.spinner("Chargement..."):
-                    from backend.data.corrected_data_loader import load_user_data_auto
+                    from backend.data.data_loader import load_user_data_auto
                     success = load_user_data_auto(user_id)
                     if success:
                         st.success("Données chargées!")
