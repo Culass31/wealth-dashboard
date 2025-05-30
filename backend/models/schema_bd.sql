@@ -313,3 +313,5 @@ CREATE POLICY "Users can view own goals" ON financial_goals
 CREATE POLICY "Users can view own preferences" ON user_preferences
     FOR ALL USING (auth.uid() = user_id);
 */
+alter Table investments
+    Add Column IF NOT EXISTS capital_repaired numeric; -- 'crowdlending', 'equity_crowdfunding', 'real_estate_crowdfunding', 'crypto', 'stocks', 'bonds', 'insurance', 'other';

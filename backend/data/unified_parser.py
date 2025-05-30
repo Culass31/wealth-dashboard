@@ -93,7 +93,7 @@ class UnifiedPortfolioParser:
             investissement = {
                 'id': str(uuid.uuid4()),
                 'user_id': self.user_id,
-                'platform': 'LPB',  # CORRIGÉ
+                'platform': 'La Première Brique',
                 'platform_id': f"LPB_{idx}",
                 'investment_type': 'crowdfunding',
                 'asset_class': 'real_estate',
@@ -104,6 +104,7 @@ class UnifiedPortfolioParser:
                 'invested_amount': clean_amount(safe_get(row, 3, 0)),
                 'annual_rate': safe_get(row, 4, 0),
                 'duration_months': duration_months,
+                'capital_repaid': clean_amount(safe_get(row, 3, 0)) - clean_amount(safe_get(row, 9, 0)),  # Capital remboursé
                 'remaining_capital': clean_amount(safe_get(row, 9, 0)) if len(row) > 9 else None,  # Capital restant dû
                 
                 'investment_date': date_collecte,      # Pour TRI
@@ -162,7 +163,7 @@ class UnifiedPortfolioParser:
                 'id': str(uuid.uuid4()),
                 'investment_id': None,  # À lier plus tard
                 'user_id': self.user_id,
-                'platform': 'LPB',  # AJOUTÉ
+                'platform': 'La Première Brique',
                 
                 'flow_type': flow_type,
                 'flow_direction': flow_direction,
@@ -243,7 +244,7 @@ class UnifiedPortfolioParser:
             investissement = {
                 'id': str(uuid.uuid4()),
                 'user_id': self.user_id,
-                'platform': 'BienPreter',
+                'platform': 'BienPrêter',
                 'platform_id': safe_get(row, 0, ''),
                 'investment_type': 'crowdfunding',
                 'asset_class': 'real_estate',
@@ -335,7 +336,7 @@ class UnifiedPortfolioParser:
             flux = {
                 'id': str(uuid.uuid4()),
                 'user_id': self.user_id,
-                'platform': 'BienPreter',
+                'platform': 'BienPrêter',
                 
                 'flow_type': flow_type,
                 'flow_direction': flow_direction,
@@ -524,7 +525,7 @@ class UnifiedPortfolioParser:
                 'company_name': safe_get(row, 1, ''),
                 
                 'invested_amount': montant_offre,
-                'current_value': capital_restant,
+                'remaining_capital': capital_restant,
                 'capital_repaid': montant_offre - capital_restant,
                 
                 'status': status,

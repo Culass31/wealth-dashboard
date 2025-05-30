@@ -147,7 +147,7 @@ class ExpertDatabaseManager:
             return False
         
         # Vérifier type valide
-        valid_types = ['deposit', 'investment', 'repayment', 'interest', 'dividend', 'fee', 'sale', 'purchase', 'adjustment', 'other']
+        valid_types = ['deposit', 'withdrawal', 'investment', 'repayment', 'interest', 'dividend', 'fee', 'sale', 'purchase', 'adjustment', 'other']
         if cash_flow['flow_type'] not in valid_types:
             print(f"⚠️  Type invalide: {cash_flow['flow_type']}")
             return False

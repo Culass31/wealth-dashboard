@@ -102,7 +102,7 @@ class CorrectedDataLoader:
     def load_assurance_vie_data(self, file_path: str, user_id: str) -> bool:
         """
         Charger les données Assurance Vie
-        Nouvelle méthode pour votre fichier AV Linxea
+        Utilise le parser unifié
         """
         
         print(f"🏛️  Chargement Assurance Vie pour utilisateur {user_id}")
@@ -139,7 +139,7 @@ class CorrectedDataLoader:
     
     def load_all_user_files(self, user_id: str, data_folder: str = "data/raw") -> bool:
         """
-        Charger tous les fichiers utilisateur avec support AV
+        Charger tous les fichiers utilisateur
         Mapping complet de vos fichiers
         """
         
@@ -147,11 +147,11 @@ class CorrectedDataLoader:
         
         # Mapping de vos fichiers
         fichiers_plateformes = {
-            'lpb': 'Portefeuille LPB 20250529.xlsx',  # CORRIGÉ
+            'lpb': 'Portefeuille LPB 20250529.xlsx',
             'pretup': 'Portefeuille PretUp 20250529.xlsx',
             'bienpreter': 'Portefeuille BienPreter 20250529.xlsx',
             'homunity': 'Portefeuille Homunity 20250529.xlsx',
-            'assurance_vie': 'Portefeuille AV Linxea.xlsx'  # NOUVEAU
+            'assurance_vie': 'Portefeuille AV Linxea.xlsx'
         }
         
         success_count = 0
