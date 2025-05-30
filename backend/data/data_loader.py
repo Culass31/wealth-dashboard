@@ -1,286 +1,435 @@
-# ===== backend/data/data_loader.py - AVEC INTÉGRATION PEA =====
+# ===== backend/data/corrected_data_loader.py - AVEC PARSER UNIFIÉ =====
 from backend.models.database import DatabaseManager
-from backend.data.parsers import LBPParser, PretUpParser, BienPreterParser, HomunityParser
-from backend.data.pea_parser import PEAParser
+from backend.data.unified_parser import UnifiedPortfolioParser
 import os
 
-class DataLoader:
-    """Classe principale pour charger les données des différentes plateformes"""
+class CorrectedDataLoader:
+    """DataLoader corrigé utilisant le parser unifié expert"""
     
     def __init__(self):
         self.db = DatabaseManager()
         
     def load_platform_data(self, file_path: str, platform: str, user_id: str) -> bool:
-        """Charger les données depuis un fichier de plateforme crowdfunding"""
+        """
+        Charger les données depuis un fichier de plateforme
+        Utilise le parser unifié pour toutes les plateformes
+        """
         
-        print(f"📥 Chargement des données {platform.upper()} pour l'utilisateur {user_id}")
+        print(f"📥 Chargement {platform.upper()} pour utilisateur {user_id}")
         
-        # Sélectionner le parser approprié
-        if platform.lower() == 'lbp':
-            parser = LBPParser(user_id)
-        elif platform.lower() == 'pretup':
-            parser = PretUpParser(user_id)
-        elif platform.lower() == 'bienpreter':
-            parser = BienPreterParser(user_id)
-        elif platform.lower() == 'homunity':
-            parser = HomunityParser(user_id)
-        else:
-            print(f"❌ Parser non implémenté pour la plateforme: {platform}")
+        if not os.path.exists(file_path):
+            print(f"❌ Fichier non trouvé: {file_path}")
             return False
         
         try:
-            # Parser les données
-            print(f"🔍 Parsing du fichier: {file_path}")
-            investissements, flux_tresorerie = parser.parse(file_path)
+            # Créer le parser unifié
+            parser = UnifiedPortfolioParser(user_id)
             
-            print(f"📊 Données parsées: {len(investissements)} investissements, {len(flux_tresorerie)} flux de trésorerie")
+            # Parser selon la plateforme
+            print(f"🔍 Parsing {platform}...")
+            investissements, flux_tresorerie = parser.parse_platform(file_path, platform)
+            
+            print(f"📊 Données parsées: {len(investissements)} investissements, {len(flux_tresorerie)} flux")
+            
+            # Validation des données
+            if not self._validate_parsed_data(investissements, flux_tresorerie, platform):
+                print(f"⚠️  Données {platform} invalides")
+                return False
             
             # Insérer en base de données
-            succes_inv = self.db.insert_investments(investissements)
-            succes_cf = self.db.insert_cash_flows(flux_tresorerie)
+            success_inv = self.db.insert_investments(investissements) if investissements else True
+            success_cf = self.db.insert_cash_flows(flux_tresorerie) if flux_tresorerie else True
             
-            if succes_inv and succes_cf:
-                print(f"✅ Chargement réussi de {platform.upper()}")
+            if success_inv and success_cf:
+                print(f"✅ {platform.upper()} chargé avec succès")
                 return True
             else:
-                print(f"⚠️  Chargement partiel de {platform.upper()}")
+                print(f"❌ Échec insertion BDD pour {platform}")
                 return False
             
         except Exception as e:
-            print(f"❌ Erreur lors du chargement des données de {platform}: {e}")
+            print(f"❌ Erreur chargement {platform}: {e}")
             import traceback
             traceback.print_exc()
             return False
     
     def load_pea_data(self, releve_pdf_path: str = None, evaluation_pdf_path: str = None, user_id: str = None) -> bool:
         """
-        Charger les données PEA depuis les PDFs Bourse Direct
-        
-        Args:
-            releve_pdf_path: Chemin vers le PDF du relevé de compte
-            evaluation_pdf_path: Chemin vers le PDF d'évaluation de portefeuille
-            user_id: ID utilisateur
-        
-        Returns:
-            bool: True si succès, False sinon
+        Charger les données PEA depuis les PDFs
+        Utilise le parser unifié
         """
         
         if not user_id:
-            print("❌ User ID requis pour charger les données PEA")
+            print("❌ User ID requis pour PEA")
             return False
         
-        print(f"🏦 Chargement des données PEA pour l'utilisateur {user_id}")
+        print(f"🏦 Chargement PEA pour utilisateur {user_id}")
         
         # Vérifier qu'au moins un fichier est fourni
         if not releve_pdf_path and not evaluation_pdf_path:
-            print("❌ Au moins un fichier PDF PEA est requis")
+            print("❌ Au moins un fichier PDF PEA requis")
             return False
         
-        # Vérifier l'existence des fichiers
-        files_to_check = []
-        if releve_pdf_path:
-            files_to_check.append(('Relevé', releve_pdf_path))
-        if evaluation_pdf_path:
-            files_to_check.append(('Évaluation', evaluation_pdf_path))
-        
-        for file_type, file_path in files_to_check:
-            if not os.path.exists(file_path):
-                print(f"⚠️  Fichier {file_type} PEA non trouvé: {file_path}")
-                return False
-            else:
-                print(f"✅ Fichier {file_type} PEA trouvé: {file_path}")
-        
         try:
-            # Créer le parser PEA
-            parser = PEAParser(user_id)
+            # Créer le parser unifié
+            parser = UnifiedPortfolioParser(user_id)
             
-            # Parser les fichiers PDF
-            print("🔍 Parsing des fichiers PDF PEA...")
-            investissements, flux_tresorerie, positions = parser.parse_pdf_files(
-                releve_pdf_path, evaluation_pdf_path
-            )
+            # Parser PEA avec gestion des deux fichiers
+            print("🔍 Parsing fichiers PEA...")
+            investissements, flux_tresorerie = parser._parse_pea(releve_pdf_path, evaluation_pdf_path)
             
-            print(f"📊 Données PEA parsées:")
-            print(f"  - {len(investissements)} investissements")
-            print(f"  - {len(flux_tresorerie)} flux de trésorerie")
-            print(f"  - {len(positions)} positions")
+            print(f"📊 PEA parsé: {len(investissements)} investissements, {len(flux_tresorerie)} flux")
             
-            # Insérer en base de données
-            success_results = []
+            # Insérer en base
+            success_inv = self.db.insert_investments(investissements) if investissements else True
+            success_cf = self.db.insert_cash_flows(flux_tresorerie) if flux_tresorerie else True
             
-            # Insérer les investissements
-            if investissements:
-                success_inv = self.db.insert_investments(investissements)
-                success_results.append(('investissements', success_inv))
-                if success_inv:
-                    print(f"✅ {len(investissements)} investissements PEA insérés")
-                else:
-                    print(f"❌ Échec insertion investissements PEA")
-            else:
-                print("ℹ️  Aucun investissement PEA à insérer")
-                success_results.append(('investissements', True))
-            
-            # Insérer les flux de trésorerie
-            if flux_tresorerie:
-                success_cf = self.db.insert_cash_flows(flux_tresorerie)
-                success_results.append(('flux_tresorerie', success_cf))
-                if success_cf:
-                    print(f"✅ {len(flux_tresorerie)} flux de trésorerie PEA insérés")
-                else:
-                    print(f"❌ Échec insertion flux de trésorerie PEA")
-            else:
-                print("ℹ️  Aucun flux de trésorerie PEA à insérer")
-                success_results.append(('flux_tresorerie', True))
-            
-            # Insérer les positions (optionnel - nécessite une table portfolio_positions)
-            if positions:
-                try:
-                    success_pos = self.db.insert_portfolio_positions(positions)
-                    success_results.append(('positions', success_pos))
-                    if success_pos:
-                        print(f"✅ {len(positions)} positions PEA insérées")
-                    else:
-                        print(f"❌ Échec insertion positions PEA")
-                except AttributeError:
-                    print("ℹ️  Table positions non disponible - ignoré")
-                    success_results.append(('positions', True))
-            else:
-                print("ℹ️  Aucune position PEA à insérer")
-                success_results.append(('positions', True))
-            
-            # Vérifier le succès global
-            all_success = all(success for _, success in success_results)
-            
-            if all_success:
-                print("✅ Chargement PEA terminé avec succès")
+            if success_inv and success_cf:
+                print("✅ PEA chargé avec succès")
                 return True
             else:
-                failed_operations = [op for op, success in success_results if not success]
-                print(f"⚠️  Chargement PEA partiel - échecs: {', '.join(failed_operations)}")
+                print("❌ Échec insertion PEA")
                 return False
             
         except Exception as e:
-            print(f"❌ Erreur lors du chargement PEA: {e}")
+            print(f"❌ Erreur chargement PEA: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
+    def load_assurance_vie_data(self, file_path: str, user_id: str) -> bool:
+        """
+        Charger les données Assurance Vie
+        Nouvelle méthode pour votre fichier AV Linxea
+        """
+        
+        print(f"🏛️  Chargement Assurance Vie pour utilisateur {user_id}")
+        
+        if not os.path.exists(file_path):
+            print(f"❌ Fichier AV non trouvé: {file_path}")
+            return False
+        
+        try:
+            # Utiliser le parser unifié
+            parser = UnifiedPortfolioParser(user_id)
+            
+            print("🔍 Parsing Assurance Vie...")
+            investissements, flux_tresorerie = parser.parse_platform(file_path, 'assurance_vie')
+            
+            print(f"📊 AV parsée: {len(investissements)} investissements, {len(flux_tresorerie)} flux")
+            
+            # Insérer en base
+            success_inv = self.db.insert_investments(investissements) if investissements else True
+            success_cf = self.db.insert_cash_flows(flux_tresorerie) if flux_tresorerie else True
+            
+            if success_inv and success_cf:
+                print("✅ Assurance Vie chargée avec succès")
+                return True
+            else:
+                print("❌ Échec insertion AV")
+                return False
+            
+        except Exception as e:
+            print(f"❌ Erreur chargement AV: {e}")
             import traceback
             traceback.print_exc()
             return False
     
     def load_all_user_files(self, user_id: str, data_folder: str = "data/raw") -> bool:
-        """Charger tous les fichiers depuis le dossier de données utilisateur"""
+        """
+        Charger tous les fichiers utilisateur avec support AV
+        Mapping complet de vos fichiers
+        """
         
+        print(f"📂 Chargement complet pour utilisateur {user_id} depuis {data_folder}")
+        
+        # Mapping de vos fichiers
         fichiers_plateformes = {
-            'lbp': 'Portefeuille LPB 20250529.xlsx',
+            'lpb': 'Portefeuille LPB 20250529.xlsx',  # CORRIGÉ
             'pretup': 'Portefeuille PretUp 20250529.xlsx',
             'bienpreter': 'Portefeuille BienPreter 20250529.xlsx',
-            'homunity': 'Portefeuille Homunity 20250529.xlsx'
+            'homunity': 'Portefeuille Homunity 20250529.xlsx',
+            'assurance_vie': 'Portefeuille AV Linxea.xlsx'  # NOUVEAU
         }
         
-        succes_count = 0
+        success_count = 0
+        total_platforms = len(fichiers_plateformes)
         
-        # Charger les plateformes de crowdfunding
+        # Charger les plateformes
         for plateforme, filename in fichiers_plateformes.items():
             file_path = os.path.join(data_folder, filename)
+            
             if os.path.exists(file_path):
-                print(f"\n📂 Traitement de {plateforme.upper()}...")
-                if self.load_platform_data(file_path, plateforme, user_id):
-                    succes_count += 1
+                print(f"\n📊 Traitement {plateforme.upper()}...")
+                
+                if plateforme == 'assurance_vie':
+                    success = self.load_assurance_vie_data(file_path, user_id)
                 else:
-                    print(f"❌ Échec du chargement de {plateforme}")
+                    success = self.load_platform_data(file_path, plateforme, user_id)
+                
+                if success:
+                    success_count += 1
+                    print(f"✅ {plateforme.upper()} chargé")
+                else:
+                    print(f"❌ Échec {plateforme.upper()}")
             else:
                 print(f"⚠️  Fichier non trouvé: {file_path}")
         
-        # Charger les données PEA si disponibles
+        # Charger PEA si fichiers PDF disponibles
         pea_folder = os.path.join(data_folder, "pea")
-        releve_pea = None
-        evaluation_pea = None
-        
         if os.path.exists(pea_folder):
-            # Chercher les fichiers PEA
+            releve_pea = None
+            evaluation_pea = None
+            
             for file in os.listdir(pea_folder):
                 if file.lower().endswith('.pdf'):
-                    if 'releve' in file.lower() or 'compte' in file.lower():
+                    if any(keyword in file.lower() for keyword in ['releve', 'compte']):
                         releve_pea = os.path.join(pea_folder, file)
-                    elif 'evaluation' in file.lower() or 'portefeuille' in file.lower():
+                    elif any(keyword in file.lower() for keyword in ['evaluation', 'portefeuille']):
                         evaluation_pea = os.path.join(pea_folder, file)
             
             if releve_pea or evaluation_pea:
                 print(f"\n🏦 Traitement PEA...")
                 if self.load_pea_data(releve_pea, evaluation_pea, user_id):
-                    succes_count += 1
+                    success_count += 1
+                    total_platforms += 1
+                    print("✅ PEA chargé")
                 else:
-                    print(f"❌ Échec du chargement PEA")
+                    print("❌ Échec PEA")
+                    total_platforms += 1
         
-        total_platforms = len(fichiers_plateformes) + (1 if (releve_pea or evaluation_pea) else 0)
-        print(f"\n📋 Résumé: {succes_count}/{total_platforms} sources chargées avec succès")
+        # Résumé
+        print(f"\n📋 RÉSUMÉ CHARGEMENT:")
+        print(f"  ✅ Succès: {success_count}/{total_platforms} plateformes")
+        print(f"  📊 Taux de réussite: {(success_count/total_platforms)*100:.1f}%")
         
-        return succes_count > 0
+        if success_count > 0:
+            # Afficher résumé des données
+            self._display_loading_summary(user_id)
+        
+        return success_count > 0
+    
+    def _validate_parsed_data(self, investissements: list, flux_tresorerie: list, platform: str) -> bool:
+        """Valider les données parsées"""
+        
+        # Vérifications de base
+        if not investissements and not flux_tresorerie:
+            print(f"⚠️  Aucune donnée parsée pour {platform}")
+            return False
+        
+        # Vérifier structure investissements
+        for inv in investissements:
+            required_fields = ['id', 'user_id', 'platform', 'invested_amount']
+            if not all(field in inv for field in required_fields):
+                print(f"⚠️  Structure investissement invalide pour {platform}")
+                return False
+        
+        # Vérifier structure flux
+        for flux in flux_tresorerie:
+            required_fields = ['id', 'user_id', 'platform', 'flow_type', 'gross_amount']
+            if not all(field in flux for field in required_fields):
+                print(f"⚠️  Structure flux invalide pour {platform}")
+                return False
+        
+        return True
+    
+    def _display_loading_summary(self, user_id: str):
+        """Afficher résumé des données chargées"""
+        
+        try:
+            investments_df = self.db.get_user_investments(user_id)
+            cash_flows_df = self.db.get_user_cash_flows(user_id)
+            
+            print(f"\n📈 DONNÉES CHARGÉES:")
+            print(f"  💰 Investissements: {len(investments_df)}")
+            print(f"  💸 Flux de trésorerie: {len(cash_flows_df)}")
+            
+            if not investments_df.empty:
+                total_investi = investments_df['invested_amount'].sum()
+                print(f"  💵 Total investi: {total_investi:,.0f} €")
+                
+                # Par plateforme
+                platform_summary = investments_df.groupby('platform')['invested_amount'].agg(['count', 'sum'])
+                print(f"\n📊 RÉPARTITION PAR PLATEFORME:")
+                for platform, data in platform_summary.iterrows():
+                    count, amount = data['count'], data['sum']
+                    print(f"  {platform}: {count} positions, {amount:,.0f} €")
+            
+            if not cash_flows_df.empty and 'platform' in cash_flows_df.columns:
+                print(f"\n💰 FLUX PAR PLATEFORME:")
+                flux_summary = cash_flows_df.groupby('platform')['gross_amount'].agg(['count', 'sum'])
+                for platform, data in flux_summary.iterrows():
+                    count, amount = data['count'], data['sum']
+                    print(f"  {platform}: {count} flux, {amount:,.0f} € (brut)")
+        
+        except Exception as e:
+            print(f"⚠️  Erreur affichage résumé: {e}")
     
     def clear_user_data(self, user_id: str) -> bool:
-        """Vider toutes les données d'un utilisateur (utile pour les tests)"""
-        print(f"🗑️  Suppression des données de l'utilisateur {user_id}")
-        return self.db.clear_user_data(user_id)
+        """Vider toutes les données utilisateur"""
+        print(f"🗑️  Suppression données utilisateur {user_id}")
+        try:
+            return self.db.clear_user_data(user_id)
+        except Exception as e:
+            print(f"❌ Erreur suppression: {e}")
+            return False
     
-    def get_loading_summary(self, user_id: str) -> dict:
-        """Obtenir un résumé des données chargées"""
-        return self.db.get_platform_summary(user_id)
-    
-    def load_specific_pea_files(self, releve_path: str, evaluation_path: str, user_id: str) -> bool:
+    def validate_all_files(self, data_folder: str = "data/raw") -> Dict:
         """
-        Méthode utilitaire pour charger des fichiers PEA spécifiques
-        Utile pour les tests et le chargement manuel
+        Valider tous les fichiers avant chargement
+        Retourne un rapport de validation
         """
-        return self.load_pea_data(releve_path, evaluation_path, user_id)
-    
-    def validate_pea_files(self, releve_path: str = None, evaluation_path: str = None) -> dict:
-        """
-        Valider les fichiers PEA avant chargement
         
-        Returns:
-            dict: Résultats de validation avec statut et messages
-        """
-        validation_result = {
-            'valid': True,
-            'messages': [],
-            'files_found': {}
+        print(f"🔍 Validation des fichiers dans {data_folder}")
+        
+        validation_report = {
+            'valid_files': [],
+            'missing_files': [],
+            'invalid_files': [],
+            'total_files': 0,
+            'valid_count': 0
         }
         
-        files_to_validate = []
-        if releve_path:
-            files_to_validate.append(('releve', releve_path))
-        if evaluation_path:
-            files_to_validate.append(('evaluation', evaluation_path))
+        # Fichiers attendus
+        expected_files = {
+            'lpb': 'Portefeuille LPB 20250529.xlsx',
+            'pretup': 'Portefeuille PretUp 20250529.xlsx', 
+            'bienpreter': 'Portefeuille BienPreter 20250529.xlsx',
+            'homunity': 'Portefeuille Homunity 20250529.xlsx',
+            'assurance_vie': 'Portefeuille AV Linxea.xlsx'
+        }
         
-        if not files_to_validate:
-            validation_result['valid'] = False
-            validation_result['messages'].append("Aucun fichier PEA fourni")
-            return validation_result
+        validation_report['total_files'] = len(expected_files)
         
-        for file_type, file_path in files_to_validate:
+        for platform, filename in expected_files.items():
+            file_path = os.path.join(data_folder, filename)
+            
             if os.path.exists(file_path):
-                # Vérifier que c'est bien un PDF
-                if file_path.lower().endswith('.pdf'):
-                    try:
-                        # Test d'ouverture du PDF
-                        import pdfplumber
-                        with pdfplumber.open(file_path) as pdf:
-                            if len(pdf.pages) > 0:
-                                validation_result['files_found'][file_type] = {
-                                    'path': file_path,
-                                    'pages': len(pdf.pages),
-                                    'valid': True
-                                }
-                                validation_result['messages'].append(f"✅ {file_type.title()} PDF valide ({len(pdf.pages)} pages)")
-                            else:
-                                validation_result['valid'] = False
-                                validation_result['messages'].append(f"❌ {file_type.title()} PDF vide")
-                    except Exception as e:
-                        validation_result['valid'] = False
-                        validation_result['messages'].append(f"❌ {file_type.title()} PDF corrompu: {e}")
-                else:
-                    validation_result['valid'] = False
-                    validation_result['messages'].append(f"❌ {file_type.title()}: Format non-PDF")
+                try:
+                    # Test d'ouverture Excel
+                    import pandas as pd
+                    pd.read_excel(file_path, nrows=1)
+                    
+                    validation_report['valid_files'].append({
+                        'platform': platform,
+                        'filename': filename,
+                        'path': file_path
+                    })
+                    validation_report['valid_count'] += 1
+                    print(f"✅ {platform.upper()}: {filename}")
+                    
+                except Exception as e:
+                    validation_report['invalid_files'].append({
+                        'platform': platform,
+                        'filename': filename,
+                        'error': str(e)
+                    })
+                    print(f"❌ {platform.upper()}: Fichier corrompu - {e}")
             else:
-                validation_result['valid'] = False
-                validation_result['messages'].append(f"❌ {file_type.title()}: Fichier non trouvé")
+                validation_report['missing_files'].append({
+                    'platform': platform,
+                    'filename': filename
+                })
+                print(f"⚠️  {platform.upper()}: Fichier manquant - {filename}")
         
-        return validation_result
+        # Vérifier PEA
+        pea_folder = os.path.join(data_folder, "pea")
+        if os.path.exists(pea_folder):
+            pea_files = [f for f in os.listdir(pea_folder) if f.lower().endswith('.pdf')]
+            if pea_files:
+                validation_report['pea_files'] = pea_files
+                print(f"✅ PEA: {len(pea_files)} fichier(s) PDF trouvé(s)")
+            else:
+                print("⚠️  PEA: Aucun fichier PDF trouvé")
+        
+        print(f"\n📋 VALIDATION: {validation_report['valid_count']}/{validation_report['total_files']} fichiers valides")
+        
+        return validation_report
+    
+    def get_platform_summary(self, user_id: str) -> Dict:
+        """Obtenir un résumé par plateforme"""
+        
+        try:
+            investments_df = self.db.get_user_investments(user_id)
+            cash_flows_df = self.db.get_user_cash_flows(user_id)
+            
+            summary = {}
+            
+            if not investments_df.empty:
+                platform_summary = investments_df.groupby('platform').agg({
+                    'invested_amount': ['count', 'sum', 'mean'],
+                    'status': lambda x: x.value_counts().to_dict()
+                })
+                
+                for platform in platform_summary.index:
+                    count = platform_summary.loc[platform, ('invested_amount', 'count')]
+                    total = platform_summary.loc[platform, ('invested_amount', 'sum')]
+                    avg = platform_summary.loc[platform, ('invested_amount', 'mean')]
+                    status_dist = platform_summary.loc[platform, ('status', '<lambda>')]
+                    
+                    # Flux associés
+                    platform_flows = cash_flows_df[cash_flows_df['platform'] == platform] if 'platform' in cash_flows_df.columns else pd.DataFrame()
+                    flux_count = len(platform_flows)
+                    
+                    summary[platform] = {
+                        'nb_investissements': count,
+                        'capital_total': total,
+                        'ticket_moyen': avg,
+                        'repartition_statuts': status_dist,
+                        'nb_flux': flux_count
+                    }
+            
+            return summary
+            
+        except Exception as e:
+            print(f"❌ Erreur résumé plateformes: {e}")
+            return {}
+
+# ===== SCRIPT DE CHARGEMENT AUTOMATIQUE =====
+def load_user_data_auto(user_id: str = "29dec51d-0772-4e3a-8e8f-1fece8fefe0e", data_folder: str = "data/raw"):
+    """
+    Script automatique pour charger toutes vos données
+    À utiliser en ligne de commande ou dans Jupyter
+    """
+    
+    print("🚀 CHARGEMENT AUTOMATIQUE DONNÉES PATRIMOINE")
+    print("=" * 50)
+    
+    # Créer le loader
+    loader = CorrectedDataLoader()
+    
+    # Validation des fichiers
+    validation_report = loader.validate_all_files(data_folder)
+    
+    if validation_report['valid_count'] == 0:
+        print("❌ Aucun fichier valide trouvé")
+        return False
+    
+    # Chargement
+    print(f"\n📥 Début chargement pour utilisateur: {user_id}")
+    success = loader.load_all_user_files(user_id, data_folder)
+    
+    if success:
+        print("\n🎉 CHARGEMENT TERMINÉ AVEC SUCCÈS!")
+        
+        # Résumé final
+        summary = loader.get_platform_summary(user_id)
+        if summary:
+            print("\n📊 RÉSUMÉ FINAL:")
+            total_capital = sum(data['capital_total'] for data in summary.values())
+            total_positions = sum(data['nb_investissements'] for data in summary.values())
+            
+            print(f"  💰 Capital total: {total_capital:,.0f} €")
+            print(f"  📈 Positions totales: {total_positions}")
+            print(f"  🏢 Plateformes: {len(summary)}")
+    else:
+        print("\n❌ ÉCHEC DU CHARGEMENT")
+    
+    return success
+
+if __name__ == "__main__":
+    import sys
+    user_id = sys.argv[1] if len(sys.argv) > 1 else "29dec51d-0772-4e3a-8e8f-1fece8fefe0e"
+    data_folder = sys.argv[2] if len(sys.argv) > 2 else "data/raw"
+    
+    load_user_data_auto(user_id, data_folder)

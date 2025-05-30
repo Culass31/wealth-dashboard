@@ -1,42 +1,123 @@
-# Core Framework
-streamlit==1.29.0
-fastapi==0.104.1
-uvicorn==0.24.0
+# ===== REQUIREMENTS EXPERT PATRIMOINE =====
+# Dépendances pour l'application Expert Patrimoine
+# Installation: pip install -r requirements.txt
 
-# Database & Data Processing  
-supabase==2.3.0
-pandas==2.1.4
-numpy==1.25.2
-sqlalchemy==2.0.23
+# ===== CORE FRAMEWORK =====
+streamlit>=1.28.0                 # Interface web principale
+plotly>=5.17.0                    # Graphiques interactifs avancés
+pandas>=2.1.0                     # Manipulation données
+numpy>=1.24.0                     # Calculs numériques
 
-# Visualization
-plotly==5.17.0
+# ===== BASE DE DONNÉES =====
+supabase>=2.0.0                   # Client Supabase
+psycopg2-binary>=2.9.0            # PostgreSQL driver
+sqlalchemy>=2.0.0                 # ORM (optionnel)
 
-# File Processing
-openpyxl==3.1.2           # Excel files (crowdfunding)
-pdfplumber==0.10.3        # PDF parsing (PEA)
-python-multipart==0.0.6   # File uploads
+# ===== PARSING FICHIERS =====
+openpyxl>=3.1.0                   # Lecture Excel (.xlsx)
+xlrd>=2.0.0                       # Support Excel legacy (.xls)
+pdfplumber>=0.9.0                 # Extraction PDF (PEA)
+PyPDF2>=3.0.0                     # Parser PDF alternatif
+pdfminer.six>=20221105             # Parser PDF avancé
 
-# Advanced Analytics & Financial Data
-yfinance==0.2.28          # Benchmark data (CAC40, S&P500, etc.)
-scipy==1.11.4             # IRR calculations, statistics
-scikit-learn==1.3.2       # Risk metrics, clustering
+# ===== CALCULS FINANCIERS =====
+scipy>=1.11.0                     # Optimisation (TRI/XIRR)
+scikit-learn>=1.3.0              # Machine Learning (optionnel)
+yfinance>=0.2.18                  # Données financières benchmarks
+quantlib>=1.32                    # Bibliothèque financière avancée
 
-# Date & Time Processing
-python-dateutil==2.8.2    # Advanced date parsing
-python-dotenv==1.0.0      # Environment variables
+# ===== DATES ET TEMPS =====
+python-dateutil>=2.8.0           # Parsing dates flexible
+pytz>=2023.3                     # Gestion fuseaux horaires
 
-# Performance Optimization (Optional)
-numba==0.58.1             # Numpy acceleration
-joblib==1.3.2             # Parallel processing
+# ===== UTILITAIRES =====
+python-dotenv>=1.0.0             # Variables d'environnement
+requests>=2.31.0                 # Requêtes HTTP
+urllib3>=2.0.0                   # Client HTTP
 
-# Development & Testing
-pytest==7.4.3            # Unit testing
-black==23.11.0            # Code formatting  
-flake8==6.1.0             # Code linting
+# ===== VALIDATION ET TESTS =====
+pytest>=7.4.0                    # Framework de tests
+pytest-cov>=4.1.0               # Coverage des tests
+pydantic>=2.4.0                 # Validation données
 
-# Future Phase 3 - AI (Commented out for now)
-# gradio==4.7.1            # AI interfaces
-# langchain==0.1.0         # LLM orchestration
-# openai==1.3.0            # OpenAI API
-# anthropic==0.8.0         # Claude API
+# ===== EXPORT ET RAPPORTS =====
+reportlab>=4.0.0                 # Génération PDF
+jinja2>=3.1.0                   # Templates
+markdown>=3.5.0                 # Conversion Markdown
+
+# ===== OPTIMISATION PERFORMANCE =====
+cachetools>=5.3.0               # Cache mémoire
+redis>=4.6.0                    # Cache Redis (optionnel)
+celery>=5.3.0                   # Tâches asynchrones (optionnel)
+
+# ===== MONITORING ET LOGS =====
+loguru>=0.7.0                   # Logging avancé
+prometheus_client>=0.17.0       # Métriques (optionnel)
+
+# ===== DÉVELOPPEMENT =====
+black>=23.9.0                   # Formatage code
+flake8>=6.1.0                   # Linting
+mypy>=1.6.0                     # Type checking
+pre-commit>=3.5.0               # Hooks Git
+
+# ===== SÉCURITÉ =====
+cryptography>=41.0.0            # Chiffrement
+bcrypt>=4.0.0                   # Hachage passwords
+jwt>=1.3.0                      # JSON Web Tokens
+
+# ===== OPTIONNEL - ANALYSE AVANCÉE =====
+# matplotlib>=3.8.0             # Graphiques statiques
+# seaborn>=0.12.0               # Visualisations statistiques
+# jupyter>=1.0.0                # Notebooks interactifs
+# dash>=2.14.0                  # Alternative à Streamlit
+
+# ===== OPTIONNEL - MACHINE LEARNING =====
+# tensorflow>=2.13.0           # Deep Learning
+# pytorch>=2.1.0               # Deep Learning alternatif
+# xgboost>=1.7.0               # Gradient boosting
+
+# ===== OPTIONNEL - DÉPLOIEMENT =====
+# gunicorn>=21.2.0             # Serveur WSGI
+# nginx>=1.25.0                # Serveur web
+# docker>=6.1.0                # Containerisation
+
+# ===== VERSION CONSTRAINTS =====
+# Python >= 3.8 requis pour support typing avancé
+# Streamlit >= 1.28 pour nouvelles fonctionnalités
+# Pandas >= 2.1 pour meilleures performances
+# Plotly >= 5.17 pour graphiques interactifs
+
+# ===== INSTALLATION RECOMMANDÉE =====
+# 1. Créer environnement virtuel:
+#    python -m venv venv
+#    source venv/bin/activate  # Linux/Mac
+#    venv\Scripts\activate     # Windows
+#
+# 2. Mettre à jour pip:
+#    pip install --upgrade pip
+#
+# 3. Installer dépendances:
+#    pip install -r requirements.txt
+#
+# 4. Vérifier installation:
+#    python -c "import streamlit, pandas, plotly; print('✅ Installation OK')"
+
+# ===== DÉPENDANCES SYSTÈME =====
+# Sur Ubuntu/Debian:
+# sudo apt-get update
+# sudo apt-get install python3-dev postgresql-client libpq-dev
+# sudo apt-get install build-essential
+#
+# Sur macOS:
+# brew install postgresql
+# xcode-select --install
+#
+# Sur Windows:
+# Installer Visual Studio Build Tools
+# Télécharger PostgreSQL depuis postgresql.org
+
+# ===== ALTERNATIVES LÉGÈRES =====
+# Pour installation minimale (remplacer dans requirements.txt):
+# streamlit-lightweight>=1.0.0  # Version allégée
+# plotly-express>=0.4.1         # Plotly minimal
+# pandas-minimal>=2.1.0         # Pandas sans dépendances optionnelles
