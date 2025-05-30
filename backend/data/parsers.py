@@ -31,7 +31,7 @@ class LBPParser(PlatformParser):
             
             return investissements, flux_tresorerie
         except Exception as e:
-            print(f"❌ Erreur lors du parsing LBP: {e}")
+            print(f"❌ Erreur lors du parsing LPB: {e}")
             return [], []
     
     def _parse_projects(self, df: pd.DataFrame) -> List[Dict]:
