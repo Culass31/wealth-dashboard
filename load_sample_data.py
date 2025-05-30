@@ -14,7 +14,7 @@ def load_user_data(user_id: str = "luc-nazarian"):
     
     # Files to load (adjust paths as needed)
     files_to_load = [
-        ('data/raw/Portefeuille LPB 20250529.xlsx', 'lbp'),
+        ('data/raw/Portefeuille LPB 20250529.xlsx', 'lpb'),
         ('data/raw/Portefeuille PretUp 20250529.xlsx', 'pretup'),
         ('data/raw/Portefeuille BienPreter 20250529.xlsx', 'bienpreter'),
         ('data/raw/Portefeuille Homunity 20250529.xlsx', 'homunity'),

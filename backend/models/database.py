@@ -14,7 +14,7 @@ class DatabaseManager:
     def __init__(self):
         # Get credentials from environment
         self.supabase_url = os.getenv("SUPABASE_URL")
-        self.supabase_key = os.getenv("SUPABASE_KEY")
+        self.supabase_key = os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_SERVICE_KEY")
         
         if not self.supabase_url or not self.supabase_key:
             raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set in .env file")

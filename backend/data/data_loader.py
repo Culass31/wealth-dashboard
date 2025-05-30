@@ -1,5 +1,7 @@
+# ===== backend/data/data_loader.py - AVEC INTÉGRATION PEA =====
 from backend.models.database import DatabaseManager
 from backend.data.parsers import LBPParser, PretUpParser, BienPreterParser, HomunityParser
+from backend.data.pea_parser import PEAParser
 import os
 
 class DataLoader:
@@ -9,7 +11,7 @@ class DataLoader:
         self.db = DatabaseManager()
         
     def load_platform_data(self, file_path: str, platform: str, user_id: str) -> bool:
-        """Charger les données depuis un fichier de plateforme"""
+        """Charger les données depuis un fichier de plateforme crowdfunding"""
         
         print(f"📥 Chargement des données {platform.upper()} pour l'utilisateur {user_id}")
         
@@ -21,7 +23,7 @@ class DataLoader:
         elif platform.lower() == 'bienpreter':
             parser = BienPreterParser(user_id)
         elif platform.lower() == 'homunity':
-            parser = HomunityParser(user_id)  # NOUVEAU
+            parser = HomunityParser(user_id)
         else:
             print(f"❌ Parser non implémenté pour la plateforme: {platform}")
             return False
@@ -50,6 +52,119 @@ class DataLoader:
             traceback.print_exc()
             return False
     
+    def load_pea_data(self, releve_pdf_path: str = None, evaluation_pdf_path: str = None, user_id: str = None) -> bool:
+        """
+        Charger les données PEA depuis les PDFs Bourse Direct
+        
+        Args:
+            releve_pdf_path: Chemin vers le PDF du relevé de compte
+            evaluation_pdf_path: Chemin vers le PDF d'évaluation de portefeuille
+            user_id: ID utilisateur
+        
+        Returns:
+            bool: True si succès, False sinon
+        """
+        
+        if not user_id:
+            print("❌ User ID requis pour charger les données PEA")
+            return False
+        
+        print(f"🏦 Chargement des données PEA pour l'utilisateur {user_id}")
+        
+        # Vérifier qu'au moins un fichier est fourni
+        if not releve_pdf_path and not evaluation_pdf_path:
+            print("❌ Au moins un fichier PDF PEA est requis")
+            return False
+        
+        # Vérifier l'existence des fichiers
+        files_to_check = []
+        if releve_pdf_path:
+            files_to_check.append(('Relevé', releve_pdf_path))
+        if evaluation_pdf_path:
+            files_to_check.append(('Évaluation', evaluation_pdf_path))
+        
+        for file_type, file_path in files_to_check:
+            if not os.path.exists(file_path):
+                print(f"⚠️  Fichier {file_type} PEA non trouvé: {file_path}")
+                return False
+            else:
+                print(f"✅ Fichier {file_type} PEA trouvé: {file_path}")
+        
+        try:
+            # Créer le parser PEA
+            parser = PEAParser(user_id)
+            
+            # Parser les fichiers PDF
+            print("🔍 Parsing des fichiers PDF PEA...")
+            investissements, flux_tresorerie, positions = parser.parse_pdf_files(
+                releve_pdf_path, evaluation_pdf_path
+            )
+            
+            print(f"📊 Données PEA parsées:")
+            print(f"  - {len(investissements)} investissements")
+            print(f"  - {len(flux_tresorerie)} flux de trésorerie")
+            print(f"  - {len(positions)} positions")
+            
+            # Insérer en base de données
+            success_results = []
+            
+            # Insérer les investissements
+            if investissements:
+                success_inv = self.db.insert_investments(investissements)
+                success_results.append(('investissements', success_inv))
+                if success_inv:
+                    print(f"✅ {len(investissements)} investissements PEA insérés")
+                else:
+                    print(f"❌ Échec insertion investissements PEA")
+            else:
+                print("ℹ️  Aucun investissement PEA à insérer")
+                success_results.append(('investissements', True))
+            
+            # Insérer les flux de trésorerie
+            if flux_tresorerie:
+                success_cf = self.db.insert_cash_flows(flux_tresorerie)
+                success_results.append(('flux_tresorerie', success_cf))
+                if success_cf:
+                    print(f"✅ {len(flux_tresorerie)} flux de trésorerie PEA insérés")
+                else:
+                    print(f"❌ Échec insertion flux de trésorerie PEA")
+            else:
+                print("ℹ️  Aucun flux de trésorerie PEA à insérer")
+                success_results.append(('flux_tresorerie', True))
+            
+            # Insérer les positions (optionnel - nécessite une table portfolio_positions)
+            if positions:
+                try:
+                    success_pos = self.db.insert_portfolio_positions(positions)
+                    success_results.append(('positions', success_pos))
+                    if success_pos:
+                        print(f"✅ {len(positions)} positions PEA insérées")
+                    else:
+                        print(f"❌ Échec insertion positions PEA")
+                except AttributeError:
+                    print("ℹ️  Table positions non disponible - ignoré")
+                    success_results.append(('positions', True))
+            else:
+                print("ℹ️  Aucune position PEA à insérer")
+                success_results.append(('positions', True))
+            
+            # Vérifier le succès global
+            all_success = all(success for _, success in success_results)
+            
+            if all_success:
+                print("✅ Chargement PEA terminé avec succès")
+                return True
+            else:
+                failed_operations = [op for op, success in success_results if not success]
+                print(f"⚠️  Chargement PEA partiel - échecs: {', '.join(failed_operations)}")
+                return False
+            
+        except Exception as e:
+            print(f"❌ Erreur lors du chargement PEA: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
     def load_all_user_files(self, user_id: str, data_folder: str = "data/raw") -> bool:
         """Charger tous les fichiers depuis le dossier de données utilisateur"""
         
@@ -57,11 +172,12 @@ class DataLoader:
             'lbp': 'Portefeuille LPB 20250529.xlsx',
             'pretup': 'Portefeuille PretUp 20250529.xlsx',
             'bienpreter': 'Portefeuille BienPreter 20250529.xlsx',
-            'homunity': 'Portefeuille Homunity 20250529.xlsx'  # AJOUTÉ
+            'homunity': 'Portefeuille Homunity 20250529.xlsx'
         }
         
         succes_count = 0
         
+        # Charger les plateformes de crowdfunding
         for plateforme, filename in fichiers_plateformes.items():
             file_path = os.path.join(data_folder, filename)
             if os.path.exists(file_path):
@@ -73,7 +189,30 @@ class DataLoader:
             else:
                 print(f"⚠️  Fichier non trouvé: {file_path}")
         
-        print(f"\n📋 Résumé: {succes_count}/{len(fichiers_plateformes)} plateformes chargées avec succès")
+        # Charger les données PEA si disponibles
+        pea_folder = os.path.join(data_folder, "pea")
+        releve_pea = None
+        evaluation_pea = None
+        
+        if os.path.exists(pea_folder):
+            # Chercher les fichiers PEA
+            for file in os.listdir(pea_folder):
+                if file.lower().endswith('.pdf'):
+                    if 'releve' in file.lower() or 'compte' in file.lower():
+                        releve_pea = os.path.join(pea_folder, file)
+                    elif 'evaluation' in file.lower() or 'portefeuille' in file.lower():
+                        evaluation_pea = os.path.join(pea_folder, file)
+            
+            if releve_pea or evaluation_pea:
+                print(f"\n🏦 Traitement PEA...")
+                if self.load_pea_data(releve_pea, evaluation_pea, user_id):
+                    succes_count += 1
+                else:
+                    print(f"❌ Échec du chargement PEA")
+        
+        total_platforms = len(fichiers_plateformes) + (1 if (releve_pea or evaluation_pea) else 0)
+        print(f"\n📋 Résumé: {succes_count}/{total_platforms} sources chargées avec succès")
+        
         return succes_count > 0
     
     def clear_user_data(self, user_id: str) -> bool:
@@ -84,291 +223,64 @@ class DataLoader:
     def get_loading_summary(self, user_id: str) -> dict:
         """Obtenir un résumé des données chargées"""
         return self.db.get_platform_summary(user_id)
-
-# ===== backend/models/database.py - MISE À JOUR POUR AUTHENTIFICATION SIMPLIFIÉE =====
-from supabase import create_client, Client
-import pandas as pd
-from typing import List, Dict, Any, Optional
-import uuid
-import os
-from dotenv import load_dotenv
-
-# Charger les variables d'environnement
-load_dotenv()
-
-class DatabaseManager:
-    """Gestionnaire de base de données Supabase avec authentification simplifiée"""
     
-    def __init__(self):
-        # Récupérer les identifiants depuis l'environnement
-        self.supabase_url = os.getenv("SUPABASE_URL")
-        self.supabase_key = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
+    def load_specific_pea_files(self, releve_path: str, evaluation_path: str, user_id: str) -> bool:
+        """
+        Méthode utilitaire pour charger des fichiers PEA spécifiques
+        Utile pour les tests et le chargement manuel
+        """
+        return self.load_pea_data(releve_path, evaluation_path, user_id)
+    
+    def validate_pea_files(self, releve_path: str = None, evaluation_path: str = None) -> dict:
+        """
+        Valider les fichiers PEA avant chargement
         
-        if not self.supabase_url or not self.supabase_key:
-            raise ValueError("SUPABASE_URL et SUPABASE_KEY doivent être définis dans le fichier .env")
+        Returns:
+            dict: Résultats de validation avec statut et messages
+        """
+        validation_result = {
+            'valid': True,
+            'messages': [],
+            'files_found': {}
+        }
         
-        try:
-            self.supabase: Client = create_client(
-                self.supabase_url, 
-                self.supabase_key
-            )
-            print("✅ Connexion à Supabase réussie")
-        except Exception as e:
-            raise ConnectionError(f"Échec de la connexion à Supabase: {e}")
-    
-    def test_connection(self) -> bool:
-        """Tester la connexion à la base de données"""
-        try:
-            # Test simple avec count
-            result = self.supabase.table('investments').select("count").limit(1).execute()
-            return True
-        except Exception as e:
-            print(f"Test de connexion échoué: {e}")
-            return False
-    
-    def insert_investments(self, investments: List[Dict[str, Any]]) -> bool:
-        """Insérer plusieurs investissements"""
-        if not investments:
-            print("Aucun investissement à insérer")
-            return True
-            
-        try:
-            # Nettoyer les données avant insertion
-            investments_clean = []
-            for inv in investments:
-                inv_clean = self._clean_investment_data(inv)
-                if inv_clean:
-                    investments_clean.append(inv_clean)
-            
-            if investments_clean:
-                result = self.supabase.table('investments').insert(investments_clean).execute()
-                print(f"✅ {len(investments_clean)} investissements insérés")
-                return True
-            else:
-                print("⚠️  Aucun investissement valide à insérer")
-                return False
-                
-        except Exception as e:
-            print(f"❌ Erreur lors de l'insertion des investissements: {e}")
-            return False
-    
-    def insert_cash_flows(self, cash_flows: List[Dict[str, Any]]) -> bool:
-        """Insérer plusieurs flux de trésorerie"""
-        if not cash_flows:
-            print("Aucun flux de trésorerie à insérer")
-            return True
-            
-        try:
-            # Nettoyer les données avant insertion
-            cash_flows_clean = []
-            for cf in cash_flows:
-                cf_clean = self._clean_cash_flow_data(cf)
-                if cf_clean:
-                    cash_flows_clean.append(cf_clean)
-            
-            if cash_flows_clean:
-                result = self.supabase.table('cash_flows').insert(cash_flows_clean).execute()
-                print(f"✅ {len(cash_flows_clean)} flux de trésorerie insérés")
-                return True
-            else:
-                print("⚠️  Aucun flux de trésorerie valide à insérer")  
-                return False
-                
-        except Exception as e:
-            print(f"❌ Erreur lors de l'insertion des flux de trésorerie: {e}")
-            return False
-    
-    def _clean_investment_data(self, investment: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Nettoyer les données d'investissement avant insertion"""
-        try:
-            # Vérifier les champs obligatoires
-            if not investment.get('investment_date'):
-                print(f"⚠️  Date d'investissement manquante pour {investment.get('project_name', 'Projet inconnu')}")
-                return None
-            
-            if not investment.get('invested_amount') or investment.get('invested_amount') <= 0:
-                print(f"⚠️  Montant d'investissement invalide pour {investment.get('project_name', 'Projet inconnu')}")
-                return None
-            
-            # Nettoyer et valider les données
-            cleaned = {
-                'id': investment.get('id', str(uuid.uuid4())),
-                'user_id': investment.get('user_id'),
-                'platform': investment.get('platform'),
-                'platform_id': investment.get('platform_id'),
-                'investment_type': investment.get('investment_type', 'crowdfunding'),
-                'asset_class': investment.get('asset_class', 'real_estate'),
-                'project_name': investment.get('project_name', ''),
-                'company_name': investment.get('company_name', ''),
-                'invested_amount': float(investment.get('invested_amount', 0)),
-                'annual_rate': float(investment.get('annual_rate', 0)) if investment.get('annual_rate') else None,
-                'investment_date': investment.get('investment_date'),
-                'status': investment.get('status', 'active'),
-                'created_at': investment.get('created_at'),
-                'updated_at': investment.get('updated_at')
-            }
-            
-            # Ajouter les champs optionnels seulement s'ils existent
-            optional_fields = ['signature_date', 'expected_end_date', 'actual_end_date', 
-                             'current_value', 'duration_months', 'sector', 'geographic_zone']
-            
-            for field in optional_fields:
-                if investment.get(field):
-                    cleaned[field] = investment[field]
-            
-            return cleaned
-            
-        except Exception as e:
-            print(f"❌ Erreur lors du nettoyage des données d'investissement: {e}")
-            return None
-    
-    def _clean_cash_flow_data(self, cash_flow: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Nettoyer les données de flux de trésorerie avant insertion"""
-        try:
-            # Vérifier les champs obligatoires
-            if not cash_flow.get('transaction_date'):
-                print(f"⚠️  Date de transaction manquante pour {cash_flow.get('description', 'Transaction inconnue')}")
-                return None
-            
-            if not cash_flow.get('gross_amount') or cash_flow.get('gross_amount') <= 0:
-                print(f"⚠️  Montant invalide pour {cash_flow.get('description', 'Transaction inconnue')}")
-                return None
-            
-            # Nettoyer et valider les données
-            cleaned = {
-                'id': cash_flow.get('id', str(uuid.uuid4())),
-                'user_id': cash_flow.get('user_id'),
-                'flow_type': cash_flow.get('flow_type', 'other'),
-                'flow_direction': cash_flow.get('flow_direction', 'in'),
-                'gross_amount': float(cash_flow.get('gross_amount', 0)),
-                'net_amount': float(cash_flow.get('net_amount', 0)),
-                'transaction_date': cash_flow.get('transaction_date'),
-                'status': cash_flow.get('status', 'completed'),
-                'description': cash_flow.get('description', ''),
-                'created_at': cash_flow.get('created_at')
-            }
-            
-            # Ajouter les champs optionnels
-            optional_fields = ['investment_id', 'capital_amount', 'interest_amount', 
-                             'fee_amount', 'tax_amount', 'expected_date', 'payment_method']
-            
-            for field in optional_fields:
-                if cash_flow.get(field) is not None:
-                    cleaned[field] = cash_flow[field]
-            
-            return cleaned
-            
-        except Exception as e:
-            print(f"❌ Erreur lors du nettoyage des données de flux: {e}")
-            return None
-    
-    def get_user_investments(self, user_id: str, platform: Optional[str] = None) -> pd.DataFrame:
-        """Récupérer les investissements utilisateur sous forme de DataFrame"""
-        try:
-            query = self.supabase.table('investments').select("*").eq('user_id', user_id)
-            if platform:
-                query = query.eq('platform', platform)
-            
-            result = query.execute()
-            
-            if result.data:
-                df = pd.DataFrame(result.data)
-                print(f"📊 {len(df)} investissements récupérés pour l'utilisateur {user_id}")
-                return df
-            else:
-                print(f"Aucun investissement trouvé pour l'utilisateur {user_id}")
-                return pd.DataFrame()
-                
-        except Exception as e:
-            print(f"❌ Erreur lors de la récupération des investissements: {e}")
-            return pd.DataFrame()
-    
-    def get_user_cash_flows(self, user_id: str, start_date: Optional[str] = None) -> pd.DataFrame:
-        """Récupérer les flux de trésorerie utilisateur sous forme de DataFrame"""
-        try:
-            query = self.supabase.table('cash_flows').select("*").eq('user_id', user_id)
-            if start_date:
-                query = query.gte('transaction_date', start_date)
-            
-            result = query.execute()
-            
-            if result.data:
-                df = pd.DataFrame(result.data)
-                print(f"💰 {len(df)} flux de trésorerie récupérés pour l'utilisateur {user_id}")
-                return df
-            else:
-                print(f"Aucun flux de trésorerie trouvé pour l'utilisateur {user_id}")
-                return pd.DataFrame()
-                
-        except Exception as e:
-            print(f"❌ Erreur lors de la récupération des flux de trésorerie: {e}")
-            return pd.DataFrame()
-    
-    def clear_user_data(self, user_id: str) -> bool:
-        """Supprimer toutes les données d'un utilisateur (utile pour les tests)"""
-        try:
-            # Supprimer dans le bon ordre à cause des clés étrangères
-            self.supabase.table('cash_flows').delete().eq('user_id', user_id).execute()
-            self.supabase.table('portfolio_positions').delete().eq('user_id', user_id).execute()
-            self.supabase.table('investments').delete().eq('user_id', user_id).execute()
-            print(f"🗑️  Toutes les données supprimées pour l'utilisateur {user_id}")
-            return True
-        except Exception as e:
-            print(f"❌ Erreur lors de la suppression des données: {e}")
-            return False
-    
-    def get_platform_summary(self, user_id: str) -> Dict[str, Any]:
-        """Obtenir des statistiques de résumé par plateforme"""
-        try:
-            investments_df = self.get_user_investments(user_id)
-            cash_flows_df = self.get_user_cash_flows(user_id)
-            
-            summary = {}
-            
-            if not investments_df.empty:
-                # Statistiques par plateforme
-                platform_stats = investments_df.groupby('platform').agg({
-                    'invested_amount': ['sum', 'count'],
-                    'status': lambda x: (x == 'active').sum()
-                }).round(2)
-                
-                summary['plateformes'] = platform_stats.to_dict()
-                summary['total_investi'] = investments_df['invested_amount'].sum()
-                summary['total_projets'] = len(investments_df)
-            
-            if not cash_flows_df.empty:
-                cash_flows_df['transaction_date'] = pd.to_datetime(cash_flows_df['transaction_date'])
-                entrees = cash_flows_df[cash_flows_df['flow_direction'] == 'in']['net_amount'].sum()
-                sorties = abs(cash_flows_df[cash_flows_df['flow_direction'] == 'out']['net_amount'].sum())
-                
-                summary['total_entrees'] = entrees
-                summary['total_sorties'] = sorties
-                summary['performance_nette'] = entrees - sorties
-            
-            return summary
-            
-        except Exception as e:
-            print(f"❌ Erreur lors de la génération du résumé: {e}")
-            return {}
-
-# Test function
-def test_database_connection():
-    """Fonction de test pour vérifier la configuration de la base de données"""
-    try:
-        print("🔍 Test de la connexion à la base de données...")
-        db = DatabaseManager()
+        files_to_validate = []
+        if releve_path:
+            files_to_validate.append(('releve', releve_path))
+        if evaluation_path:
+            files_to_validate.append(('evaluation', evaluation_path))
         
-        if db.test_connection():
-            print("✅ Connexion à la base de données réussie!")
-            return True
-        else:
-            print("❌ Connexion à la base de données échouée!")
-            return False
-            
-    except Exception as e:
-        print(f"❌ Erreur de configuration de la base de données: {e}")
-        return False
-
-if __name__ == "__main__":
-    # Tester la connexion lors de l'exécution directe de ce fichier
-    test_database_connection()
+        if not files_to_validate:
+            validation_result['valid'] = False
+            validation_result['messages'].append("Aucun fichier PEA fourni")
+            return validation_result
+        
+        for file_type, file_path in files_to_validate:
+            if os.path.exists(file_path):
+                # Vérifier que c'est bien un PDF
+                if file_path.lower().endswith('.pdf'):
+                    try:
+                        # Test d'ouverture du PDF
+                        import pdfplumber
+                        with pdfplumber.open(file_path) as pdf:
+                            if len(pdf.pages) > 0:
+                                validation_result['files_found'][file_type] = {
+                                    'path': file_path,
+                                    'pages': len(pdf.pages),
+                                    'valid': True
+                                }
+                                validation_result['messages'].append(f"✅ {file_type.title()} PDF valide ({len(pdf.pages)} pages)")
+                            else:
+                                validation_result['valid'] = False
+                                validation_result['messages'].append(f"❌ {file_type.title()} PDF vide")
+                    except Exception as e:
+                        validation_result['valid'] = False
+                        validation_result['messages'].append(f"❌ {file_type.title()} PDF corrompu: {e}")
+                else:
+                    validation_result['valid'] = False
+                    validation_result['messages'].append(f"❌ {file_type.title()}: Format non-PDF")
+            else:
+                validation_result['valid'] = False
+                validation_result['messages'].append(f"❌ {file_type.title()}: Fichier non trouvé")
+        
+        return validation_result

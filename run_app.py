@@ -19,7 +19,7 @@ def main():
     # Run Streamlit
     try:
         subprocess.run([
-            sys.executable, "-m", "streamlit", "run", "app.py",
+            sys.executable, "-m", "streamlit", "run", "advanced_dashboard.py",
             "--server.port", "8501",
             "--server.address", "localhost"
         ])
