@@ -674,7 +674,7 @@ class UnifiedPortfolioParser:
                 
                 # CORRECTION PRINCIPALE : Gestion robuste du type d'opération
                 type_operation_raw = safe_get(row, 1, '')
-                type_operation = clean_string_operation(type_operation_raw).lower()
+                type_operation = str(type_operation_raw).lower() if type_operation_raw is not None else ''
                 
                 # Debug pour comprendre le contenu
                 if idx < 3:  # Afficher les 3 premières lignes pour debug
@@ -948,74 +948,204 @@ class UnifiedPortfolioParser:
         return cleaned if cleaned else "Transaction PEA"
 
     def _parse_pea_evaluation(self, pdf_path: str) -> List[Dict]:
-        """Parser évaluation PEA avec extraction ISIN/valorisation"""
+        """Parser évaluation PEA avec extraction tableau améliorée"""
         positions = []
         
+        print(f"📄 Parsing PEA évaluation: {pdf_path}")
+        
         with pdfplumber.open(pdf_path) as pdf:
-            for page in pdf.pages:
-                # Essayer tableaux d'abord
+            for page_num, page in enumerate(pdf.pages):
+                print(f"  📖 Page {page_num + 1}...")
+                
+                # Méthode 1 : Extraction de tableaux
                 tables = page.extract_tables()
                 
-                for table in tables:
-                    if table and len(table) > 1:
-                        header = table[0] if table[0] else []
-                        if any('Désignation' in str(cell) for cell in header if cell):
-                            positions.extend(self._parse_pea_positions_table(table))
+                if tables:
+                    print(f"    📊 {len(tables)} tableau(x) trouvé(s)")
+                    
+                    for table_idx, table in enumerate(tables):
+                        if table and len(table) > 1:
+                            print(f"    📋 Tableau {table_idx + 1}: {len(table)} lignes")
+                            
+                            # Vérifier si c'est un tableau de positions (contient des ISIN)
+                            has_isin = False
+                            for row in table[:3]:  # Vérifier les 3 premières lignes
+                                if any(re.search(r'FR\d{10}', str(cell)) for cell in row if cell):
+                                    has_isin = True
+                                    break
+                            
+                            if has_isin:
+                                print(f"    ✅ Tableau de positions détecté")
+                                extracted_positions = self._parse_pea_positions_table(table)
+                                positions.extend(extracted_positions)
+                            else:
+                                print(f"    ⚠️  Tableau ignoré (pas de positions)")
                 
-                # Fallback texte
-                if not positions:
+                # Méthode 2 : Fallback texte si pas de tableaux
+                if not tables:
+                    print(f"    📝 Pas de tableaux, essai extraction texte...")
                     text = page.extract_text()
-                    if text and 'EVALUATION' in text:
-                        positions.extend(self._parse_pea_positions_text(text))
+                    if text and 'EVALUATION' in text.upper():
+                        text_positions = self._parse_pea_positions_text(text)
+                        positions.extend(text_positions)
+        
+        print(f"✅ PEA évaluation parsée: {len(positions)} positions totales")
+        return positions
+    
+    def _parse_pea_positions_text(self, text: str) -> List[Dict]:
+        """Parser positions PEA depuis texte brut (fallback)"""
+        positions = []
+        
+        print("📝 Extraction PEA depuis texte...")
+        
+        lines = text.split('\n')
+        
+        for line_num, line in enumerate(lines):
+            # Chercher les lignes avec ISIN
+            isin_match = re.search(r'FR\d{10}', line)
+            if isin_match:
+                isin = isin_match.group(0)
+                
+                # Extraire nom (après ISIN)
+                asset_name = line.replace(isin, '').strip()
+                asset_name = re.sub(r'^\d+\s*', '', asset_name)  # Supprimer numéros début
+                
+                # Chercher les montants dans la ligne
+                amounts = re.findall(r'[\d\s,\.]+', line)
+                cleaned_amounts = []
+                
+                for amount_str in amounts:
+                    try:
+                        amount = clean_amount(amount_str)
+                        if amount > 0:
+                            cleaned_amounts.append(amount)
+                    except:
+                        continue
+                
+                # Assigner les montants selon l'ordre attendu: quantité, cours, valorisation
+                quantity = cleaned_amounts[0] if len(cleaned_amounts) > 0 else 0
+                price = cleaned_amounts[1] if len(cleaned_amounts) > 1 else 0
+                market_value = cleaned_amounts[2] if len(cleaned_amounts) > 2 else 0
+                
+                if quantity > 0 or market_value > 0:
+                    position = {
+                        'id': str(uuid.uuid4()),
+                        'user_id': self.user_id,
+                        'platform': 'PEA',
+                        'isin': isin,
+                        'asset_name': asset_name or f"Asset_{isin}",
+                        'quantity': quantity,
+                        'current_price': price,
+                        'market_value': market_value,
+                        'portfolio_percentage': 0.0,
+                        'asset_class': self._classify_pea_asset(asset_name),
+                        'valuation_date': datetime.now().strftime('%Y-%m-%d'),
+                        'created_at': datetime.now().isoformat()
+                    }
+                    
+                    positions.append(position)
+                    print(f"  ✅ Position texte: {isin} - {asset_name[:20]}...")
         
         return positions
 
     def _parse_pea_positions_table(self, table: List[List]) -> List[Dict]:
-        """Parser tableau positions PEA"""
+        """Parser tableau positions PEA CORRIGÉ pour traitement ligne par ligne"""
         positions = []
         
-        for row in table[1:]:  # Skip header
+        print(f"📊 Analyse tableau PEA: {len(table)} lignes")
+        
+        if not table or len(table) < 2:
+            print("⚠️  Tableau PEA vide ou trop petit")
+            return positions
+        
+        # Analyser l'en-tête pour comprendre la structure
+        header = table[0] if table[0] else []
+        print(f"📋 En-tête détecté: {header}")
+        
+        # Détecter les colonnes
+        col_mapping = {
+            'designation': 0,  # Colonne ISIN + Nom
+            'quantity': 1,     # Quantité  
+            'price': 2,        # Cours
+            'value': 3,        # Valorisation
+            'percentage': 4    # %
+        }
+        
+        # Parser chaque ligne individuellement
+        for row_idx, row in enumerate(table[1:], 1):  # Skip header
             if not row or not any(cell for cell in row):
                 continue
             
-            # Extraction ISIN
-            designation = str(row[0]) if row[0] else ''
-            isin_match = re.search(r'FR\d{10}', designation) or re.search(r'NL\d{10}', designation)
-            isin = isin_match.group(0) if isin_match else None
-            
-            if not isin:  # Ignorer sans ISIN
+            try:
+                print(f"  📄 Ligne {row_idx}: {row[:5]}...")  # Debug: afficher début de ligne
+                
+                # 1. Extraction ISIN et nom (colonne 0)
+                designation_cell = row[col_mapping['designation']] if len(row) > col_mapping['designation'] else ''
+                designation = str(designation_cell) if designation_cell else ''
+                
+                # Extraction ISIN
+                isin_match = re.search(r'FR\d{10}', designation)
+                isin = isin_match.group(0) if isin_match else None
+                
+                if not isin:  # Ignorer les lignes sans ISIN
+                    print(f"    ⚠️  Pas d'ISIN trouvé dans: {designation}")
+                    continue
+                
+                # Nom de l'actif (nettoyer)
+                asset_name = designation.replace(isin, '').strip()
+                asset_name = re.sub(r'^\d{3}\s*', '', asset_name).strip()  # Supprimer codes numériques
+                
+                # 2. Extraction quantité (colonne 1) - LIGNE PAR LIGNE
+                quantity_cell = row[col_mapping['quantity']] if len(row) > col_mapping['quantity'] else 0
+                quantity = clean_amount(quantity_cell) if quantity_cell is not None else 0
+                
+                # 3. Extraction cours (colonne 2) - LIGNE PAR LIGNE 
+                price_cell = row[col_mapping['price']] if len(row) > col_mapping['price'] else 0
+                price = clean_amount(price_cell) if price_cell is not None else 0
+                
+                # 4. Extraction valorisation (colonne 3) - LIGNE PAR LIGNE
+                value_cell = row[col_mapping['value']] if len(row) > col_mapping['value'] else 0
+                market_value = clean_amount(value_cell) if value_cell is not None else 0
+                
+                # 5. Extraction pourcentage (colonne 4) - LIGNE PAR LIGNE
+                percentage_cell = row[col_mapping['percentage']] if len(row) > col_mapping['percentage'] else 0
+                percentage = clean_amount(percentage_cell) if percentage_cell is not None else 0
+                
+                # Debug pour cette ligne
+                print(f"    ✅ {isin} | {asset_name[:15]}... | Qté:{quantity} | Cours:{price} | Val:{market_value}")
+                
+                # Validation des données
+                if quantity <= 0 and market_value <= 0:
+                    print(f"    ⚠️  Ligne ignorée: quantité et valorisation nulles")
+                    continue
+                
+                # Créer la position
+                position = {
+                    'id': str(uuid.uuid4()),
+                    'user_id': self.user_id,
+                    'platform': 'PEA',
+                    
+                    'isin': isin,
+                    'asset_name': asset_name or f"Asset_{isin}",
+                    'quantity': quantity,
+                    'current_price': price,
+                    'market_value': market_value,
+                    'portfolio_percentage': percentage,
+                    
+                    'asset_class': self._classify_pea_asset(asset_name),
+                    'valuation_date': datetime.now().strftime('%Y-%m-%d'),
+                    
+                    'created_at': datetime.now().isoformat()
+                }
+                
+                positions.append(position)
+                
+            except Exception as e:
+                print(f"    ❌ Erreur ligne {row_idx}: {e}")
+                print(f"       Contenu ligne: {row}")
                 continue
-            
-            # Nom actif nettoyé
-            asset_name = designation.replace(isin, '').strip()
-            asset_name = re.sub(r'^\d{3}\s*', '', asset_name).strip()
-            
-            # Montants
-            quantity = clean_amount(row[1]) if len(row) > 1 else 0
-            price = clean_amount(row[2]) if len(row) > 2 else 0
-            value = clean_amount(row[3]) if len(row) > 3 else 0
-            percentage = clean_amount(row[4]) if len(row) > 4 else 0
-            
-            position = {
-                'id': str(uuid.uuid4()),
-                'user_id': self.user_id,
-                'platform': 'PEA',
-                
-                'isin': isin,
-                'asset_name': asset_name,
-                'quantity': quantity,
-                'current_price': price,
-                'market_value': value,
-                'portfolio_percentage': percentage,
-                
-                'asset_class': self._classify_pea_asset(asset_name),
-                'valuation_date': datetime.now().strftime('%Y-%m-%d'),
-                
-                'created_at': datetime.now().isoformat()
-            }
-            
-            positions.append(position)
         
+        print(f"✅ PEA tableau parsé: {len(positions)} positions extraites")
         return positions
 
     def _classify_pea_asset(self, asset_name: str) -> str:

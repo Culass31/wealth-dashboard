@@ -80,6 +80,12 @@ def clean_amount(amount: Union[str, float, int]) -> float:
     """
     if pd.isna(amount) or amount is None or amount == '':
         return 0.0
+
+    #Gérer les strings multi-lignes (problème PEA)
+    if isinstance(amount, str) and '\n' in amount:
+        # Prendre seulement la première ligne
+        amount = amount.split('\n')[0].strip()
+        print(f"🔧 String multi-lignes détectée, prise première ligne: '{amount}'")
     
     try:
         # Si c'est déjà un nombre
