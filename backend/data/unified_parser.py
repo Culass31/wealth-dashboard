@@ -295,9 +295,9 @@ class UnifiedPortfolioParser:
             # Lecture des montants depuis les colonnes appropriées
             if 'remboursement' in operation.lower():
                 # Remboursement : brut/net/taxes disponibles
-                gross_amount = clean_amount(safe_get(row, 4, 0))  # Intérêts remb
-                tax_amount = clean_amount(safe_get(row, 5, 0))    # Prélèvements
-                net_amount = clean_amount(safe_get(row, 6, 0))    # Montant net
+                gross_amount = clean_amount(safe_get(row, 7, 0))  # Intérêts remb
+                tax_amount = clean_amount(safe_get(row, 8, 0))    # Prélèvements
+                net_amount = clean_amount(safe_get(row, 4, 0))    # Montant net
                 
                 flow_type = 'repayment'
                 flow_direction = 'in'
@@ -311,13 +311,13 @@ class UnifiedPortfolioParser:
                 net_amount = clean_amount(safe_get(row, 4, 0))
                 gross_amount = net_amount
                 tax_amount = 0.0
-                flow_type = 'bonus'
+                flow_type = 'interest'
                 flow_direction = 'in'
             
             elif 'dépôt' in operation.lower():
                 # Argent frais
                 gross_amount = clean_amount(safe_get(row, 4, 0))
-                net_amount = -gross_amount  # Sortie
+                net_amount = gross_amount
                 tax_amount = 0.0
                 flow_type = 'deposit'
                 flow_direction = 'out'
@@ -325,7 +325,7 @@ class UnifiedPortfolioParser:
             elif 'offre acceptée' in operation.lower():
                 # Investissement
                 gross_amount = clean_amount(safe_get(row, 4, 0))
-                net_amount = -gross_amount  # Sortie
+                net_amount = gross_amount
                 tax_amount = 0.0
                 flow_type = 'investment'
                 flow_direction = 'out'
@@ -755,7 +755,7 @@ class UnifiedPortfolioParser:
         return flux_tresorerie
     
     def _parse_pea_transaction_line(self, line: str) -> Optional[Dict]:
-        """Parser ligne transaction PEA avec extraction montants"""
+        """Parser ligne transaction PEA avec extraction montants CORRIGÉE"""
         
         # Extraire date
         date_match = re.match(r'^(\d{2}/\d{2}/\d{4})', line)
@@ -789,35 +789,80 @@ class UnifiedPortfolioParser:
             flow_type = 'other'
             flow_direction = 'in'
         
-        # Extraction montants (Débit/Crédit)
-        # Chercher patterns montants à la fin de ligne
-        amounts = re.findall(r'[\d\s]+,\d{2}', line)
-        
-        debit = 0.0
-        credit = 0.0
-        
-        if amounts:
-            if flow_direction == 'out':
-                debit = clean_amount(amounts[-1])  # Dernier montant = débit
-            else:
-                credit = clean_amount(amounts[-1])  # Dernier montant = crédit
-        
-        # Extraction quantité et cours pour achats/ventes
+        # CORRECTION : Extraction montants avec regex précises
+        # Extraction quantité et cours pour achats/ventes avec délimiteurs
         quantity = 0.0
         unit_price = 0.0
         
-        qty_match = re.search(r'Qté\s*:\s*([\d\s,\.]+)', line)
+        # Regex CORRIGÉE pour quantité - s'arrête avant "Cours" ou espaces multiples
+        qty_match = re.search(r'Qté\s*:\s*([\d,\.]+)(?=\s+[A-Za-z]|\s{2,}|$)', line)
         if qty_match:
             quantity = clean_amount(qty_match.group(1))
         
-        cours_match = re.search(r'Cours\s*:\s*([\d\s,\.]+)', line)
+        # Regex CORRIGÉE pour cours - s'arrête avant des espaces multiples ou fin
+        cours_match = re.search(r'Cours\s*:\s*([\d,\.]+)(?=\s{2,}|$)', line)
         if cours_match:
             unit_price = clean_amount(cours_match.group(1))
+        
+        # NOUVELLE APPROCHE : Extraction montants finaux plus intelligente
+        debit = 0.0
+        credit = 0.0
+        
+        # Nettoyer la ligne en enlevant les parties "Qté" et "Cours" déjà traitées
+        line_for_amounts = line
+        if qty_match:
+            line_for_amounts = line_for_amounts.replace(qty_match.group(0), ' ')
+        if cours_match:
+            line_for_amounts = line_for_amounts.replace(cours_match.group(0), ' ')
+        
+        # Chercher les montants restants (format français avec virgules décimales)
+        # Pattern pour montants : nombres avec virgule décimale et possibles espaces pour milliers
+        amount_pattern = r'(?:\d{1,3}(?:\s\d{3})*|\d+),\d{2}'
+        remaining_amounts = re.findall(amount_pattern, line_for_amounts)
+        
+        if remaining_amounts:
+            # Nettoyer et convertir les montants trouvés
+            cleaned_amounts = []
+            for amount_str in remaining_amounts:
+                try:
+                    # Nettoyer les espaces (séparateurs de milliers) et convertir
+                    cleaned = amount_str.replace(' ', '').replace(',', '.')
+                    amount_val = float(cleaned)
+                    cleaned_amounts.append(amount_val)
+                except:
+                    continue
+            
+            if cleaned_amounts:
+                # Prendre le montant le plus élevé (souvent le montant total de l'opération)
+                final_amount = max(cleaned_amounts)
+                
+                if flow_direction == 'out':
+                    debit = final_amount
+                else:
+                    credit = final_amount
+        
+        # Si pas de montants trouvés par regex, fallback sur l'ancienne méthode
+        if debit == 0.0 and credit == 0.0:
+            # Fallback : chercher tous les patterns numériques
+            all_amounts = re.findall(r'[\d\s,\.]+', line)
+            
+            if all_amounts:
+                # Prendre le dernier montant et le nettoyer proprement
+                last_amount_str = all_amounts[-1]
+                try:
+                    final_amount = clean_amount(last_amount_str)
+                    if final_amount > 0:
+                        if flow_direction == 'out':
+                            debit = final_amount
+                        else:
+                            credit = final_amount
+                except:
+                    pass
         
         # Description nettoyée
         description = self._extract_pea_description(line)
         
-        # Montant final
+        # Montant final pour le flux
         final_amount = credit if credit > 0 else debit
         net_amount = final_amount if flow_direction == 'in' else -final_amount
         
@@ -846,14 +891,21 @@ class UnifiedPortfolioParser:
         }
 
     def _extract_pea_description(self, line: str) -> str:
-        """Extraire description nettoyée PEA"""
-        # Enlever date, quantité, cours, montants
+        """AMÉLIORÉE : Extraire description nettoyée PEA"""
+        # Enlever date au début
         cleaned = re.sub(r'^\d{2}/\d{2}/\d{4}\s+', '', line)
-        cleaned = re.sub(r'Qté\s*:\s*[\d\s,\.]+', '', cleaned)
-        cleaned = re.sub(r'Cours\s*:\s*[\d\s,\.]+', '', cleaned)
-        cleaned = re.sub(r'[\d\s,\.]+$', '', cleaned)
         
-        return ' '.join(cleaned.split()).strip() or "Transaction PEA"
+        # Enlever quantité et cours avec leurs valeurs
+        cleaned = re.sub(r'Qté\s*:\s*[\d,\.]+(?=\s|$)', '', cleaned)
+        cleaned = re.sub(r'Cours\s*:\s*[\d,\.]+(?=\s|$)', '', cleaned)
+        
+        # Enlever les montants en fin de ligne (garder seulement le texte descriptif)
+        cleaned = re.sub(r'(?:\d{1,3}(?:\s\d{3})*|\d+),\d{2}(?:\s|$)', '', cleaned)
+        
+        # Nettoyer les espaces multiples
+        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+        
+        return cleaned if cleaned else "Transaction PEA"
 
     def _parse_pea_evaluation(self, pdf_path: str) -> List[Dict]:
         """Parser évaluation PEA avec extraction ISIN/valorisation"""
@@ -888,7 +940,7 @@ class UnifiedPortfolioParser:
             
             # Extraction ISIN
             designation = str(row[0]) if row[0] else ''
-            isin_match = re.search(r'FR\d{10}', designation)
+            isin_match = re.search(r'FR\d{10}', designation) or re.search(r'NL\d{10}', designation)
             isin = isin_match.group(0) if isin_match else None
             
             if not isin:  # Ignorer sans ISIN

@@ -91,6 +91,21 @@ def clean_amount(amount: Union[str, float, int]) -> float:
             # Nettoyer la chaîne
             cleaned = str(amount).strip()
             
+            # NOUVEAU: Gérer les montants multiples séparés par des espaces
+            # Ex: "44,25 443,49" -> prendre le dernier (montant total)
+            if ' ' in cleaned:
+                # Diviser par espaces et prendre le dernier élément non vide
+                parts = [part.strip() for part in cleaned.split() if part.strip()]
+                if parts:
+                    # Chercher le dernier élément qui ressemble à un montant
+                    for part in reversed(parts):
+                        if re.match(r'^[\d\s,\.]+$', part):
+                            cleaned = part
+                            break
+                    else:
+                        # Si aucun montant trouvé, prendre le dernier élément
+                        cleaned = parts[-1]
+            
             # Supprimer symboles monétaires et espaces
             cleaned = re.sub(r'[€$£¥₹\s]', '', cleaned)
             

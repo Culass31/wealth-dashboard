@@ -75,7 +75,7 @@ class ExpertDatabaseManager:
             return False
         
         # Vérifier plateforme valide
-        valid_platforms = ['LPB', 'PretUp', 'BienPreter', 'Homunity', 'PEA', 'Assurance_Vie']
+        valid_platforms = ['La Première Brique', 'PretUp', 'BienPrêter', 'Homunity', 'PEA', 'Assurance_Vie']
         if investment['platform'] not in valid_platforms:
             print(f"⚠️  Plateforme invalide: {investment['platform']}")
             return False
@@ -297,6 +297,118 @@ class ExpertDatabaseManager:
             return True
         except Exception as e:
             print(f"❌ Error clearing platform data: {e}")
+            return False
+        
+    def get_database_stats(self) -> Dict:
+        """Obtenir les statistiques de la base de données"""
+        print("📊 Analyse de la base de données...")
+        
+        stats = {}
+        tables = ['investments', 'cash_flows', 'portfolio_positions', 'financial_goals', 'user_preferences']
+        
+        total_records = 0
+        
+        for table in tables:
+            try:
+                # Compter les lignes
+                result = self.supabase.table(table).select('id').execute()
+                count = len(result.data) if result.data else 0
+                
+                # Obtenir quelques user_ids échantillons
+                sample_result = self.supabase.table(table).select("user_id").limit(5).execute()
+                sample_users = []
+                if sample_result.data:
+                    sample_users = list(set(row.get('user_id', 'N/A') for row in sample_result.data if row.get('user_id')))
+                
+                stats[table] = {
+                    'count': count,
+                    'sample_users': sample_users[:3]  # Max 3 user_ids
+                }
+                
+                total_records += count
+                
+            except Exception as e:
+                stats[table] = {'count': 0, 'error': str(e)}
+        
+        stats['total_records'] = total_records
+        
+        # Affichage
+        print(f"\n📋 STATISTIQUES BASE DE DONNÉES:")
+        print(f"   📊 Total enregistrements: {total_records}")
+        
+        for table, data in stats.items():
+            if table != 'total_records':
+                count = data.get('count', 0)
+                users = data.get('sample_users', [])
+                print(f"   📄 {table}: {count} lignes")
+                if users:
+                    print(f"      👤 Utilisateurs: {', '.join(str(u)[:8] + '...' for u in users)}")
+        
+        return stats
+
+    def clear_all_data(self, confirm: bool = False) -> bool:
+        """Supprimer TOUTES les données de TOUTES les tables"""
+        if not confirm:
+            print("❌ Confirmation requise : clear_all_data(confirm=True)")
+            return False
+        
+        print("🗑️ SUPPRESSION TOTALE DE TOUTES LES DONNÉES...")
+        
+        try:
+            # Obtenir tous les user_ids
+            result_inv = self.supabase.table('investments').select('user_id').execute()
+            result_cf = self.supabase.table('cash_flows').select('user_id').execute()
+            
+            user_ids = set()
+            
+            if result_inv.data:
+                for row in result_inv.data:
+                    if row.get('user_id'):
+                        user_ids.add(row['user_id'])
+            
+            if result_cf.data:
+                for row in result_cf.data:
+                    if row.get('user_id'):
+                        user_ids.add(row['user_id'])
+            
+            # Supprimer tous les utilisateurs
+            success_count = 0
+            for user_id in user_ids:
+                if self.clear_user_data(str(user_id)):
+                    success_count += 1
+            
+            # Nettoyage final
+            tables = ['portfolio_positions', 'financial_goals', 'user_preferences']
+            for table in tables:
+                try:
+                    self.supabase.table(table).delete().gte('id', '00000000-0000-0000-0000-000000000000').execute()
+                except:
+                    pass
+            
+            print(f"✅ {success_count} utilisateurs supprimés")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Erreur suppression globale: {e}")
+            return False
+
+    def truncate_table(self, table_name: str, confirm: bool = False) -> bool:
+        """Vider une table spécifique"""
+        if not confirm:
+            print(f"❌ Confirmation requise : truncate_table('{table_name}', confirm=True)")
+            return False
+        
+        try:
+            result = self.supabase.table(table_name).select('id').execute()
+            count_before = len(result.data) if result.data else 0
+            
+            self.supabase.table(table_name).delete().gte('id', '00000000-0000-0000-0000-000000000000').execute()
+            
+            print(f"✅ Table '{table_name}': {count_before} lignes supprimées")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Erreur truncate table '{table_name}': {e}")
             return False
     
     # ===== MÉTHODES D'ANALYSE =====
