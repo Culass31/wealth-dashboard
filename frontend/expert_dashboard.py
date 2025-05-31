@@ -4,8 +4,6 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import numpy as np
-from datetime import datetime, timedelta
 import sys
 import os
 
@@ -13,7 +11,6 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from backend.models.database import DatabaseManager
-from backend.data.data_loader import CorrectedDataLoader
 from backend.analytics.expert_metrics import ExpertPatrimoineCalculator
 
 # Configuration de la page

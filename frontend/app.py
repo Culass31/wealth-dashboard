@@ -2,16 +2,14 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import numpy as np
-from datetime import datetime, timedelta
 import sys
 import os
 
 # Ajouter le backend au path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from backend.models.database import DatabaseManager
+from backend.models.database import ExpertDatabaseManager
 from backend.data.data_loader import DataLoader
 from backend.analytics.advanced_metrics import AdvancedMetricsCalculator
 from backend.analytics.financial_freedom import FinancialFreedomSimulator, FinancialProfile
@@ -74,7 +72,7 @@ if 'user_id' not in st.session_state:
 @st.cache_data(ttl=300)
 def charger_donnees_utilisateur(user_id: str):
     """Charger les données utilisateur avec mise en cache"""
-    db = DatabaseManager()
+    db = ExpertDatabaseManager()
     investissements_df = db.get_user_investments(user_id)
     flux_tresorerie_df = db.get_user_cash_flows(user_id)
     return investissements_df, flux_tresorerie_df
@@ -82,7 +80,7 @@ def charger_donnees_utilisateur(user_id: str):
 @st.cache_data(ttl=300)
 def charger_donnees_avancees(user_id: str):
     """Charger les données avec métriques avancées"""
-    db = DatabaseManager()
+    db = ExpertDatabaseManager()
     calculator = AdvancedMetricsCalculator()
     
     investissements_df = db.get_user_investments(user_id)
@@ -239,7 +237,7 @@ def charger_fichiers_pea(releve_pdf, evaluation_pdf, user_id):
         )
         
         # Charger en BDD
-        db = DatabaseManager()
+        db = ExpertDatabaseManager()
         success_inv = db.insert_investments(investissements) if investissements else True
         success_cf = db.insert_cash_flows(flux_tresorerie) if flux_tresorerie else True
         
@@ -601,7 +599,7 @@ def page_gestion_pea():
     
     # Afficher les données PEA existantes
     try:
-        db = DatabaseManager()
+        db = ExpertDatabaseManager()
         investissements_df = db.get_user_investments(st.session_state.user_id, platform='PEA')
         flux_tresorerie_df = db.get_user_cash_flows(st.session_state.user_id)
         
@@ -671,7 +669,7 @@ def page_configuration():
     st.subheader("ℹ️ Informations Système")
     
     try:
-        db = DatabaseManager()
+        db = ExpertDatabaseManager()
         investissements_df = db.get_user_investments(st.session_state.user_id)
         flux_tresorerie_df = db.get_user_cash_flows(st.session_state.user_id)
         
@@ -715,7 +713,7 @@ def page_configuration():
         if st.button("⚠️ Supprimer Toutes Données", type="secondary"):
             if st.checkbox("Je confirme la suppression"):
                 try:
-                    db = DatabaseManager()
+                    db = ExpertDatabaseManager()
                     db.clear_user_data(st.session_state.user_id)
                     st.success("Données supprimées !")
                     st.cache_data.clear()

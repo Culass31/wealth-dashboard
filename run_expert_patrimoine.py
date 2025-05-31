@@ -58,9 +58,9 @@ def validate_data_files(data_folder: str) -> bool:
     print(f"🔍 Validation des fichiers dans {data_folder}...")
     
     try:
-        from backend.data.data_loader import CorrectedDataLoader
+        from backend.data.data_loader import DataLoader
         
-        loader = CorrectedDataLoader()
+        loader = DataLoader()
         validation_report = loader.validate_all_files(data_folder)
         
         valid_count = validation_report['valid_count']
@@ -132,7 +132,6 @@ def run_dashboard(dashboard_type: str = "expert", port: int = 8501):
     dashboard_files = {
         "expert": "frontend/expert_dashboard.py",
         "standard": "frontend/app.py",
-        "advanced": "frontend/advanced_dashboard.py"
     }
     
     dashboard_file = dashboard_files.get(dashboard_type, dashboard_files["expert"])
@@ -243,11 +242,11 @@ def show_help():
    
 📁 STRUCTURE FICHIERS ATTENDUS:
    data/raw/
-   ├── Portefeuille LPB 20250529.xlsx
-   ├── Portefeuille PretUp 20250529.xlsx  
-   ├── Portefeuille BienPreter 20250529.xlsx
-   ├── Portefeuille Homunity 20250529.xlsx
-   ├── Portefeuille AV Linxea.xlsx
+   ├── Portefeuille LPB.xlsx
+   ├── Portefeuille PretUp.xlsx  
+   ├── Portefeuille BienPreter.xlsx
+   ├── Portefeuille Homunity.xlsx
+   ├── Portefeuille Linxea.xlsx
    └── pea/
        ├── releve_pea.pdf
        └── evaluation_pea.pdf
@@ -347,14 +346,12 @@ def main():
         print("\n📊 Quel dashboard lancer ?")
         print("1. Dashboard Expert (recommandé)")
         print("2. Dashboard Standard")
-        print("3. Dashboard Avancé")
         
         choice = input("Choix (1-3) [1]: ").strip() or "1"
         
         dashboard_map = {
             "1": "expert",
-            "2": "standard", 
-            "3": "advanced"
+            "2": "standard",
         }
         
         dashboard_type = dashboard_map.get(choice, "expert")

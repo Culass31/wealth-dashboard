@@ -1,97 +1,124 @@
--- 1. Table principale des investissements
-CREATE TABLE investments (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    platform VARCHAR(50) NOT NULL, -- 'LBP', 'PretUp', 'BienPreter', 'Homunity', 'PEA', 'AV'
-    platform_id VARCHAR(100), -- ID du projet/contrat sur la plateforme
-    investment_type VARCHAR(50) NOT NULL, -- 'crowdfunding', 'stocks', 'insurance', 'crypto'
-    asset_class VARCHAR(50), -- 'real_estate', 'equity', 'bond', 'alternative'
+-- ===== SCHÉMA BASE DE DONNÉES CORRIGÉ - PATRIMOINE EXPERT =====
+-- Ajout colonne platform dans cash_flows + nouvelles colonnes expert
+
+-- 1. TABLE INVESTMENTS
+CREATE TABLE IF NOT EXISTS investments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    platform VARCHAR(50) NOT NULL,  -- LPB, PretUp, BienPreter, Homunity, PEA, Assurance_Vie
+    platform_id VARCHAR(100),       -- ID plateforme externe
+    investment_type VARCHAR(50) NOT NULL, -- crowdfunding, stocks, bonds, funds
+    asset_class VARCHAR(50),         -- real_estate, equity, fixed_income, mixed
     
     -- Informations projet/actif
-    project_name VARCHAR(200),
-    company_name VARCHAR(200),
-    sector VARCHAR(100),
-    geographic_zone VARCHAR(100),
+    project_name VARCHAR(255),
+    company_name VARCHAR(255),
+    isin VARCHAR(12),               -- Pour PEA/AV (code ISIN)
     
     -- Données financières
-    invested_amount DECIMAL(12,2) NOT NULL,
-    current_value DECIMAL(12,2),
-    annual_rate DECIMAL(5,2), -- Taux annuel %
-    duration_months INTEGER,
+    invested_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+    current_value DECIMAL(15,2),    -- Valorisation actuelle
+    annual_rate DECIMAL(5,2),       -- Taux annuel
+    duration_months INTEGER,        -- Durée en mois
+    capital_repaid DECIMAL(15,2),  -- Capital remboursé
+    remaining_capital DECIMAL(15,2), -- Capital restant dû
+    monthly_payment DECIMAL(10,2),  -- Mensualité (pour calculs fiscaux)
     
-    -- Dates importantes
-    investment_date DATE NOT NULL,
-    signature_date DATE,
-    expected_end_date DATE,
-    actual_end_date DATE,
+    -- Dates critiques pour TRI
+    investment_date DATE,           -- Date réelle d'investissement (pour TRI)
+    signature_date DATE,            -- Date signature/souscription
+    expected_end_date DATE,         -- Date de fin prévue
+    actual_end_date DATE,           -- Date de fin réelle
     
-    -- Statut
-    status VARCHAR(50) NOT NULL, -- 'active', 'completed', 'defaulted', 'delayed', 'in_procedure'
+    -- Statuts et indicateurs
+    status VARCHAR(50) DEFAULT 'active', -- active, completed, delayed, defaulted, in_procedure
+    is_delayed BOOLEAN DEFAULT FALSE,     -- Projet en retard
+    is_short_term BOOLEAN DEFAULT FALSE,  -- Immobilisation < 6 mois
     
     -- Métadonnées
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 2. Table des flux de trésorerie (remboursements, dividendes, etc.)
-CREATE TABLE cash_flows (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    investment_id UUID REFERENCES investments(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+-- 2. TABLE CASH_FLOWS
+CREATE TABLE IF NOT EXISTS cash_flows (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    investment_id UUID REFERENCES investments(id), -- Clé étrangère (peut être NULL)
+    user_id UUID NOT NULL,
+    platform VARCHAR(50) NOT NULL,  -- 🔥 AJOUTÉ: Traçabilité par plateforme
     
-    -- Type de flux
-    flow_type VARCHAR(50) NOT NULL, -- 'repayment', 'dividend', 'interest', 'fee', 'deposit', 'withdrawal'
-    flow_direction VARCHAR(10) NOT NULL, -- 'in', 'out'
+    -- Classification du flux
+    flow_type VARCHAR(50) NOT NULL,      -- deposit, investment, repayment, interest, dividend, fee, sale, other
+    flow_direction VARCHAR(10) NOT NULL, -- in, out
     
-    -- Montants
-    gross_amount DECIMAL(12,2) NOT NULL,
-    net_amount DECIMAL(12,2) NOT NULL,
-    capital_amount DECIMAL(12,2) DEFAULT 0,
-    interest_amount DECIMAL(12,2) DEFAULT 0,
-    fee_amount DECIMAL(12,2) DEFAULT 0,
-    tax_amount DECIMAL(12,2) DEFAULT 0,
+    -- Montants avec gestion fiscale expert
+    gross_amount DECIMAL(15,2) NOT NULL DEFAULT 0,  -- Montant brut
+    net_amount DECIMAL(15,2) NOT NULL DEFAULT 0,    -- Montant net après taxes
+    tax_amount DECIMAL(15,2) DEFAULT 0,             -- Montant des taxes
     
-    -- Date et statut
+    -- Détail pour TRI et analyses
+    capital_amount DECIMAL(15,2) DEFAULT 0,         -- Part capital
+    interest_amount DECIMAL(15,2) DEFAULT 0,        -- Part intérêts
+    
+    -- Dates et statut
     transaction_date DATE NOT NULL,
-    expected_date DATE,
-    status VARCHAR(50) DEFAULT 'completed', -- 'completed', 'pending', 'failed'
+    status VARCHAR(50) DEFAULT 'completed',          -- completed, pending, failed
     
-    -- Informations complémentaires
+    -- Descriptions
     description TEXT,
-    payment_method VARCHAR(50),
+    payment_method VARCHAR(100),
     
+    -- Métadonnées
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 3. Table des positions PEA/AV (valorisation temps réel)
-CREATE TABLE portfolio_positions (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    investment_id UUID REFERENCES investments(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+-- 3. NOUVELLE TABLE PORTFOLIO_POSITIONS (pour PEA/AV)
+CREATE TABLE IF NOT EXISTS portfolio_positions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    platform VARCHAR(50) NOT NULL,     -- PEA, Assurance_Vie
     
     -- Identification actif
-    isin VARCHAR(20),
-    ticker VARCHAR(20),
-    asset_name VARCHAR(200) NOT NULL,
+    isin VARCHAR(12),                   -- Code ISIN
+    asset_name VARCHAR(255) NOT NULL,   -- Nom de l'actif
+    asset_class VARCHAR(50),            -- stock, etf, fund, bond
     
-    -- Position
-    quantity DECIMAL(15,6),
-    average_price DECIMAL(12,4),
-    current_price DECIMAL(12,4),
-    currency VARCHAR(3) DEFAULT 'EUR',
+    -- Position actuelle
+    quantity DECIMAL(15,6) NOT NULL DEFAULT 0,
+    current_price DECIMAL(15,4) DEFAULT 0,
+    market_value DECIMAL(15,2) DEFAULT 0,
+    portfolio_percentage DECIMAL(5,2) DEFAULT 0,
     
-    -- Valorisation
-    market_value DECIMAL(12,2),
-    unrealized_pnl DECIMAL(12,2),
-    unrealized_pnl_pct DECIMAL(8,4),
-    
-    -- Date de valorisation
+    -- Dates
     valuation_date DATE NOT NULL,
     
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    -- Métadonnées
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 4. Table des objectifs et projections
+-- 4. TABLE EXPERT_METRICS_CACHE (pour performances)
+CREATE TABLE IF NOT EXISTS expert_metrics_cache (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    platform VARCHAR(50),              -- NULL = global
+    metric_type VARCHAR(100) NOT NULL, -- tri, capital_en_cours, concentration, etc.
+    
+    -- Valeurs métriques
+    metric_value DECIMAL(15,4),        -- Valeur principale
+    metric_percentage DECIMAL(5,2),    -- Valeur en pourcentage
+    metric_json JSONB,                 -- Données complexes
+    
+    -- Métadonnées calcul
+    calculation_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    calculation_period_start DATE,
+    calculation_period_end DATE,
+    
+    -- Index pour performances
+    UNIQUE(user_id, platform, metric_type)
+);
+
+-- 5. Table des objectifs et projections
 CREATE TABLE financial_goals (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -107,7 +134,7 @@ CREATE TABLE financial_goals (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 5. Table de configuration utilisateur
+-- 6. Table de configuration utilisateur
 CREATE TABLE user_preferences (
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
     
@@ -125,37 +152,41 @@ CREATE TABLE user_preferences (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 6. Index pour optimiser les performances
-CREATE INDEX idx_investments_user_platform ON investments(user_id, platform);
-CREATE INDEX idx_investments_date ON investments(investment_date);
-CREATE INDEX idx_cash_flows_user_date ON cash_flows(user_id, transaction_date);
-CREATE INDEX idx_cash_flows_investment ON cash_flows(investment_id);
-CREATE INDEX idx_portfolio_positions_user ON portfolio_positions(user_id, valuation_date);
+-- ===== INDEX POUR PERFORMANCES =====
 
--- 7. RLS (Row Level Security) pour la sécurité
-ALTER TABLE investments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE cash_flows ENABLE ROW LEVEL SECURITY;
-ALTER TABLE portfolio_positions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE financial_goals ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
+-- Index principales tables
+CREATE INDEX IF NOT EXISTS idx_investments_user_platform ON investments(user_id, platform);
+CREATE INDEX IF NOT EXISTS idx_investments_status ON investments(status);
+CREATE INDEX IF NOT EXISTS idx_investments_dates ON investments(investment_date, expected_end_date);
 
--- Politiques RLS : chaque utilisateur ne voit que ses données
-CREATE POLICY "Users can view own investments" ON investments
-    FOR ALL USING (auth.uid() = user_id);
+CREATE INDEX IF NOT EXISTS idx_cash_flows_user_platform ON cash_flows(user_id, platform);
+CREATE INDEX IF NOT EXISTS idx_cash_flows_type_direction ON cash_flows(flow_type, flow_direction);
+CREATE INDEX IF NOT EXISTS idx_cash_flows_date ON cash_flows(transaction_date);
+CREATE INDEX IF NOT EXISTS idx_cash_flows_investment ON cash_flows(investment_id);
 
-CREATE POLICY "Users can view own cash flows" ON cash_flows
-    FOR ALL USING (auth.uid() = user_id);
+CREATE INDEX IF NOT EXISTS idx_positions_user_platform ON portfolio_positions(user_id, platform);
+CREATE INDEX IF NOT EXISTS idx_positions_isin ON portfolio_positions(isin);
 
-CREATE POLICY "Users can view own positions" ON portfolio_positions
-    FOR ALL USING (auth.uid() = user_id);
+CREATE INDEX IF NOT EXISTS idx_metrics_cache_user ON expert_metrics_cache(user_id, platform, metric_type);
 
-CREATE POLICY "Users can view own goals" ON financial_goals
-    FOR ALL USING (auth.uid() = user_id);
+-- ===== CONTRAINTES =====
 
-CREATE POLICY "Users can view own preferences" ON user_preferences
-    FOR ALL USING (auth.uid() = user_id);
+-- Contraintes check
+ALTER TABLE cash_flows ADD CONSTRAINT chk_flow_direction 
+    CHECK (flow_direction IN ('in', 'out'));
 
--- 8. Fonction pour mettre à jour updated_at automatiquement
+ALTER TABLE cash_flows ADD CONSTRAINT chk_flow_type 
+    CHECK (flow_type IN ('deposit', 'withdrawal', 'investment', 'repayment', 'interest', 'dividend', 'fee', 'sale', 'purchase', 'adjustment', 'other'));
+
+ALTER TABLE investments ADD CONSTRAINT chk_investment_status 
+    CHECK (status IN ('active', 'completed', 'delayed', 'defaulted', 'in_procedure'));
+
+ALTER TABLE investments ADD CONSTRAINT chk_platform 
+    CHECK (platform IN ('La Première Brique', 'PretUp', 'BienPrêter', 'Homunity', 'PEA', 'Assurance_Vie'));
+
+-- ===== FONCTIONS UTILITAIRES =====
+
+-- Fonction mise à jour automatique updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -164,154 +195,146 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+-- Triggers pour updated_at
 CREATE TRIGGER update_investments_updated_at 
     BEFORE UPDATE ON investments 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_user_preferences_updated_at 
-    BEFORE UPDATE ON user_preferences 
+CREATE TRIGGER update_positions_updated_at 
+    BEFORE UPDATE ON portfolio_positions 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- ===== Script pour DÉSACTIVER temporairement RLS (DÉVELOPPEMENT UNIQUEMENT) =====
--- À exécuter dans l'éditeur SQL de Supabase
+-- ===== VUES POUR ANALYSES RAPIDES =====
 
--- ⚠️  ATTENTION: Ceci désactive la sécurité au niveau des lignes
--- À utiliser UNIQUEMENT en développement avec des données de test
-
--- 1. Désactiver RLS sur toutes les tables
-ALTER TABLE investments DISABLE ROW LEVEL SECURITY;
-ALTER TABLE cash_flows DISABLE ROW LEVEL SECURITY;
-ALTER TABLE portfolio_positions DISABLE ROW LEVEL SECURITY;
-ALTER TABLE financial_goals DISABLE ROW LEVEL SECURITY;
-ALTER TABLE user_preferences DISABLE ROW LEVEL SECURITY;
-
--- 2. Créer un utilisateur de test (optionnel)
--- Insérer un utilisateur de test directement dans auth.users
--- NOTE: En production, utilisez l'authentification Supabase normale
-
-INSERT INTO auth.users (
-    id,
-    email,
-    encrypted_password,
-    email_confirmed_at,
-    created_at,
-    updated_at,
-    raw_app_meta_data,
-    raw_user_meta_data,
-    is_super_admin,
-    role
-) VALUES (
-    '29dec51d-0772-4e3a-8e8f-1fece8fefe0e'::uuid,
-    'luc.nazarian@gmail.com',
-    crypt('password123', gen_salt('bf')),
-    now(),
-    now(),
-    now(),
-    '{"provider": "email", "providers": ["email"]}',
-    '{"full_name": "Luc Nazarian"}',
-    false,
-    'authenticated'
-) ON CONFLICT (id) DO NOTHING;
-
--- 3. Créer les préférences utilisateur par défaut
-INSERT INTO user_preferences (
-    user_id,
-    age,
-    risk_tolerance,
-    investment_horizon_years,
-    default_currency,
-    preferred_allocation,
-    created_at,
-    updated_at
-) VALUES (
-    '29dec51d-0772-4e3a-8e8f-1fece8fefe0e'::uuid,
-    43,
-    'moderate',
-    20,
-    'EUR',
-    '{"real_estate": 30, "stocks": 70, "bonds": 0}',
-    now(),
-    now()
-) ON CONFLICT (user_id) DO UPDATE SET
-    age = EXCLUDED.age,
-    risk_tolerance = EXCLUDED.risk_tolerance,
-    updated_at = now();
-
--- 4. Objectif de liberté financière
-INSERT INTO financial_goals (
-    user_id,
-    goal_name,
-    goal_type,
-    target_amount,
-    target_date,
-    monthly_contribution,
-    expected_return_rate,
-    is_active,
-    created_at
-) VALUES (
-    '29dec51d-0772-4e3a-8e8f-1fece8fefe0e'::uuid,
-    'Liberté Financière',
-    'financial_freedom',
-    500000.00,
-    '2045-01-01',
-    1500.00,
-    8,
-    true,
-    now()
-) ON CONFLICT DO NOTHING;
-
--- 5. Vérification des données
+-- Vue résumé par plateforme
+CREATE OR REPLACE VIEW v_platform_summary AS
 SELECT 
-    'Investments' as table_name, 
-    count(*) as row_count,
-    count(DISTINCT user_id) as unique_users
-FROM investments
-WHERE user_id = '29dec51d-0772-4e3a-8e8f-1fece8fefe0e'
+    i.user_id,
+    i.platform,
+    COUNT(*) as nb_investments,
+    SUM(i.invested_amount) as total_invested,
+    AVG(i.invested_amount) as avg_investment,
+    SUM(i.current_value) as total_current_value,
+    COUNT(CASE WHEN i.status = 'active' THEN 1 END) as active_count,
+    COUNT(CASE WHEN i.status = 'completed' THEN 1 END) as completed_count,
+    COUNT(CASE WHEN i.is_delayed THEN 1 END) as delayed_count,
+    AVG(i.duration_months) as avg_duration_months,
+    COUNT(CASE WHEN i.is_short_term THEN 1 END) as short_term_count
+FROM investments i
+GROUP BY i.user_id, i.platform;
 
-UNION ALL
-
+-- Vue flux mensuels
+CREATE OR REPLACE VIEW v_monthly_flows AS
 SELECT 
-    'Cash Flows' as table_name, 
-    count(*) as row_count,
-    count(DISTINCT user_id) as unique_users  
-FROM cash_flows
-WHERE user_id = '29dec51d-0772-4e3a-8e8f-1fece8fefe0e'
+    cf.user_id,
+    cf.platform,
+    DATE_TRUNC('month', cf.transaction_date) as month,
+    cf.flow_direction,
+    COUNT(*) as nb_flows,
+    SUM(cf.gross_amount) as total_gross,
+    SUM(cf.net_amount) as total_net,
+    SUM(cf.tax_amount) as total_tax
+FROM cash_flows cf
+GROUP BY cf.user_id, cf.platform, DATE_TRUNC('month', cf.transaction_date), cf.flow_direction;
 
-UNION ALL
-
+-- Vue concentration par émetteur
+CREATE OR REPLACE VIEW v_concentration_analysis AS
 SELECT 
-    'User Preferences' as table_name,
-    count(*) as row_count,
-    count(DISTINCT user_id) as unique_users
-FROM user_preferences
-WHERE user_id = '29dec51d-0772-4e3a-8e8f-1fece8fefe0e';
+    i.user_id,
+    i.platform,
+    i.company_name,
+    COUNT(*) as nb_projects,
+    SUM(i.invested_amount) as total_amount,
+    SUM(i.invested_amount) / SUM(SUM(i.invested_amount)) OVER (PARTITION BY i.user_id, i.platform) as share_percentage
+FROM investments i
+WHERE i.company_name IS NOT NULL
+GROUP BY i.user_id, i.platform, i.company_name;
 
--- ===== Pour RÉACTIVER RLS plus tard (PRODUCTION) =====
--- Décommenter et exécuter ces lignes pour réactiver la sécurité
+-- ===== SCRIPT DE MIGRATION =====
 
-/*
--- Réactiver RLS
-ALTER TABLE investments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE cash_flows ENABLE ROW LEVEL SECURITY; 
-ALTER TABLE portfolio_positions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE financial_goals ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
+-- Ajouter la colonne platform si elle n'existe pas
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'cash_flows' AND column_name = 'platform'
+    ) THEN
+        ALTER TABLE cash_flows ADD COLUMN platform VARCHAR(50);
+        
+        -- Mise à jour des données existantes basée sur investment_id
+        UPDATE cash_flows cf 
+        SET platform = i.platform 
+        FROM investments i 
+        WHERE cf.investment_id = i.id 
+        AND cf.platform IS NULL;
+        
+        -- Pour les flux sans investment_id, deviner la plateforme par description
+        UPDATE cash_flows 
+        SET platform = CASE 
+            WHEN description ILIKE '%LPB%' OR description ILIKE '%première brique%' THEN 'LPB'
+            WHEN description ILIKE '%pretup%' THEN 'PretUp'
+            WHEN description ILIKE '%bienpreter%' OR description ILIKE '%bien preter%' THEN 'BienPreter'
+            WHEN description ILIKE '%homunity%' THEN 'Homunity'
+            WHEN description ILIKE '%pea%' OR payment_method = 'PEA' THEN 'PEA'
+            WHEN description ILIKE '%assurance%' OR description ILIKE '%av%' THEN 'Assurance_Vie'
+            ELSE 'Unknown'
+        END
+        WHERE platform IS NULL;
+        
+        -- Rendre la colonne NOT NULL après mise à jour
+        ALTER TABLE cash_flows ALTER COLUMN platform SET NOT NULL;
+        
+        RAISE NOTICE 'Colonne platform ajoutée à cash_flows et données migrées';
+    END IF;
+END
+$$;
 
--- Recréer les politiques RLS
-CREATE POLICY "Users can view own investments" ON investments
-    FOR ALL USING (auth.uid() = user_id);
+-- ===== DONNÉES DE TEST =====
 
-CREATE POLICY "Users can view own cash flows" ON cash_flows
-    FOR ALL USING (auth.uid() = user_id);
+-- Fonction pour générer des données de test
+CREATE OR REPLACE FUNCTION generate_test_data(p_user_id UUID DEFAULT '29dec51d-0772-4e3a-8e8f-1fece8fefe0e'::UUID)
+RETURNS void AS $$
+BEGIN
+    -- Supprimer données existantes pour ce user
+    DELETE FROM cash_flows WHERE user_id = p_user_id;
+    DELETE FROM investments WHERE user_id = p_user_id;
+    DELETE FROM portfolio_positions WHERE user_id = p_user_id;
+    
+    -- Investissement LPB
+    INSERT INTO investments (user_id, platform, investment_type, asset_class, project_name, company_name, 
+                           invested_amount, annual_rate, duration_months, investment_date, expected_end_date, status) 
+    VALUES (p_user_id, 'LPB', 'crowdfunding', 'real_estate', 'Résidence Les Jardins', 'Promoteur ABC', 
+            10000, 8.5, 18, '2023-01-15', '2024-07-15', 'active');
+    
+    -- Flux LPB
+    INSERT INTO cash_flows (user_id, platform, flow_type, flow_direction, gross_amount, net_amount, 
+                          transaction_date, description)
+    VALUES 
+    (p_user_id, 'LPB', 'deposit', 'out', 10000, -10000, '2023-01-10', 'Crédit du compte'),
+    (p_user_id, 'LPB', 'repayment', 'in', 500, 350, '2023-07-15', 'Remboursement mensualité');
+    
+    RAISE NOTICE 'Données de test générées pour user %', p_user_id;
+END;
+$$ LANGUAGE plpgsql;
 
-CREATE POLICY "Users can view own positions" ON portfolio_positions
-    FOR ALL USING (auth.uid() = user_id);
+-- ===== COMMENTAIRES =====
 
-CREATE POLICY "Users can view own goals" ON financial_goals
-    FOR ALL USING (auth.uid() = user_id);
+COMMENT ON TABLE investments IS 'Table principale des investissements avec support multi-plateformes';
+COMMENT ON TABLE cash_flows IS 'Flux de trésorerie avec traçabilité par plateforme pour calculs TRI';
+COMMENT ON TABLE portfolio_positions IS 'Positions actuelles pour PEA et Assurance Vie';
+COMMENT ON TABLE expert_metrics_cache IS 'Cache des métriques calculées pour optimiser les performances';
 
-CREATE POLICY "Users can view own preferences" ON user_preferences
-    FOR ALL USING (auth.uid() = user_id);
-*/
-alter Table investments
-    Add Column IF NOT EXISTS capital_repaired numeric; -- 'crowdlending', 'equity_crowdfunding', 'real_estate_crowdfunding', 'crypto', 'stocks', 'bonds', 'insurance', 'other';
+COMMENT ON COLUMN cash_flows.platform IS 'Plateforme source du flux - CRUCIAL pour calculs TRI par plateforme';
+COMMENT ON COLUMN cash_flows.gross_amount IS 'Montant brut avant taxes';
+COMMENT ON COLUMN cash_flows.net_amount IS 'Montant net après taxes (flat tax 30%)';
+COMMENT ON COLUMN cash_flows.tax_amount IS 'Montant des taxes (CSG/CRDS + IR)';
+
+COMMENT ON COLUMN investments.investment_date IS 'Date réelle investissement - UTILISÉE pour calcul TRI';
+COMMENT ON COLUMN investments.signature_date IS 'Date signature/souscription - pour suivi administratif';
+COMMENT ON COLUMN investments.is_delayed IS 'Indicateur automatique de retard vs expected_end_date';
+COMMENT ON COLUMN investments.is_short_term IS 'Immobilisation courte < 6 mois pour analyse liquidité';
+
+-- ===== GRANTS (à adapter selon votre setup) =====
+
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO your_app_user;
+-- GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO your_app_user;

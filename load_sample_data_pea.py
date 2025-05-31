@@ -4,8 +4,9 @@ Usage: python load_sample_data_pea.py [user_id]
 """
 import os
 import sys
+import pandas as pd
 from pathlib import Path
-from backend.data.data_loader import DataLoader
+from backend.data.data_loader import UnifiedPortfolioParser
 from backend.models.database import DatabaseManager
 
 def find_pea_files(data_folder: str = "data/raw") -> dict:
@@ -64,7 +65,7 @@ def find_pea_files(data_folder: str = "data/raw") -> dict:
 def validate_and_load_pea(user_id: str, releve_path: str = None, evaluation_path: str = None) -> bool:
     """Valider et charger les données PEA"""
     
-    loader = DataLoader()
+    loader = UnifiedPortfolioParser()
     
     # Validation des fichiers
     print("\n🔍 Validation des fichiers PEA...")

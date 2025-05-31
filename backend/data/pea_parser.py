@@ -1,484 +1,270 @@
-# ===== backend/data/pea_parser.py - VERSION CORRIGÉE =====
-import pdfplumber
 import pandas as pd
-from typing import List, Dict, Any, Tuple
-from datetime import datetime
 import uuid
+from datetime import datetime
+from typing import List, Dict, Tuple, Any
+from backend.data.parsers import PlatformParser
+from backend.utils.file_helpers import standardize_date, safe_get
 import re
-import os
-from backend.utils.file_helpers import standardize_date, clean_amount, safe_get
 
-class PEAParser:
-    """Parser pour les PDFs PEA de Bourse Direct"""
+# Utiliser la nouvelle fonction clean_amount
+def clean_amount_pea(amount) -> float:
+    """Version spécialisée pour les montants PEA français"""
+    if pd.isna(amount) or amount is None or amount == '':
+        return 0.0
     
-    def __init__(self, user_id: str):
-        self.user_id = user_id
-    
-    def parse_pdf_files(self, releve_path: str = None, evaluation_path: str = None) -> Tuple[List[Dict], List[Dict], List[Dict]]:
-        """
-        Parser les fichiers PDF PEA et retourner (investissements, flux_tresorerie, positions)
-        """
-        investissements = []
-        flux_tresorerie = []
-        positions = []
+    if isinstance(amount, str):
+        cleaned = amount.strip()
+        cleaned = cleaned.replace('€', '').replace('EUR', '').replace('$', '')
         
-        # Parser le relevé de compte (transactions)
-        if releve_path:
-            try:
-                flux_tresorerie = self._parse_releve_compte(releve_path)
-                print(f"✅ Relevé PEA parsé: {len(flux_tresorerie)} transactions")
-            except Exception as e:
-                print(f"❌ Erreur parsing relevé PEA: {e}")
-                import traceback
-                traceback.print_exc()
-        
-        # Parser l'évaluation de portefeuille (positions actuelles)
-        if evaluation_path:
-            try:
-                positions = self._parse_evaluation_portefeuille(evaluation_path)
-                investissements = self._convert_positions_to_investments(positions)
-                print(f"✅ Évaluation PEA parsée: {len(positions)} positions")
-            except Exception as e:
-                print(f"❌ Erreur parsing évaluation PEA: {e}")
-                import traceback
-                traceback.print_exc()
-        
-        return investissements, flux_tresorerie, positions
-    
-    def _parse_releve_compte(self, pdf_path: str) -> List[Dict]:
-        """Parser le relevé de compte PEA"""
-        flux_tresorerie = []
-        
-        with pdfplumber.open(pdf_path) as pdf:
-            for page in pdf.pages:
-                text = page.extract_text()
-                if not text:
-                    continue
+        # Gérer les formats français complexes avec espaces
+        if ',' in cleaned and ('.' not in cleaned or cleaned.rfind(',') > cleaned.rfind('.')):
+            parts = cleaned.split(',')
+            if len(parts) == 2:
+                integer_part = parts[0].replace(' ', '').replace('.', '')
+                decimal_part = parts[1].replace(' ', '')
                 
-                # Chercher les transactions dans le texte
-                transactions = self._extract_transactions_from_text(text)
-                flux_tresorerie.extend(transactions)
-        
-        return flux_tresorerie
-    
-    def _extract_transactions_from_text(self, text: str) -> List[Dict]:
-        """Extraire les transactions du texte du PDF"""
-        transactions = []
-        lines = text.split('\n')
-        
-        for i, line in enumerate(lines):
-            line = line.strip()
-            
-            # Détecter les lignes de transaction par date (DD/MM/YYYY)
-            date_match = re.match(r'^(\d{2}/\d{2}/\d{4})', line)
-            if date_match:
-                try:
-                    # Prendre aussi les 2 lignes suivantes pour le contexte
-                    context_lines = lines[i:i+3] if i+2 < len(lines) else lines[i:]
-                    transaction = self._parse_transaction_line(line, context_lines)
-                    if transaction:
-                        transactions.append(transaction)
-                except Exception as e:
-                    print(f"⚠️  Erreur parsing transaction '{line[:50]}...': {e}")
-        
-        return transactions
-    
-    def _parse_transaction_line(self, main_line: str, context_lines: List[str]) -> Dict:
-        """Parser une ligne de transaction"""
-        
-        # Extraire la date
-        date_match = re.match(r'^(\d{2}/\d{2}/\d{4})', main_line)
-        if not date_match:
-            return None
-        
-        date_str = date_match.group(1)
-        transaction_date = standardize_date(date_str)
-        
-        # Analyser le type de transaction
-        line_upper = main_line.upper()
-        
-        # Déterminer le type et la direction
-        if 'ACH CPT' in line_upper or 'ACHAT' in line_upper:
-            flow_type = 'purchase'
-            flow_direction = 'out'
-        elif 'VENTE' in line_upper or 'VTE CPT' in line_upper:
-            flow_type = 'sale'
-            flow_direction = 'in'
-        elif 'COUPONS' in line_upper or 'DIVIDENDE' in line_upper:
-            flow_type = 'dividend'
-            flow_direction = 'in'
-        elif 'INVESTISSEMENT ESPECES' in line_upper or 'VERSEMENT' in line_upper:
-            flow_type = 'deposit'
-            flow_direction = 'out'
-        elif 'TAXE' in line_upper or 'TTF' in line_upper:
-            flow_type = 'fee'
-            flow_direction = 'out'
-        elif 'REGULARISATION' in line_upper:
-            flow_type = 'adjustment'
-            flow_direction = 'in' if 'RBT' in line_upper else 'out'
+                if len(decimal_part) <= 2 and decimal_part.isdigit():
+                    cleaned = f"{integer_part}.{decimal_part}"
+                else:
+                    cleaned = cleaned.replace(' ', '').replace(',', '.')
+            else:
+                last_comma_pos = cleaned.rfind(',')
+                before_comma = cleaned[:last_comma_pos].replace(' ', '').replace(',', '').replace('.', '')
+                after_comma = cleaned[last_comma_pos+1:].replace(' ', '')
+                
+                if after_comma.isdigit() and len(after_comma) <= 2:
+                    cleaned = f"{before_comma}.{after_comma}"
+                else:
+                    cleaned = cleaned.replace(' ', '').replace(',', '.')
         else:
-            flow_type = 'other'
-            flow_direction = 'in'
+            cleaned = cleaned.replace(' ', '').replace(',', '')
         
-        # CORRECTION : Extraction intelligente des montants
-        quantity, price, montant = self._extract_financial_data_from_line(main_line)
-        
-        # Extraire la description (partie centrale sans les montants)
-        description = self._extract_description(main_line)
-        
-        return {
-            'id': str(uuid.uuid4()),
-            'user_id': self.user_id,
-            'investment_id': None,  # Sera lié plus tard
-            
-            'flow_type': flow_type,
-            'flow_direction': flow_direction,
-            
-            'gross_amount': montant,
-            'net_amount': montant if flow_direction == 'in' else -montant,
-            
-            'transaction_date': transaction_date,
-            'status': 'completed',
-            
-            'description': description,
-            'payment_method': 'PEA',
-            
-            # Données spécifiques PEA
-            'quantity': quantity,
-            'unit_price': price,
-            
-            'created_at': datetime.now().isoformat()
-        }
-    
-    def _extract_financial_data_from_line(self, line: str) -> Tuple[float, float, float]:
-        """
-        Extraire quantité, cours et montant d'une ligne de transaction
-        Format attendu: "DATE DESCRIPTION Qté : XX Cours : YY MONTANT"
-        """
-        quantity = 0.0
-        price = 0.0
-        montant = 0.0
+        cleaned = re.sub(r'[^\d\.\-]', '', cleaned)
         
         try:
-            # Extraire quantité
-            qty_match = re.search(r'Qté\s*:\s*([\d\s,\.]+)', line)
-            if qty_match:
-                qty_str = qty_match.group(1).strip()
-                quantity = clean_amount(qty_str)
-            
-            # Extraire cours
-            cours_match = re.search(r'Cours\s*:\s*([\d\s,\.]+)', line)
-            if cours_match:
-                prix_str = cours_match.group(1).strip()
-                price = clean_amount(prix_str)
-            
-            # Pour le montant total, prendre le dernier nombre de la ligne (après cours)
-            # Diviser la ligne en sections pour éviter la confusion
-            parts = line.split()
-            
-            # Chercher le montant final (généralement les 1-2 derniers éléments numériques)
-            potential_amounts = []
-            for part in reversed(parts):  # Commencer par la fin
-                # Nettoyer et tester si c'est un montant
-                cleaned_part = re.sub(r'[^\d,\.]', '', part)
-                if cleaned_part and (',' in cleaned_part or '.' in cleaned_part):
-                    try:
-                        amount = clean_amount(cleaned_part)
-                        if amount > 0:
-                            potential_amounts.append(amount)
-                    except:
-                        continue
-                
-                # Arrêter après avoir trouvé 3 montants potentiels
-                if len(potential_amounts) >= 3:
-                    break
-            
-            # Le montant principal est généralement le plus gros (hors cours très élevés)
-            if potential_amounts:
-                # Filtrer les montants aberrants (cours très élevés)
-                reasonable_amounts = [amt for amt in potential_amounts if amt < 100000]
-                if reasonable_amounts:
-                    montant = max(reasonable_amounts)
-                else:
-                    montant = potential_amounts[0]
-            
-            # Validation : si on a quantité et cours, vérifier la cohérence
-            if quantity > 0 and price > 0:
-                calculated_amount = quantity * price
-                # Si le montant calculé est proche du montant trouvé, utiliser le calculé
-                if abs(calculated_amount - montant) / max(calculated_amount, montant) < 0.1:
-                    montant = calculated_amount
-        
-        except Exception as e:
-            print(f"⚠️  Erreur extraction données financières '{line[:50]}...': {e}")
-        
-        return quantity, price, montant
+            return float(cleaned)
+        except ValueError:
+            print(f"⚠️  Erreur lors du nettoyage du montant '{amount}': impossible de convertir")
+            return 0.0
     
-    def _extract_description(self, line: str) -> str:
-        """Extraire la description en évitant les données numériques"""
-        
-        # Enlever la date du début
-        line_without_date = re.sub(r'^\d{2}/\d{2}/\d{4}\s+', '', line)
-        
-        # Enlever les parties "Qté : XX Cours : YY"
-        line_clean = re.sub(r'Qté\s*:\s*[\d\s,\.]+', '', line_without_date)
-        line_clean = re.sub(r'Cours\s*:\s*[\d\s,\.]+', '', line_clean)
-        
-        # Enlever les montants en fin de ligne
-        line_clean = re.sub(r'[\d\s,\.]+$', '', line_clean)
-        
-        # Nettoyer les espaces multiples
-        description = ' '.join(line_clean.split()).strip()
-        
-        return description if description else "Transaction PEA"
-    
-    def _parse_evaluation_portefeuille(self, pdf_path: str) -> List[Dict]:
-        """Parser l'évaluation de portefeuille PEA"""
-        positions = []
-        
-        with pdfplumber.open(pdf_path) as pdf:
-            for page in pdf.pages:
-                # Essayer d'extraire les tableaux
-                tables = page.extract_tables()
-                
-                for table in tables:
-                    if not table or len(table) < 2:
-                        continue
-                    
-                    # Vérifier si c'est le tableau des positions
-                    header = table[0] if table[0] else []
-                    if any('Désignation' in str(cell) or 'Quantité' in str(cell) for cell in header if cell):
-                        positions_from_table = self._parse_positions_table(table)
-                        positions.extend(positions_from_table)
-                
-                # Fallback: Parser le texte si pas de tableaux
-                if not positions:
-                    text = page.extract_text()
-                    if text and 'EVALUATION DE PORTEFEUILLE' in text:
-                        positions = self._parse_positions_from_text(text)
-        
-        return positions
-    
-    def _parse_positions_table(self, table: List[List]) -> List[Dict]:
-        """Parser le tableau des positions"""
-        positions = []
-        
-        if len(table) < 2:
-            return positions
-        
-        # Identifier les colonnes (header)
-        header = [str(cell).strip() if cell else '' for cell in table[0]]
-        
-        # Mapping des colonnes (flexible)
-        col_mapping = {}
-        for i, col_name in enumerate(header):
-            col_lower = col_name.lower()
-            if 'désignation' in col_lower or 'valeur' in col_lower:
-                col_mapping['designation'] = i
-            elif 'quantité' in col_lower:
-                col_mapping['quantity'] = i
-            elif 'cours' in col_lower:
-                col_mapping['price'] = i
-            elif 'valorisation' in col_lower:
-                col_mapping['value'] = i
-            elif '%' in col_lower or 'pourcent' in col_lower:
-                col_mapping['percentage'] = i
-        
-        # Parser les lignes de données
-        for row in table[1:]:
-            if not row or not any(cell for cell in row):
-                continue
-            
-            try:
-                position = self._parse_position_row(row, col_mapping)
-                if position:
-                    positions.append(position)
-            except Exception as e:
-                print(f"⚠️  Erreur parsing position: {e}")
-        
-        return positions
-    
-    def _parse_position_row(self, row: List, col_mapping: Dict) -> Dict:
-        """Parser une ligne de position - VERSION CORRIGÉE"""
-        
-        # Extraire les données selon le mapping avec nettoyage amélioré
-        designation = safe_get(pd.Series(row), col_mapping.get('designation', 0), '')
-        
-        # CORRECTION : Nettoyage individuel des montants
-        quantity_raw = safe_get(pd.Series(row), col_mapping.get('quantity', 1), '')
-        price_raw = safe_get(pd.Series(row), col_mapping.get('price', 2), '')
-        value_raw = safe_get(pd.Series(row), col_mapping.get('value', 3), '')
-        percentage_raw = safe_get(pd.Series(row), col_mapping.get('percentage', 4), '')
-        
-        # Nettoyer chaque montant séparément
-        quantity = self._clean_single_amount(quantity_raw)
-        price = self._clean_single_amount(price_raw)
-        value = self._clean_single_amount(value_raw)
-        percentage = self._clean_single_amount(percentage_raw)
-        
-        # Ignorer les lignes sans désignation ou avec totaux
-        if not designation or 'TOTAL' in str(designation).upper():
-            return None
-        
-        # Extraire ISIN si présent (format FRXXXXXXXXXXXX)
-        isin_match = re.search(r'FR\d{10}', str(designation))
-        isin = isin_match.group(0) if isin_match else None
-        
-        # Nettoyer le nom de l'actif
-        asset_name = str(designation).strip()
-        if isin:
-            asset_name = asset_name.replace(isin, '').strip()
-        
-        # Enlever les codes en début (ex: "025")
-        asset_name = re.sub(r'^\d{3}\s*', '', asset_name).strip()
-        
-        # Déterminer la catégorie d'actif
-        asset_class = self._classify_pea_asset(asset_name)
-        
-        return {
-            'id': str(uuid.uuid4()),
-            'user_id': self.user_id,
-            'investment_id': None,
-            
-            'isin': isin,
-            'asset_name': asset_name,
-            'quantity': quantity,
-            'current_price': price,
-            'market_value': value,
-            'portfolio_percentage': percentage,
-            
-            'asset_class': asset_class,
-            'platform': 'PEA',
-            
-            'valuation_date': datetime.now().strftime('%Y-%m-%d'),
-            'created_at': datetime.now().isoformat()
-        }
-    
-    
-    
-    def _parse_positions_from_text(self, text: str) -> List[Dict]:
-        """Parser les positions depuis le texte (fallback) - VERSION CORRIGÉE"""
-        positions = []
-        lines = text.split('\n')
-        
-        # Chercher les lignes avec format: "NOM_ACTIF ISIN QTÉ COURS VALEUR %"
-        for line in lines:
-            if re.search(r'FR\d{10}', line) and re.search(r'\d+[,\.]\d{2}', line):
-                try:
-                    position = self._parse_position_text_line_corrected(line)
-                    if position:
-                        positions.append(position)
-                except Exception as e:
-                    print(f"⚠️  Erreur parsing ligne position: {e}")
-        
-        return positions
-    
-    def _parse_position_text_line_corrected(self, line: str) -> Dict:
-        """Parser une ligne de position depuis le texte - VERSION CORRIGÉE"""
-        
-        # Extraire ISIN
-        isin_match = re.search(r'FR\d{10}', line)
-        isin = isin_match.group(0) if isin_match else None
-        
-        # CORRECTION : Extraire les montants de façon plus intelligente
-        # Diviser la ligne et extraire les montants un par un
-        parts = line.split()
-        amounts = []
-        
-        for part in parts:
-            # Chercher les patterns de montants
-            if re.match(r'^\d+[,\.]\d{2}$', part) or re.match(r'^\d{1,3}([,\.]\d{3})*[,\.]\d{2}$', part):
-                try:
-                    amount = self._clean_single_amount(part)
-                    if amount > 0:
-                        amounts.append(amount)
-                except:
-                    continue
-        
-        # Assigner les montants par ordre logique
-        quantity = amounts[0] if len(amounts) > 0 else 0
-        price = amounts[1] if len(amounts) > 1 else 0
-        value = amounts[2] if len(amounts) > 2 else 0
-        percentage = amounts[3] if len(amounts) > 3 else 0
-        
-        # Extraire le nom (début de ligne jusqu'à ISIN)
-        asset_name = line.split(isin)[0].strip() if isin else line.strip()
-        asset_name = re.sub(r'^\w+\s+', '', asset_name)  # Supprimer code initial
-        asset_name = re.sub(r'\d+[,\.]\d{2}.*$', '', asset_name).strip()  # Supprimer montants
-        
-        return {
-            'id': str(uuid.uuid4()),
-            'user_id': self.user_id,
-            'isin': isin,
-            'asset_name': asset_name,
-            'quantity': quantity,
-            'current_price': price,
-            'market_value': value,
-            'portfolio_percentage': percentage,
-            'platform': 'PEA',
-            'asset_class': self._classify_pea_asset(asset_name),
-            'valuation_date': datetime.now().strftime('%Y-%m-%d'),
-            'created_at': datetime.now().isoformat()
-        }
-    
-    def _classify_pea_asset(self, asset_name: str) -> str:
-        """Classifier un actif PEA par catégorie"""
-        name_upper = str(asset_name).upper()
-        
-        if any(keyword in name_upper for keyword in ['ETF', 'TRACKER', 'INDEX']):
-            return 'etf'
-        elif any(keyword in name_upper for keyword in ['EURO', 'FONDS']):
-            return 'fund'
-        elif any(keyword in name_upper for keyword in ['BOND', 'OBLIGATION']):
-            return 'bond'
-        else:
-            return 'stock'
-    
-    def _convert_positions_to_investments(self, positions: List[Dict]) -> List[Dict]:
-        """Convertir les positions en investissements pour la cohérence de données"""
-        investments = []
-        
-        for position in positions:
-            # Créer un investissement "virtuel" pour chaque position
-            investment = {
-                'id': str(uuid.uuid4()),
-                'user_id': self.user_id,
-                'platform': 'PEA',
-                'platform_id': position.get('isin', ''),
-                'investment_type': 'stocks',
-                'asset_class': position.get('asset_class', 'stock'),
-                
-                'project_name': position.get('asset_name', ''),
-                'company_name': position.get('asset_name', ''),
-                
-                # Utiliser la valorisation actuelle comme montant investi (approximation)
-                'invested_amount': position.get('market_value', 0),
-                'current_value': position.get('market_value', 0),
-                
-                'investment_date': '2020-01-01',  # Date approximative, à affiner
-                'status': 'active',
-                
-                'created_at': datetime.now().isoformat(),
-                'updated_at': datetime.now().isoformat()
-            }
-            
-            investments.append(investment)
-        
-        return investments
+    try:
+        return float(amount)
+    except (ValueError, TypeError):
+        return 0.0
 
-if __name__ == "__main__":
-    # Test du parser avec vos fichiers
-    print("🧪 Test du parser PEA...")
+class PEAParser(PlatformParser):
+    """Parser spécialisé pour les relevés PEA"""
     
-    parser = PEAParser("test-user")
+    def parse(self, file_path: str) -> Tuple[List[Dict], List[Dict], List[Dict]]:
+        """
+        Parse le fichier PEA et retourne (cash_flows, positions, transactions)
+        """
+        try:
+            # Lire le PDF ou Excel selon l'extension
+            if file_path.endswith('.pdf'):
+                # Vous devrez implémenter la lecture PDF
+                # Pour l'instant, on suppose un Excel
+                raise NotImplementedError("Lecture PDF à implémenter")
+            else:
+                df = pd.read_excel(file_path)
+            
+            cash_flows = []
+            positions = []
+            transactions = []
+            
+            # Parser selon les sections identifiées
+            for idx, row in df.iterrows():
+                # Identifier le type de ligne
+                designation = safe_get(row, 'Designation', '') or safe_get(row, 0, '')
+                quantite = safe_get(row, 'Quantité', '') or safe_get(row, 1, '')
+                cours = safe_get(row, 'Cours', '') or safe_get(row, 2, '')
+                debit = safe_get(row, 'Débit', '') or safe_get(row, 3, '')
+                credit = safe_get(row, 'Crédit', '') or safe_get(row, 4, '')
+                date_operation = safe_get(row, 'Date', '') or safe_get(row, 5, '')
+                
+                # Nettoyer les montants
+                debit_amount = clean_amount_pea(debit)
+                credit_amount = clean_amount_pea(credit)
+                quantite_clean = clean_amount_pea(quantite) if quantite else 0
+                cours_clean = clean_amount_pea(cours) if cours else 0
+                
+                # Ignorer les lignes vides ou d'en-tête
+                if not designation or designation in ['Designation', 'Désignation']:
+                    continue
+                
+                # Traitement selon le type d'opération
+                if self._is_ttf_line(designation):
+                    # TTF - Taxe sur transactions financières (uniquement cash flow)
+                    if debit_amount > 0:
+                        cash_flow = self._create_cash_flow(
+                            user_id=self.user_id,
+                            flow_type='fee',
+                            flow_direction='out',
+                            amount=debit_amount,
+                            date=date_operation,
+                            description=designation
+                        )
+                        cash_flows.append(cash_flow)
+                
+                elif self._is_dividend_or_coupon(designation):
+                    # Dividendes ou coupons (crédit)
+                    if credit_amount > 0:
+                        cash_flow = self._create_cash_flow(
+                            user_id=self.user_id,
+                            flow_type='dividend',
+                            flow_direction='in',
+                            amount=credit_amount,
+                            date=date_operation,
+                            description=designation
+                        )
+                        cash_flows.append(cash_flow)
+                
+                elif quantite_clean > 0 and cours_clean > 0:
+                    # Transaction d'achat/vente avec quantité et cours
+                    total_amount = quantite_clean * cours_clean
+                    
+                    # Déterminer si c'est un achat ou une vente
+                    if debit_amount > 0:
+                        # Achat (débit)
+                        transaction_type = 'buy'
+                        flow_direction = 'out'
+                        amount = debit_amount
+                    else:
+                        # Vente (crédit)
+                        transaction_type = 'sell'
+                        flow_direction = 'in'
+                        amount = credit_amount
+                    
+                    # Créer la transaction
+                    transaction = self._create_transaction(
+                        user_id=self.user_id,
+                        security_name=designation,
+                        transaction_type=transaction_type,
+                        quantity=quantite_clean,
+                        price=cours_clean,
+                        total_amount=amount,
+                        date=date_operation
+                    )
+                    transactions.append(transaction)
+                    
+                    # Créer le cash flow correspondant
+                    cash_flow = self._create_cash_flow(
+                        user_id=self.user_id,
+                        flow_type=transaction_type,
+                        flow_direction=flow_direction,
+                        amount=amount,
+                        date=date_operation,
+                        description=f"{transaction_type.title()} {designation}",
+                        security_name=designation
+                    )
+                    cash_flows.append(cash_flow)
+                
+                elif debit_amount > 0 or credit_amount > 0:
+                    # Autre type de flux (versement, retrait, etc.)
+                    if debit_amount > 0:
+                        flow_type = self._classify_debit_flow(designation)
+                        cash_flow = self._create_cash_flow(
+                            user_id=self.user_id,
+                            flow_type=flow_type,
+                            flow_direction='out',
+                            amount=debit_amount,
+                            date=date_operation,
+                            description=designation
+                        )
+                        cash_flows.append(cash_flow)
+                    
+                    if credit_amount > 0:
+                        flow_type = self._classify_credit_flow(designation)
+                        cash_flow = self._create_cash_flow(
+                            user_id=self.user_id,
+                            flow_type=flow_type,
+                            flow_direction='in',
+                            amount=credit_amount,
+                            date=date_operation,
+                            description=designation
+                        )
+                        cash_flows.append(cash_flow)
+            
+            return cash_flows, positions, transactions
+            
+        except Exception as e:
+            print(f"❌ Erreur lors du parsing PEA: {e}")
+            return [], [], []
     
-    # Remplacer par vos vrais chemins de fichiers
-    releve_path = "data/raw/releve_pea_avril_2025.pdf"
-    evaluation_path = "data/raw/evaluation_pea_avril_2025.pdf"
+    def _is_ttf_line(self, designation: str) -> bool:
+        """Vérifie si c'est une ligne TTF"""
+        ttf_keywords = ['ttf', 'taxe transaction', 'taxe sur les transactions']
+        return any(keyword in designation.lower() for keyword in ttf_keywords)
     
-    if os.path.exists(releve_path) and os.path.exists(evaluation_path):
-        investissements, flux_tresorerie, positions = parser.parse_pdf_files(releve_path, evaluation_path)
+    def _is_dividend_or_coupon(self, designation: str) -> bool:
+        """Vérifie si c'est un dividende ou coupon"""
+        dividend_keywords = ['dividende', 'coupon', 'détachement', 'distribution']
+        return any(keyword in designation.lower() for keyword in dividend_keywords)
+    
+    def _classify_debit_flow(self, designation: str) -> str:
+        """Classifie un flux débit"""
+        designation_lower = designation.lower()
         
-        print(f"📊 Résultats: {len(investissements)} investissements, {len(flux_tresorerie)} flux, {len(positions)} positions")
-    else:
-        print("⚠️  Fichiers PDF non trouvés pour le test")
+        if 'achat' in designation_lower or 'acquisition' in designation_lower:
+            return 'buy'
+        elif 'frais' in designation_lower or 'commission' in designation_lower:
+            return 'fee'
+        elif 'ttf' in designation_lower or 'taxe' in designation_lower:
+            return 'fee'
+        elif 'versement' in designation_lower:
+            return 'deposit'
+        else:
+            return 'other'
+    
+    def _classify_credit_flow(self, designation: str) -> str:
+        """Classifie un flux crédit"""
+        designation_lower = designation.lower()
+        
+        if 'vente' in designation_lower or 'cession' in designation_lower:
+            return 'sell'
+        elif 'dividende' in designation_lower:
+            return 'dividend'
+        elif 'coupon' in designation_lower:
+            return 'interest'
+        elif 'remboursement' in designation_lower:
+            return 'repayment'
+        elif 'régularisation' in designation_lower:
+            return 'adjustment'
+        else:
+            return 'other'
+    
+    def _create_cash_flow(self, user_id: str, flow_type: str, flow_direction: str, 
+                         amount: float, date: str, description: str, 
+                         security_name: str = None) -> Dict:
+        """Crée un cash flow (SANS quantité)"""
+        return {
+            'id': str(uuid.uuid4()),
+            'user_id': user_id,
+            'platform': 'PEA',
+            'flow_type': flow_type,
+            'flow_direction': flow_direction,
+            'gross_amount': amount,
+            'net_amount': amount if flow_direction == 'in' else -amount,
+            'transaction_date': standardize_date(date),
+            'description': description,
+            'security_name': security_name,
+            'status': 'completed',
+            'created_at': datetime.now().isoformat()
+        }
+    
+    def _create_transaction(self, user_id: str, security_name: str, 
+                          transaction_type: str, quantity: float, price: float,
+                          total_amount: float, date: str) -> Dict:
+        """Crée une transaction avec quantité (pour table séparée)"""
+        return {
+            'id': str(uuid.uuid4()),
+            'user_id': user_id,
+            'platform': 'PEA',
+            'security_name': security_name,
+            'transaction_type': transaction_type,
+            'quantity': quantity,
+            'price': price,
+            'total_amount': total_amount,
+            'transaction_date': standardize_date(date),
+            'created_at': datetime.now().isoformat()
+        }

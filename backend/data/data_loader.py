@@ -1,11 +1,11 @@
-# ===== backend/data/corrected_data_loader.py - AVEC PARSER UNIFIÉ =====
+# ===== backend/data/data_loader.py - AVEC PARSER UNIFIÉ =====
 from backend.models.database import DatabaseManager
 from backend.data.unified_parser import UnifiedPortfolioParser
 import os
 from typing import Dict
 import pandas as pd
 
-class CorrectedDataLoader:
+class DataLoader:
     """DataLoader corrigé utilisant le parser unifié expert"""
     
     def __init__(self):
@@ -55,44 +55,72 @@ class CorrectedDataLoader:
             traceback.print_exc()
             return False
     
-    def load_pea_data(self, releve_pdf_path: str = None, evaluation_pdf_path: str = None, user_id: str = None) -> bool:
+    def load_pea_data(user_id: str = "29dec51d-0772-4e3a-8e8f-1fece8fefe0e"):
         """
-        Charger les données PEA depuis les PDFs
-        Utilise le parser unifié
+        Charger PEA avec portfolio_positions pour l'évaluation
         """
+        print(f"🏦 Chargement PEA pour utilisateur: {user_id}")
         
-        if not user_id:
-            print("❌ User ID requis pour PEA")
+        from backend.data.unified_parser import UnifiedPortfolioParser
+        from backend.models.database import DatabaseManager
+        
+        # Chercher fichiers PEA
+        releve_pea = None
+        evaluation_pea = None
+        
+        # Chercher dans le répertoire
+        import os
+        for file in os.listdir('.'):
+            if 'pea' in file.lower() and file.lower().endswith('.pdf'):
+                if any(keyword in file.lower() for keyword in ['releve', 'compte', 'transaction']):
+                    releve_pea = file
+                elif any(keyword in file.lower() for keyword in ['evaluation', 'portefeuille', 'position']):
+                    evaluation_pea = file
+        
+        if not releve_pea and not evaluation_pea:
+            print("⚠️  Aucun fichier PEA trouvé")
             return False
         
-        print(f"🏦 Chargement PEA pour utilisateur {user_id}")
-        
-        # Vérifier qu'au moins un fichier est fourni
-        if not releve_pdf_path and not evaluation_pdf_path:
-            print("❌ Au moins un fichier PDF PEA requis")
-            return False
+        print(f"📂 Fichiers trouvés:")
+        print(f"  📄 Relevé: {releve_pea or 'Non trouvé'}")
+        print(f"  📊 Évaluation: {evaluation_pea or 'Non trouvé'}")
         
         try:
-            # Créer le parser unifié
+            # Parser PEA
             parser = UnifiedPortfolioParser(user_id)
+            investments, cash_flows = parser._parse_pea(releve_pea, evaluation_pea)
             
-            # Parser PEA avec gestion des deux fichiers
-            print("🔍 Parsing fichiers PEA...")
-            investissements, flux_tresorerie = parser._parse_pea(releve_pdf_path, evaluation_pdf_path)
+            # Récupérer les positions de portefeuille
+            portfolio_positions = parser.get_pea_portfolio_positions()
             
-            print(f"📊 PEA parsé: {len(investissements)} investissements, {len(flux_tresorerie)} flux")
+            # Connexion BDD
+            db = DatabaseManager()
             
-            # Insérer en base
-            success_inv = self.db.insert_investments(investissements) if investissements else True
-            success_cf = self.db.insert_cash_flows(flux_tresorerie) if flux_tresorerie else True
+            # Insérer données
+            success_cf = True
+            success_pp = True
             
-            if success_inv and success_cf:
-                print("✅ PEA chargé avec succès")
+            if cash_flows:
+                success_cf = db.insert_cash_flows(cash_flows)
+                print(f"📊 Cash flows: {len(cash_flows)} transactions")
+            
+            if portfolio_positions:
+                success_pp = db.insert_portfolio_positions(portfolio_positions)
+                print(f"📊 Portfolio positions: {len(portfolio_positions)} positions")
+            
+            if success_cf and success_pp:
+                print("✅ PEA chargé avec succès!")
+                
+                # Résumé
+                if portfolio_positions:
+                    total_value = sum(pos.get('market_value', 0) for pos in portfolio_positions)
+                    print(f"💰 Valorisation totale PEA: {total_value:,.0f}€")
+                
                 return True
             else:
-                print("❌ Échec insertion PEA")
+                print("❌ Échec chargement PEA")
                 return False
-            
+                
         except Exception as e:
             print(f"❌ Erreur chargement PEA: {e}")
             import traceback
@@ -147,11 +175,11 @@ class CorrectedDataLoader:
         
         # Mapping de vos fichiers
         fichiers_plateformes = {
-            'lpb': 'Portefeuille LPB 20250529.xlsx',
-            'pretup': 'Portefeuille PretUp 20250529.xlsx',
-            'bienpreter': 'Portefeuille BienPreter 20250529.xlsx',
-            'homunity': 'Portefeuille Homunity 20250529.xlsx',
-            'assurance_vie': 'Portefeuille AV Linxea.xlsx'
+            'lpb': 'Portefeuille LPB.xlsx',
+            'pretup': 'Portefeuille PretUp.xlsx',
+            'bienpreter': 'Portefeuille BienPreter.xlsx',
+            'homunity': 'Portefeuille Homunity.xlsx',
+            'assurance_vie': 'Portefeuille Linxea.xlsx'
         }
         
         success_count = 0
@@ -294,11 +322,11 @@ class CorrectedDataLoader:
         
         # Fichiers attendus
         expected_files = {
-            'lpb': 'Portefeuille LPB 20250529.xlsx',
-            'pretup': 'Portefeuille PretUp 20250529.xlsx', 
-            'bienpreter': 'Portefeuille BienPreter 20250529.xlsx',
-            'homunity': 'Portefeuille Homunity 20250529.xlsx',
-            'assurance_vie': 'Portefeuille AV Linxea.xlsx'
+            'lpb': 'Portefeuille LPB.xlsx',
+            'pretup': 'Portefeuille PretUp.xlsx', 
+            'bienpreter': 'Portefeuille BienPreter.xlsx',
+            'homunity': 'Portefeuille Homunity.xlsx',
+            'assurance_vie': 'Portefeuille Linxea.xlsx'
         }
         
         validation_report['total_files'] = len(expected_files)
@@ -391,14 +419,14 @@ class CorrectedDataLoader:
 def load_user_data_auto(user_id: str = "29dec51d-0772-4e3a-8e8f-1fece8fefe0e", data_folder: str = "data/raw"):
     """
     Script automatique pour charger toutes vos données
-    À utiliser en ligne de commande ou dans Jupyter
+    À utiliser en ligne de commande
     """
     
-    print("🚀 CHARGEMENT AUTOMATIQUE DONNÉES PATRIMOINE")
+    print("🚀 CHARGEMENT AUTOMATIQUE DONNÉES PATRIMOINE")   
     print("=" * 50)
     
     # Créer le loader
-    loader = CorrectedDataLoader()
+    loader = DataLoader()
     
     # Validation des fichiers
     validation_report = loader.validate_all_files(data_folder)
