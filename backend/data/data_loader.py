@@ -55,40 +55,40 @@ class DataLoader:
             traceback.print_exc()
             return False
     
-    def load_pea_data(user_id: str = "29dec51d-0772-4e3a-8e8f-1fece8fefe0e"):
+    def load_pea_data(self, releve_path: str = None, evaluation_path: str = None, user_id: str = None) -> bool:
         """
-        Charger PEA avec portfolio_positions pour l'évaluation
+        CORRIGÉ : Charger PEA avec portfolio_positions pour l'évaluation
         """
+        if not user_id:
+            user_id = "29dec51d-0772-4e3a-8e8f-1fece8fefe0e"
+            
         print(f"🏦 Chargement PEA pour utilisateur: {user_id}")
         
         from backend.data.unified_parser import UnifiedPortfolioParser
         from backend.models.database import DatabaseManager
         
-        # Chercher fichiers PEA
-        releve_pea = None
-        evaluation_pea = None
+        # Si pas de fichiers fournis, chercher dans le répertoire
+        if not releve_path and not evaluation_path:
+            import os
+            for file in os.listdir('.'):
+                if 'pea' in file.lower() and file.lower().endswith('.pdf'):
+                    if any(keyword in file.lower() for keyword in ['releve', 'compte', 'transaction']):
+                        releve_path = file
+                    elif any(keyword in file.lower() for keyword in ['evaluation', 'portefeuille', 'position']):
+                        evaluation_path = file
         
-        # Chercher dans le répertoire
-        import os
-        for file in os.listdir('.'):
-            if 'pea' in file.lower() and file.lower().endswith('.pdf'):
-                if any(keyword in file.lower() for keyword in ['releve', 'compte', 'transaction']):
-                    releve_pea = file
-                elif any(keyword in file.lower() for keyword in ['evaluation', 'portefeuille', 'position']):
-                    evaluation_pea = file
-        
-        if not releve_pea and not evaluation_pea:
+        if not releve_path and not evaluation_path:
             print("⚠️  Aucun fichier PEA trouvé")
             return False
         
         print(f"📂 Fichiers trouvés:")
-        print(f"  📄 Relevé: {releve_pea or 'Non trouvé'}")
-        print(f"  📊 Évaluation: {evaluation_pea or 'Non trouvé'}")
+        print(f"  📄 Relevé: {releve_path or 'Non trouvé'}")
+        print(f"  📊 Évaluation: {evaluation_path or 'Non trouvé'}")
         
         try:
             # Parser PEA
             parser = UnifiedPortfolioParser(user_id)
-            investments, cash_flows = parser._parse_pea(releve_pea, evaluation_pea)
+            investments, cash_flows = parser._parse_pea(releve_path, evaluation_path)
             
             # Récupérer les positions de portefeuille
             portfolio_positions = parser.get_pea_portfolio_positions()
@@ -126,7 +126,7 @@ class DataLoader:
             import traceback
             traceback.print_exc()
             return False
-    
+
     def load_assurance_vie_data(self, file_path: str, user_id: str) -> bool:
         """
         Charger les données Assurance Vie
@@ -185,9 +185,9 @@ class DataLoader:
         success_count = 0
         total_platforms = len(fichiers_plateformes)
         
-        # Charger les plateformes
+        # Charger les plateformes crowdfunding/AV
         for plateforme, filename in fichiers_plateformes.items():
-            file_path = os.path.join(data_folder, filename)
+            file_path = filename  # Fichiers dans le répertoire racine
             
             if os.path.exists(file_path):
                 print(f"\n📊 Traitement {plateforme.upper()}...")
@@ -205,28 +205,32 @@ class DataLoader:
             else:
                 print(f"⚠️  Fichier non trouvé: {file_path}")
         
-        # Charger PEA si fichiers PDF disponibles
-        pea_folder = os.path.join(data_folder, "pea")
-        if os.path.exists(pea_folder):
-            releve_pea = None
-            evaluation_pea = None
-            
-            for file in os.listdir(pea_folder):
-                if file.lower().endswith('.pdf'):
-                    if any(keyword in file.lower() for keyword in ['releve', 'compte']):
-                        releve_pea = os.path.join(pea_folder, file)
-                    elif any(keyword in file.lower() for keyword in ['evaluation', 'portefeuille']):
-                        evaluation_pea = os.path.join(pea_folder, file)
-            
-            if releve_pea or evaluation_pea:
-                print(f"\n🏦 Traitement PEA...")
-                if self.load_pea_data(releve_pea, evaluation_pea, user_id):
-                    success_count += 1
-                    total_platforms += 1
-                    print("✅ PEA chargé")
-                else:
-                    print("❌ Échec PEA")
-                    total_platforms += 1
+        # CORRECTION : Charger PEA avec la signature corrigée
+        print(f"\n🏦 Traitement PEA...")
+        
+        # Chercher fichiers PEA dans le répertoire
+        releve_pea = None
+        evaluation_pea = None
+        
+        import os
+        for file in os.listdir('.'):
+            if 'pea' in file.lower() and file.lower().endswith('.pdf'):
+                if any(keyword in file.lower() for keyword in ['releve', 'compte', 'transaction']):
+                    releve_pea = file
+                elif any(keyword in file.lower() for keyword in ['evaluation', 'portefeuille', 'position']):
+                    evaluation_pea = file
+        
+        if releve_pea or evaluation_pea:
+            # APPEL CORRIGÉ avec la bonne signature
+            if self.load_pea_data(releve_pea, evaluation_pea, user_id):
+                success_count += 1
+                total_platforms += 1
+                print("✅ PEA chargé")
+            else:
+                print("❌ Échec PEA")
+                total_platforms += 1
+        else:
+            print("⚠️  Aucun fichier PEA trouvé")
         
         # Résumé
         print(f"\n📋 RÉSUMÉ CHARGEMENT:")
@@ -416,11 +420,8 @@ class DataLoader:
             return {}
 
 # ===== SCRIPT DE CHARGEMENT AUTOMATIQUE =====
-def load_user_data_auto(user_id: str = "29dec51d-0772-4e3a-8e8f-1fece8fefe0e", data_folder: str = "data/raw"):
-    """
-    Script automatique pour charger toutes vos données
-    À utiliser en ligne de commande
-    """
+def load_user_data_auto(user_id: str = "29dec51d-0772-4e3a-8e8f-1fece8fefe0e", data_folder: str = "data/raw") -> bool:
+    """Script automatique pour charger toutes vos données"""
     
     print("🚀 CHARGEMENT AUTOMATIQUE DONNÉES PATRIMOINE")   
     print("=" * 50)

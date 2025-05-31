@@ -596,7 +596,7 @@ def afficher_recommandations_expert(rapport_expert: dict):
             st.markdown(f'<div class="recommendation">{rec}</div>', unsafe_allow_html=True)
 
 def sidebar_expert():
-    """Sidebar avec contrôles expert"""
+    """Sidebar avec contrôles expert - CORRIGÉ"""
     
     with st.sidebar:
         st.header("🔧 Configuration Expert")
@@ -614,13 +614,50 @@ def sidebar_expert():
         with col2:
             if st.button("📥 Charger Données"):
                 with st.spinner("Chargement..."):
-                    from backend.data.data_loader import load_user_data_auto
-                    success = load_user_data_auto(user_id)
-                    if success:
-                        st.success("Données chargées!")
-                        st.cache_data.clear()
-                    else:
-                        st.error("Échec chargement")
+                    # CORRECTION : Import local pour éviter les imports circulaires
+                    try:
+                        from backend.data.data_loader import load_user_data_auto
+                        success = load_user_data_auto(user_id)
+                        if success:
+                            st.success("Données chargées!")
+                            st.cache_data.clear()
+                        else:
+                            st.error("Échec chargement")
+                    except Exception as e:
+                        st.error(f"Erreur chargement: {e}")
+                        # Debug pour comprendre l'erreur
+                        import traceback
+                        with st.expander("🔍 Détails erreur"):
+                            st.text(traceback.format_exc())
+        
+        st.markdown("---")
+        
+        # Statut des fichiers
+        st.subheader("📂 Statut Fichiers")
+        
+        fichiers_attendus = [
+            'Portefeuille LPB.xlsx',
+            'Portefeuille PretUp.xlsx', 
+            'Portefeuille BienPreter.xlsx',
+            'Portefeuille Homunity.xlsx',
+            'Portefeuille Linxea.xlsx'
+        ]
+        
+        import os
+        for fichier in fichiers_attendus:
+            if os.path.exists(fichier):
+                st.success(f"✅ {fichier}")
+            else:
+                st.error(f"❌ {fichier}")
+        
+        # Vérifier fichiers PEA
+        pea_files = [f for f in os.listdir('.') if 'pea' in f.lower() and f.endswith('.pdf')]
+        if pea_files:
+            st.info(f"🏦 PEA: {len(pea_files)} fichier(s) PDF")
+            for f in pea_files:
+                st.text(f"  📄 {f}")
+        else:
+            st.warning("⚠️  Aucun fichier PEA PDF trouvé")
         
         st.markdown("---")
         
