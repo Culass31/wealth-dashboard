@@ -139,6 +139,36 @@ def clean_amount(amount: Union[str, float, int]) -> float:
     
     return 0.0
 
+def clean_string_operation(value: Any, default: str = '') -> str:
+    """
+    Nettoyer une valeur pour l'utiliser comme string d'opération
+    Gère les cas où Excel retourne des entiers au lieu de strings
+    """
+    if value is None or pd.isna(value):
+        return default
+    
+    # Convertir en string
+    str_value = str(value).strip()
+    
+    # Gérer les cas spéciaux d'Excel
+    if str_value in ['nan', 'NaN', 'None', '']:
+        return default
+    
+    # Gérer les entiers qui représentent des codes
+    if str_value.isdigit():
+        # Mapping possible pour des codes numériques d'opération
+        operation_codes = {
+            '1': 'versement',
+            '2': 'arbitrage', 
+            '3': 'dividende',
+            '4': 'frais',
+            '5': 'arrêté annuel'
+            # Ajoutez selon vos codes réels
+        }
+        return operation_codes.get(str_value, f'operation_{str_value}')
+    
+    return str_value
+
 def safe_get(row: pd.Series, column: Union[str, int], default: Any = None) -> Any:
     """
     Récupérer une valeur de façon sécurisée depuis une Series pandas

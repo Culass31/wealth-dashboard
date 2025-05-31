@@ -6,7 +6,7 @@ from datetime import datetime
 import uuid
 import re
 import os
-from backend.utils.file_helpers import standardize_date, clean_amount, safe_get
+from backend.utils.file_helpers import standardize_date, clean_amount, clean_string_operation, safe_get
 
 class UnifiedPortfolioParser:
     """Parser unifié pour toutes les plateformes d'investissement"""
@@ -85,8 +85,12 @@ class UnifiedPortfolioParser:
             
             # Duration en mois
             if date_collecte and date_remb_max:
-                duration_days = (pd.to_datetime(date_remb_max) - pd.to_datetime(date_collecte)).days
-                duration_months = round(duration_days / 30.44, 1)
+                start = pd.to_datetime(date_collecte)
+                end = pd.to_datetime(date_remb_max)
+                months = (end.year - start.year) * 12 + (end.month - start.month)
+                if end.day < start.day:
+                    months -= 1
+                duration_months = max(0, months)
             else:
                 duration_months = None
             
@@ -642,79 +646,115 @@ class UnifiedPortfolioParser:
 
     # ===== ASSURANCE VIE =====
     def _parse_assurance_vie(self, file_path: str) -> Tuple[List[Dict], List[Dict]]:
-        """Parser Assurance Vie Linxea"""
+        """Parser Assurance Vie ultra-robuste contre les erreurs de type"""
         
         try:
-            df = pd.read_excel(file_path, sheet_name='Relevé')
-        except:
-            print("❌ Impossible de lire l'onglet Relevé de l'assurance vie")
-            return [], []
+            df = pd.read_excel(file_path, sheet_name='Relevé compte')
+        except Exception as e:
+            print(f"❌ Impossible de lire l'assurance vie: {e}")
+            
+            # Essayer d'autres noms d'onglets possibles
+            try:
+                df = pd.read_excel(file_path, sheet_name=0)  # Premier onglet
+                print("✅ Utilisation du premier onglet comme fallback")
+            except:
+                print("❌ Impossible de lire le fichier d'assurance vie")
+                return [], []
         
         flux_tresorerie = []
         
-        for idx, row in df.iterrows():
-            if pd.isna(safe_get(row, 0)) or safe_get(row, 0) in ["Date", "Type"]:
-                continue
-            
-            type_operation = safe_get(row, 1, '').lower()
-            date_transaction = standardize_date(safe_get(row, 0))
-            montant = clean_amount(safe_get(row, 2, 0))
-            
-            if not date_transaction or montant == 0:
-                continue
-            
-            # Classification selon vos indications
-            if 'dividende' in type_operation:
-                flow_type = 'dividend'
-                flow_direction = 'in'
-                net_amount = montant
-                
-            elif 'frais' in type_operation:
-                flow_type = 'fee'
-                flow_direction = 'out'
-                net_amount = -montant
-                
-            elif 'arrêté annuel' in type_operation:
-                # Ne pas insérer en base mais utile pour TRI annuel
-                continue
-                
-            elif 'arbitrage' in type_operation:
-                # Ignorer (réaffectation)
-                continue
-                
-            elif 'versement' in type_operation:
-                flow_type = 'deposit'
-                flow_direction = 'out'
-                net_amount = -montant  # Argent frais injecté
-                
-            else:
-                flow_type = 'other'
-                flow_direction = 'in' if montant > 0 else 'out'
-                net_amount = montant
-            
-            flux = {
-                'id': str(uuid.uuid4()),
-                'user_id': self.user_id,
-                'platform': 'Assurance_Vie',
-                
-                'flow_type': flow_type,
-                'flow_direction': flow_direction,
-                
-                'gross_amount': abs(montant),
-                'net_amount': net_amount,
-                'tax_amount': 0.0,  # AV : fiscalité différée
-                
-                'transaction_date': date_transaction,
-                'status': 'completed',
-                
-                'description': f"AV - {safe_get(row, 1, '')}",
-                
-                'created_at': datetime.now().isoformat()
-            }
-            
-            flux_tresorerie.append(flux)
+        print(f"📊 Lecture assurance vie: {len(df)} lignes trouvées")
         
-        return [], flux_tresorerie  # Pas d'investissements individuels pour AV
+        for idx, row in df.iterrows():
+            try:
+                # Vérification robuste des lignes vides/headers
+                date_raw = safe_get(row, 0)
+                if pd.isna(date_raw) or date_raw in ["Date", "Type", None]:
+                    continue
+                
+                # CORRECTION PRINCIPALE : Gestion robuste du type d'opération
+                type_operation_raw = safe_get(row, 1, '')
+                type_operation = clean_string_operation(type_operation_raw).lower()
+                
+                # Debug pour comprendre le contenu
+                if idx < 3:  # Afficher les 3 premières lignes pour debug
+                    print(f"  Ligne {idx}: Date={date_raw}, Type={type_operation_raw} -> '{type_operation}'")
+                
+                date_transaction = standardize_date(date_raw)
+                montant = clean_amount(safe_get(row, 2, 0))
+                
+                if not date_transaction:
+                    print(f"  ⚠️  Ligne {idx}: Date invalide '{date_raw}'")
+                    continue
+                    
+                if montant == 0:
+                    print(f"  ⚠️  Ligne {idx}: Montant nul")
+                    continue
+                
+                # Classification avec gestion des cas numériques
+                if any(keyword in type_operation for keyword in ['dividende', 'dividend', 'coupon']):
+                    flow_type = 'dividend'
+                    flow_direction = 'in'
+                    net_amount = montant
+                    
+                elif any(keyword in type_operation for keyword in ['frais', 'fee', 'commission']):
+                    flow_type = 'fee'
+                    flow_direction = 'out'
+                    net_amount = -abs(montant)
+                    
+                elif any(keyword in type_operation for keyword in ['arrêté', 'arrete', 'cloture']):
+                    continue  # Ignorer
+                    
+                elif any(keyword in type_operation for keyword in ['arbitrage', 'transfer']):
+                    continue  # Ignorer
+                    
+                elif any(keyword in type_operation for keyword in ['versement', 'depot', 'apport']):
+                    flow_type = 'deposit'
+                    flow_direction = 'out'
+                    net_amount = -abs(montant)
+                    
+                elif type_operation.isdigit():
+                    # Cas où c'est juste un code numérique
+                    flow_type = 'other'
+                    flow_direction = 'in' if montant > 0 else 'out'
+                    net_amount = montant
+                    
+                else:
+                    # Cas par défaut
+                    flow_type = 'other'
+                    flow_direction = 'in' if montant > 0 else 'out'
+                    net_amount = montant
+                
+                # Créer le flux
+                flux = {
+                    'id': str(uuid.uuid4()),
+                    'user_id': self.user_id,
+                    'platform': 'Assurance_Vie',
+                    
+                    'flow_type': flow_type,
+                    'flow_direction': flow_direction,
+                    
+                    'gross_amount': abs(montant),
+                    'net_amount': net_amount,
+                    'tax_amount': 0.0,
+                    
+                    'transaction_date': date_transaction,
+                    'status': 'completed',
+                    
+                    'description': f"AV - {clean_string_operation(type_operation_raw, 'Transaction')}",
+                    
+                    'created_at': datetime.now().isoformat()
+                }
+                
+                flux_tresorerie.append(flux)
+                
+            except Exception as e:
+                print(f"  ❌ Erreur ligne {idx}: {e}")
+                continue
+        
+        print(f"✅ Assurance Vie parsed: {len(flux_tresorerie)} flux extraits")
+        
+        return [], flux_tresorerie
 
     # ===== PEA =====
     def _parse_pea(self, releve_path: str = None, evaluation_path: str = None) -> Tuple[List[Dict], List[Dict]]:
