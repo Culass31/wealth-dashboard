@@ -847,58 +847,124 @@ class UnifiedPortfolioParser:
         print(f"✅ Fichier {os.path.basename(pdf_path)}: {len(positions)} positions")
         return positions
 
-    def _extract_valuation_date(self, pdf_path: str) -> str:
+    def extract_valuation_date(self, file_path: str = None, text: str = None) -> str:
         """
-        NOUVEAU : Extraire date de valorisation du fichier
+        Extraire date de valorisation depuis nom fichier ou contenu - VERSION GÉNÉRIQUE
+        Supporte toutes les années, pas seulement 2025
         """
-        filename = os.path.basename(pdf_path).lower()
         
-        # Patterns pour extraire la date du nom de fichier
-        date_patterns = [
-            r'mars.*2025',
-            r'avril.*2025', 
-            r'mai.*2025',
-            r'(\d{2})[_\-](\d{2})[_\-]2025',
-            r'2025[_\-](\d{2})[_\-](\d{2})'
-        ]
+        # Priorité 1 : Nom du fichier
+        if file_path:
+            filename = os.path.basename(file_path).lower()
+            print(f"🔍 Extraction date depuis fichier: {filename}")
+            
+            # Patterns pour différents formats de noms
+            patterns = [
+                # evaluation_avril_2025.pdf, portefeuille_juin_2024.pdf
+                r'(?:evaluation|portefeuille)_(\w+)_(\d{4})',
+                # positions_février_2024.pdf
+                r'positions_(\w+)_(\d{4})',
+                # 2024_03_evaluation.pdf, 2025-04-positions.pdf
+                r'(\d{4})[_-](\d{2})[_-]',
+                r'(\d{4})[_-](\w+)[_-]',
+                # pea_2024_mars.pdf
+                r'pea_(\d{4})_(\w+)',
+                # mars2024.pdf, avril_25.pdf
+                r'(\w+)(\d{4})',
+                r'(\w+)[_-]?(\d{2})'
+            ]
+            
+            for pattern in patterns:
+                match = re.search(pattern, filename)
+                if match:
+                    try:
+                        group1, group2 = match.groups()
+                        
+                        # Cas 1 : mois_année (evaluation_avril_2025)
+                        if group2.isdigit() and len(group2) == 4:
+                            mois_nom = group1
+                            annee = int(group2)
+                            
+                        # Cas 2 : année_mois_chiffre (2024_03)
+                        elif group1.isdigit() and len(group1) == 4:
+                            annee = int(group1)
+                            if group2.isdigit():
+                                mois_num = int(group2)
+                                date_obj = datetime(annee, mois_num, 1)
+                                return date_obj.strftime('%Y-%m-%d')
+                            else:
+                                mois_nom = group2
+                        
+                        # Cas 3 : année courte (avril_25)
+                        elif group2.isdigit() and len(group2) == 2:
+                            annee_courte = int(group2)
+                            # 25 = 2025, 24 = 2024, etc.
+                            annee = 2000 + annee_courte if annee_courte < 50 else 1900 + annee_courte
+                            mois_nom = group1
+                        
+                        else:
+                            continue
+                        
+                        # Convertir nom de mois en numéro
+                        if 'mois_nom' in locals():
+                            mois_mapping = {
+                                'janvier': 1, 'jan': 1,
+                                'février': 2, 'fevrier': 2, 'fev': 2, 'feb': 2,
+                                'mars': 3, 'mar': 3,
+                                'avril': 4, 'avr': 4, 'apr': 4,
+                                'mai': 5, 'may': 5,
+                                'juin': 6, 'jun': 6,
+                                'juillet': 7, 'juil': 7, 'jul': 7,
+                                'août': 8, 'aout': 8, 'aug': 8,
+                                'septembre': 9, 'sept': 9, 'sep': 9,
+                                'octobre': 10, 'oct': 10,
+                                'novembre': 11, 'nov': 11,
+                                'décembre': 12, 'decembre': 12, 'dec': 12
+                            }
+                            
+                            mois_num = mois_mapping.get(mois_nom.lower())
+                            if mois_num and 1 <= mois_num <= 12:
+                                # Utiliser le dernier jour du mois pour l'évaluation
+                                if mois_num == 2:
+                                    last_day = 29 if annee % 4 == 0 else 28
+                                elif mois_num in [4, 6, 9, 11]:
+                                    last_day = 30
+                                else:
+                                    last_day = 31
+                                
+                                date_obj = datetime(annee, mois_num, last_day)
+                                date_result = date_obj.strftime('%Y-%m-%d')
+                                print(f"✅ Date extraite du fichier: {date_result}")
+                                return date_result
+                    
+                    except Exception as e:
+                        print(f"⚠️  Erreur parsing date pattern {pattern}: {e}")
+                        continue
         
-        # Mapping mois
-        month_mapping = {
-            'mars': '03',
-            'avril': '04', 
-            'mai': '05',
-            'juin': '06'
-        }
+        # Priorité 2 : Contenu du fichier
+        if text:
+            # Chercher "Le XX/XX/XXXX" dans le contenu
+            date_patterns = [
+                r'Le (\d{2}/\d{2}/\d{4})',
+                r'le (\d{2}/\d{2}/\d{4})',
+                r'Date\s*:\s*(\d{2}/\d{2}/\d{4})',
+                r'Arrêté au (\d{2}/\d{2}/\d{4})'
+            ]
+            
+            for pattern in date_patterns:
+                match = re.search(pattern, text)
+                if match:
+                    date_str = match.group(1)
+                    try:
+                        date_obj = datetime.strptime(date_str, '%d/%m/%Y')
+                        date_result = date_obj.strftime('%Y-%m-%d')
+                        print(f"✅ Date extraite du contenu: {date_result}")
+                        return date_result
+                    except:
+                        continue
         
-        # Essayer d'extraire du nom de fichier
-        for pattern in date_patterns:
-            match = re.search(pattern, filename)
-            if match:
-                if 'mars' in filename:
-                    return '2025-03-31'
-                elif 'avril' in filename:
-                    return '2025-04-30'
-                elif 'mai' in filename:
-                    return '2025-05-31'
-                elif 'juin' in filename:
-                    return '2025-06-30'
-        
-        # Essayer d'extraire du contenu PDF
-        try:
-            with pdfplumber.open(pdf_path) as pdf:
-                for page in pdf.pages:
-                    text = page.extract_text()
-                    if text:
-                        # Chercher des dates dans le texte
-                        date_match = re.search(r'(\d{2})/(\d{2})/2025', text)
-                        if date_match:
-                            day, month = date_match.groups()
-                            return f"2025-{month}-{day}"
-        except:
-            pass
-        
-        # Fallback : date actuelle
-        from datetime import datetime
+        # Fallback : Date actuelle
+        print("⚠️  Aucune date trouvée, utilisation date actuelle")
         return datetime.now().strftime('%Y-%m-%d')
 
     def _parse_pea_positions_with_date(self, table: List[List], valuation_date: str) -> List[Dict]:
@@ -928,147 +994,97 @@ class UnifiedPortfolioParser:
         return positions
 
     def _parse_multiline_synchronized(self, multiline_row: List, valuation_date: str) -> List[Dict]:
-        """
-        CORRIGÉ : Parser multi-lignes avec logique de section améliorée
-        """
+        """ Parser multi-lignes avec logique de section améliorée """
         positions = []
         
-        print("🔧 Parsing synchronisé multi-lignes CORRIGÉ...")
-        
         try:
-            # Extraire et diviser chaque colonne
-            designations_raw = str(multiline_row[0]) if len(multiline_row) > 0 else ''
-            quantities_raw = str(multiline_row[1]) if len(multiline_row) > 1 else ''
-            prices_raw = str(multiline_row[2]) if len(multiline_row) > 2 else ''
-            values_raw = str(multiline_row[3]) if len(multiline_row) > 3 else ''
-            percentages_raw = str(multiline_row[4]) if len(multiline_row) > 4 else ''
+            # Diviser les colonnes
+            designations = [d.strip() for d in str(multiline_row[0]).split('\n') if d.strip()]
+            quantities = [q.strip() for q in str(multiline_row[1]).split('\n') if q.strip()]
+            prices = [p.strip() for p in str(multiline_row[2]).split('\n') if p.strip()]
+            values = [v.strip() for v in str(multiline_row[3]).split('\n') if v.strip()]
+            percentages = [p.strip() for p in str(multiline_row[4]).split('\n') if p.strip()]
             
-            # Diviser les lignes
-            designation_lines = [d.strip() for d in designations_raw.split('\n') if d.strip()]
-            quantity_lines = [q.strip() for q in quantities_raw.split('\n') if q.strip()]
-            price_lines = [p.strip() for p in prices_raw.split('\n') if p.strip()]
-            value_lines = [v.strip() for v in values_raw.split('\n') if v.strip()]
-            percentage_lines = [p.strip() for p in percentages_raw.split('\n') if p.strip()]
+            min_length = min(len(designations), len(quantities), len(prices), len(values))
             
-            print(f"  📊 Lignes brutes: {len(designation_lines)} désignations")
-            
-            # DEBUG : Afficher chaque ligne avec son statut
-            print(f"  🔍 Analyse des lignes:")
-            for i, designation in enumerate(designation_lines):
-                has_isin = bool(re.search(r'[A-Z]{2}[A-Z0-9]{10}', designation))
-                is_section = self._is_section_header(designation)
-                is_total = self._is_total_line(designation)
+            for i in range(min_length):
+                designation = designations[i]
                 
-                status = "📈 VALIDE" if has_isin else "🏢 SECTION" if is_section else "📊 TOTAL" if is_total else "❓ AUTRE"
-                print(f"    {i:2d}: {status} | {designation[:60]}...")
-            
-            # NOUVELLE LOGIQUE : Identifier les positions valides
-            valid_positions = []
-            
-            for i, designation in enumerate(designation_lines):
-                # CRITÈRES DE VALIDATION CORRIGÉS :
-                
-                # 1. DOIT avoir un ISIN
-                if not re.search(r'[A-Z]{2}[A-Z0-9]{10}', designation):
-                    print(f"    ⚠️  Ignoré (pas d'ISIN): {designation[:50]}...")
+                # ✅ NOUVEAU : Filtrer les lignes totales et non-positions
+                designation_upper = designation.upper()
+                if any(keyword in designation_upper for keyword in [
+                    'TOTAL PORTEFEUILLE', 'TOTAL', 'LIQUIDITES', 'SOLDE ESPECES',
+                    'ACTIONS FRANCAISES', 'VALEUR EUROPE', 'DIVERS',
+                    'SOUS-TOTAL', 'CUMUL'
+                ]):
+                    print(f"    ⚠️  Ligne filtrée (total/section): {designation}")
                     continue
                 
-                # 2. NE DOIT PAS être une ligne de total
-                if self._is_total_line(designation):
-                    print(f"    ⚠️  Ignoré (total): {designation[:50]}...")
+                # Filtrer si pas d'ISIN
+                if not re.search(r'[A-Z]{2}\d{10}', designation):
+                    print(f"    ⚠️  Ligne filtrée (pas d'ISIN): {designation}")
                     continue
                 
-                # 3. Si c'est arrivé ici avec un ISIN, c'est valide même si ça ressemble à une section
-                # (la fonction _is_section_header retournera False pour les lignes avec ISIN)
+                # Extraire ISIN
+                isin_match = re.search(r'[A-Z]{2}\d{10}', designation)
+                isin = isin_match.group(0) if isin_match else None
                 
-                # Position valide trouvée
-                cleaned_designation = self._clean_pea_designation(designation)
-                valid_positions.append((i, cleaned_designation))
-                print(f"    ✅ Valide: {designation[:50]}...")
-            
-            print(f"  ✅ Positions valides trouvées: {len(valid_positions)}")
-            
-            # SYNCHRONISATION des autres colonnes
-            synced_quantities = []
-            synced_prices = []
-            synced_values = []
-            synced_percentages = []
-            
-            # Nouvelle approche : ne compter que les lignes correspondant aux positions valides
-            position_indices = [pos[0] for pos in valid_positions]  # Indices originaux
-            
-            # Filtrer les autres colonnes en gardant seulement les lignes aux mêmes indices
-            for original_idx in position_indices:
-                # Trouver les valeurs correspondantes dans les autres colonnes
-                qty_val = quantity_lines[original_idx] if original_idx < len(quantity_lines) else '0'
-                price_val = price_lines[original_idx] if original_idx < len(price_lines) else '0'
-                value_val = value_lines[original_idx] if original_idx < len(value_lines) else '0'
-                percentage_val = percentage_lines[original_idx] if original_idx < len(percentage_lines) else '0'
-                
-                synced_quantities.append(qty_val)
-                synced_prices.append(price_val)
-                synced_values.append(value_val)
-                synced_percentages.append(percentage_val)
-            
-            print(f"  🔄 Synchronisation: {len(synced_quantities)} valeurs par colonne")
-            
-            # Créer les positions avec données synchronisées
-            for i, (original_idx, designation) in enumerate(valid_positions):
-                try:
-                    # Extraire ISIN
-                    isin_match = re.search(r'[A-Z]{2}[A-Z0-9]{10}', designation)
-                    isin = isin_match.group(0) if isin_match else None
-                    
-                    if not isin:
-                        continue
-                    
-                    # Extraire nom de l'actif
-                    asset_name = designation.replace(isin, '').strip()
-                    asset_name = re.sub(r'^\d+\s*', '', asset_name).strip()
-                    
-                    # Valeurs synchronisées
-                    quantity = self._clean_french_amount(synced_quantities[i]) if i < len(synced_quantities) else 0
-                    price = self._clean_french_amount(synced_prices[i]) if i < len(synced_prices) else 0
-                    market_value = self._clean_french_amount(synced_values[i]) if i < len(synced_values) else 0
-                    percentage = self._clean_french_amount(synced_percentages[i]) if i < len(synced_percentages) else 0
-                    
-                    # Validation finale
-                    if quantity <= 0 and market_value <= 0:
-                        print(f"    ⚠️  Position ignorée (valeurs nulles): {asset_name}")
-                        continue
-                    
-                    # Créer la position
-                    position = {
-                        'id': str(uuid.uuid4()),
-                        'user_id': self.user_id,
-                        'platform': 'PEA',
-                        
-                        'isin': isin,
-                        'asset_name': asset_name[:250],
-                        'quantity': quantity,
-                        'current_price': price,
-                        'market_value': market_value,
-                        'portfolio_percentage': percentage,
-                        
-                        'asset_class': self._classify_pea_asset(asset_name),
-                        'valuation_date': valuation_date,
-                        
-                        'created_at': datetime.now().isoformat()
-                    }
-                    
-                    positions.append(position)
-                    print(f"    ✅ Position {i+1}: {isin} - {asset_name[:25]}... | Q:{quantity} | V:{market_value}€")
-                    
-                except Exception as e:
-                    print(f"    ❌ Erreur position {i}: {e}")
+                if not isin:
                     continue
-            
-            print(f"✅ Parsing synchronisé terminé: {len(positions)} positions créées")
-            
+                
+                # Nom de l'actif
+                asset_name = designation.replace(isin, '').strip()
+                asset_name = re.sub(r'^\d+\s*', '', asset_name).strip()
+                
+                # Valeurs numériques
+                quantity = clean_amount(quantities[i]) if i < len(quantities) else 0
+                current_price = clean_amount(prices[i]) if i < len(prices) else 0
+                market_value = clean_amount(values[i]) if i < len(values) else 0
+                percentage = clean_amount(percentages[i]) if i < len(percentages) else 0
+                
+                # Validation
+                if quantity <= 0 and market_value <= 0:
+                    print(f"    ⚠️  Position {i} ignorée: quantité et valorisation nulles")
+                    continue
+                
+                # Calculer prix moyen et PnL
+                average_price = current_price  # Approximation
+                unrealized_pnl = 0.0
+                unrealized_pnl_pct = 0.0
+                
+                # ✅ AMÉLIORATION : Extraction date depuis fichier ou contenu
+                valuation_date = self.extract_valuation_date(
+                    file_path=getattr(self, 'current_file_path', None)
+                )
+                
+                # STRUCTURE PORTFOLIO_POSITIONS
+                position = {
+                    'id': str(uuid.uuid4()),
+                    'user_id': self.user_id,
+                    'platform': 'PEA',
+                    
+                    # Identification actif
+                    'isin': isin,
+                    'asset_name': asset_name[:200],
+                    'asset_class': self._classify_pea_asset(asset_name),
+                    
+                    # Position
+                    'quantity': quantity,
+                    'current_price': current_price,
+                    'market_value': market_value,
+                    'portfolio_percentage': percentage,
+                    
+                    # Dates
+                    'valuation_date': valuation_date,
+                    'created_at': datetime.now().isoformat(),
+                    'updated_at': datetime.now().isoformat()
+                }
+                
+                positions.append(position)
+                print(f"    ✅ Position {i}: {isin} - {asset_name[:30]}... | Qté:{quantity} | Val:{market_value}€")
+        
         except Exception as e:
-            print(f"❌ Erreur parsing synchronisé: {e}")
-            import traceback
-            traceback.print_exc()
+            print(f"❌ Erreur parsing portfolio multi-lignes: {e}")
         
         return positions
 
@@ -1178,23 +1194,62 @@ class UnifiedPortfolioParser:
         return positions
 
     def _parse_pea_releve(self, pdf_path: str) -> List[Dict]:
-        """Parser relevé PEA avec extraction intelligente"""
+        """Parser relevé PEA avec extraction CORRECTE des montants Débit/Crédit"""
         flux_tresorerie = []
         
+        print(f"📄 Parsing relevé PEA: {pdf_path}")
+        
         with pdfplumber.open(pdf_path) as pdf:
-            for page in pdf.pages:
+            for page_num, page in enumerate(pdf.pages):
+                print(f"  📖 Page {page_num + 1}...")
+                
+                # Extraire le texte complet
                 text = page.extract_text()
                 if not text:
                     continue
                 
+                # Stocker le chemin pour extraction date
+                self.current_file_path = pdf_path
+                
+                # Extraire date de valorisation
+                valuation_date = self.extract_valuation_date(pdf_path, text)
+                
+                # ✅ NOUVELLE APPROCHE : Parser par lignes avec structure Débit/Crédit
                 lines = text.split('\n')
                 
-                for line in lines:
-                    if re.match(r'^\d{2}/\d{2}/\d{4}', line):
-                        transaction = self._parse_pea_transaction_line(line)
-                        if transaction:
-                            flux_tresorerie.append(transaction)
+                for line_num, line in enumerate(lines):
+                    line = line.strip()
+                    
+                    # ✅ PATTERN AMÉLIORÉ : Date au début + Description + Montants
+                    # Exemple: "28/03/2025 ACH CPT LVMH MOET VUITTON Qté : 1 Cours : 585    586,90"
+                    date_match = re.match(r'^(\d{2}/\d{2}/\d{4})\s+(.+)', line)
+                    
+                    if date_match:
+                        date_str = date_match.group(1)
+                        rest_of_line = date_match.group(2).strip()
+                        
+                        date_transaction = standardize_date(date_str)
+                        if not date_transaction:
+                            continue
+                        
+                        # ✅ EXTRACTION AMÉLIORÉE des montants
+                        transaction_data = self._parse_pea_transaction_line_v2(rest_of_line)
+                        
+                        if transaction_data:
+                            transaction_data.update({
+                                'id': str(uuid.uuid4()),
+                                'user_id': self.user_id,
+                                'platform': 'PEA',
+                                'transaction_date': date_transaction,
+                                'status': 'completed',
+                                'payment_method': 'PEA',
+                                'created_at': datetime.now().isoformat()
+                            })
+                            
+                            flux_tresorerie.append(transaction_data)
+                            print(f"    ✅ Transaction: {transaction_data['flow_type']} | {transaction_data['gross_amount']}€")
         
+        print(f"✅ Relevé PEA parsé: {len(flux_tresorerie)} transactions")
         return flux_tresorerie
     
     def get_pea_portfolio_positions(self) -> List[Dict]:
@@ -1203,18 +1258,13 @@ class UnifiedPortfolioParser:
     
     def _parse_pea_transaction_line(self, line: str) -> Optional[Dict]:
         """
-        CORRIGÉ : Parser transaction PEA avec gestion améliorée des montants français
+        NOUVEAU : Parser transaction PEA avec extraction ROBUSTE des montants
+        Gère la structure : "DESCRIPTION + Qté : X Cours : Y + MONTANT(S)"
         """
         
-        # Extraire date
-        date_match = re.match(r'^(\d{2}/\d{2}/\d{4})', line)
-        if not date_match:
-            return None
-        
-        date_transaction = standardize_date(date_match.group(1))
         line_upper = line.upper()
         
-        # Classification des opérations CORRIGÉE
+        # ✅ Classification des opérations
         if 'COUPONS' in line_upper or 'DIVIDENDE' in line_upper:
             flow_type = 'dividend'
             flow_direction = 'in'
@@ -1237,34 +1287,69 @@ class UnifiedPortfolioParser:
             flow_type = 'other'
             flow_direction = 'in'
         
-        # EXTRACTION CORRIGÉE des montants français
-        transaction_amount = self._extract_pea_transaction_amount_french(line, flow_type)
+        # ✅ EXTRACTION MONTANTS ROBUSTE
+        # Stratégie : nettoyer la ligne puis extraire le(s) dernier(s) montant(s)
         
-        # Description nettoyée
-        description = self._extract_pea_description(line)
+        # 1. Enlever les infos Qté/Cours pour isoler les montants
+        cleaned_line = line
         
-        # Montant net final pour le flux
-        net_amount = transaction_amount if flow_direction == 'in' else -transaction_amount
+        # Supprimer "Qté : XXX"
+        cleaned_line = re.sub(r'Qté\s*:\s*[\d,\.\s]+', '', cleaned_line)
+        
+        # Supprimer "Cours : XXX"
+        cleaned_line = re.sub(r'Cours\s*:\s*[\d,\.\s]+', '', cleaned_line)
+        
+        # 2. Extraire tous les montants restants
+        # Pattern pour montants : 123,45 ou 1 234,56 ou 1234.56
+        montant_patterns = [
+            r'(\d{1,3}(?:\s\d{3})*,\d{2})',  # 1 234,56
+            r'(\d+,\d{2})',                   # 123,45
+            r'(\d{1,3}(?:\.\d{3})*\.\d{2})'  # 1.234.56
+        ]
+        
+        montants_trouves = []
+        
+        for pattern in montant_patterns:
+            matches = re.findall(pattern, cleaned_line)
+            for match in matches:
+                montant_clean = clean_amount(match)
+                if montant_clean > 0:
+                    montants_trouves.append(montant_clean)
+        
+        # 3. Déterminer le montant de transaction
+        if not montants_trouves:
+            print(f"    ⚠️  Aucun montant trouvé dans: {line}")
+            return None
+        
+        # Prendre le plus gros montant (généralement le montant principal)
+        transaction_amount = max(montants_trouves)
+        
+        # 4. Calculer frais si plusieurs montants
+        fees = 0.0
+        if len(montants_trouves) > 1:
+            # Les petits montants sont probablement des frais
+            autres_montants = [m for m in montants_trouves if m != transaction_amount]
+            fees = sum(autres_montants)
+        
+        # 5. Description nettoyée
+        description = self._extract_pea_description_v2(line)
+        
+        # 6. Montant net final
+        if flow_direction == 'out':
+            net_amount = -(transaction_amount + fees)  # Sortie avec frais
+            gross_amount = transaction_amount + fees
+        else:
+            net_amount = transaction_amount  # Entrée
+            gross_amount = transaction_amount
         
         return {
-            'id': str(uuid.uuid4()),
-            'user_id': self.user_id,
-            'platform': 'PEA',
-            
             'flow_type': flow_type,
             'flow_direction': flow_direction,
-            
-            'gross_amount': transaction_amount,
+            'gross_amount': gross_amount,
             'net_amount': net_amount,
-            'tax_amount': 0.0,  # PEA exonéré d'impôts
-            
-            'transaction_date': date_transaction,
-            'status': 'completed',
-            
-            'description': description,
-            'payment_method': 'PEA',
-            
-            'created_at': datetime.now().isoformat()
+            'tax_amount': 0.0,  # PEA exonéré
+            'fee_amount': fees,
+            'description': description
         }
 
     def _extract_pea_financial_data(self, line: str, flow_type: str) -> Tuple[float, float, float, float]:
@@ -1469,19 +1554,16 @@ class UnifiedPortfolioParser:
             print(f"⚠️  Erreur extraction plus gros montant: {e}")
             return 0.0
 
-    def _extract_pea_description(self, line: str) -> str:
-        """AMÉLIORÉE : Extraire description nettoyée PEA"""
-        # Enlever date au début
-        cleaned = re.sub(r'^\d{2}/\d{2}/\d{4}\s+', '', line)
+    def _extract_pea_description_v2(self, line: str) -> str:
+        """Extraire description nettoyée V2"""
+        # Enlever les infos techniques
+        cleaned = re.sub(r'Qté\s*:\s*[\d,\.\s]+', '', line)
+        cleaned = re.sub(r'Cours\s*:\s*[\d,\.\s]+', '', cleaned)
         
-        # Enlever quantité et cours avec leurs valeurs
-        cleaned = re.sub(r'Qté\s*:\s*[\d\s,\.]+(?=\s|$)', '', cleaned)
-        cleaned = re.sub(r'Cours\s*:\s*[\d\s,\.]+(?=\s|$)', '', cleaned)
+        # Enlever les montants en fin
+        cleaned = re.sub(r'[\d\s,\.]+$', '', cleaned)
         
-        # Enlever les montants en fin de ligne (garder seulement le texte descriptif)
-        cleaned = re.sub(r'(?:\d{1,3}(?:\s\d{3})*|\d+),\d{2}(?:\s|$)', '', cleaned)
-        
-        # Nettoyer les espaces multiples
+        # Nettoyer espaces
         cleaned = re.sub(r'\s+', ' ', cleaned).strip()
         
         return cleaned if cleaned else "Transaction PEA"
