@@ -836,7 +836,7 @@ class UnifiedPortfolioParser:
                     for table_idx, table in enumerate(tables):
                         if table and len(table) > 1:
                             # Vérifier si c'est un tableau de positions
-                            has_isin = any(re.search(r'[A-Z]{2}\d{10}', str(cell)) 
+                            has_isin = any(re.search(r'[A-Z]{2}[A-Z0-9]{10}', str(cell)) 
                                         for row in table[:3] for cell in row if cell)
                             
                             if has_isin:
@@ -955,7 +955,7 @@ class UnifiedPortfolioParser:
             # DEBUG : Afficher chaque ligne avec son statut
             print(f"  🔍 Analyse des lignes:")
             for i, designation in enumerate(designation_lines):
-                has_isin = bool(re.search(r'[A-Z]{2}\d{10}', designation))
+                has_isin = bool(re.search(r'[A-Z]{2}[A-Z0-9]{10}', designation))
                 is_section = self._is_section_header(designation)
                 is_total = self._is_total_line(designation)
                 
@@ -969,7 +969,7 @@ class UnifiedPortfolioParser:
                 # CRITÈRES DE VALIDATION CORRIGÉS :
                 
                 # 1. DOIT avoir un ISIN
-                if not re.search(r'[A-Z]{2}\d{10}', designation):
+                if not re.search(r'[A-Z]{2}[A-Z0-9]{10}', designation):
                     print(f"    ⚠️  Ignoré (pas d'ISIN): {designation[:50]}...")
                     continue
                 
@@ -1016,7 +1016,7 @@ class UnifiedPortfolioParser:
             for i, (original_idx, designation) in enumerate(valid_positions):
                 try:
                     # Extraire ISIN
-                    isin_match = re.search(r'[A-Z]{2}\d{10}', designation)
+                    isin_match = re.search(r'[A-Z]{2}[A-Z0-9]{10}', designation)
                     isin = isin_match.group(0) if isin_match else None
                     
                     if not isin:
@@ -1079,7 +1079,7 @@ class UnifiedPortfolioParser:
         line_clean = line.strip()
         
         # Si la ligne contient un ISIN, ce n'est pas un total
-        if re.search(r'[A-Z]{2}\d{10}', line_clean):
+        if re.search(r'[A-Z]{2}[A-Z0-9]{10}', line_clean):
             return False
         
         # Ligne avec seulement des chiffres, espaces, virgules, points (totaux)
@@ -1129,7 +1129,7 @@ class UnifiedPortfolioParser:
                     continue
                 
                 # Extraire ISIN
-                isin_match = re.search(r'[A-Z]{2}\d{10}', designation)
+                isin_match = re.search(r'[A-Z]{2}[A-Z0-9]{10}', designation)
                 isin = isin_match.group(0) if isin_match else None
                 
                 if not isin:
@@ -1506,7 +1506,7 @@ class UnifiedPortfolioParser:
         RÈGLE CLEF : Si ça contient un ISIN, ce n'est PAS une section !
         """
         # RÈGLE 1 : Si la ligne contient un ISIN, ce n'est PAS une section
-        if re.search(r'[A-Z]{2}\d{10}', designation):
+        if re.search(r'[A-Z]{2}[A-Z0-9]{10}', designation):
             return False
         
         # RÈGLE 2 : Sections exactes uniquement (pas de contains)
