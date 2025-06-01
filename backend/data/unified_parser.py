@@ -847,7 +847,7 @@ class UnifiedPortfolioParser:
         print(f"✅ Fichier {os.path.basename(pdf_path)}: {len(positions)} positions")
         return positions
 
-    def extract_valuation_date(self, file_path: str = None, text: str = None) -> str:
+    def _extract_valuation_date(self, file_path: str = None, text: str = None) -> str:
         """
         Extraire date de valorisation depuis nom fichier ou contenu - VERSION GÉNÉRIQUE
         Supporte toutes les années, pas seulement 2025
@@ -1233,7 +1233,7 @@ class UnifiedPortfolioParser:
                             continue
                         
                         # ✅ EXTRACTION AMÉLIORÉE des montants
-                        transaction_data = self._parse_pea_transaction_line_v2(rest_of_line)
+                        transaction_data = self._parse_pea_transaction_line(rest_of_line)
                         
                         if transaction_data:
                             transaction_data.update({
