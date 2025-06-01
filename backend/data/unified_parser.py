@@ -769,7 +769,6 @@ class UnifiedPortfolioParser:
             cash_flows = self._parse_pea_releve(releve_path)
         
         # Parser évaluation (positions → portfolio_positions)
-        # Note: Les portfolio_positions seront insérées séparément
         if evaluation_path and os.path.exists(evaluation_path):
             print("📊 Parsing évaluation PEA vers portfolio_positions...")
             portfolio_positions = self._parse_pea_evaluation(evaluation_path)
@@ -780,7 +779,7 @@ class UnifiedPortfolioParser:
         return investments, cash_flows
 
     def _parse_pea_releve(self, pdf_path: str) -> List[Dict]:
-        """Parser relevé PEA avec extraction intelligente"""
+        """Parser relevé PEA avec extraction intelligente CORRIGÉE"""
         flux_tresorerie = []
         
         with pdfplumber.open(pdf_path) as pdf:
@@ -805,7 +804,7 @@ class UnifiedPortfolioParser:
     
     def _parse_pea_transaction_line(self, line: str) -> Optional[Dict]:
         """
-        CORRIGÉ : Parser transaction PEA avec séparation claire cours/montant/frais
+        CORRIGÉ : Parser transaction PEA avec gestion améliorée des montants français
         """
         
         # Extraire date
@@ -816,7 +815,7 @@ class UnifiedPortfolioParser:
         date_transaction = standardize_date(date_match.group(1))
         line_upper = line.upper()
         
-        # Classification des opérations
+        # Classification des opérations CORRIGÉE
         if 'COUPONS' in line_upper or 'DIVIDENDE' in line_upper:
             flow_type = 'dividend'
             flow_direction = 'in'
@@ -839,8 +838,8 @@ class UnifiedPortfolioParser:
             flow_type = 'other'
             flow_direction = 'in'
         
-        # EXTRACTION AMÉLIORÉE des montants
-        quantity, unit_price, transaction_amount, fees = self._extract_pea_financial_data(line, flow_type)
+        # EXTRACTION CORRIGÉE des montants français
+        transaction_amount = self._extract_pea_transaction_amount_french(line, flow_type)
         
         # Description nettoyée
         description = self._extract_pea_description(line)
@@ -848,7 +847,6 @@ class UnifiedPortfolioParser:
         # Montant net final pour le flux
         net_amount = transaction_amount if flow_direction == 'in' else -transaction_amount
         
-        # STRUCTURE CASH_FLOW NETTOYÉE (sans quantity/unit_price non pertinents)
         return {
             'id': str(uuid.uuid4()),
             'user_id': self.user_id,
@@ -859,7 +857,6 @@ class UnifiedPortfolioParser:
             
             'gross_amount': transaction_amount,
             'net_amount': net_amount,
-            'fee_amount': fees,  # Frais séparés
             'tax_amount': 0.0,  # PEA exonéré d'impôts
             
             'transaction_date': date_transaction,
@@ -873,8 +870,8 @@ class UnifiedPortfolioParser:
 
     def _extract_pea_financial_data(self, line: str, flow_type: str) -> Tuple[float, float, float, float]:
         """
-        NOUVEAU : Extraction intelligente des données financières PEA
-        Retourne: (quantité, prix_unitaire, montant_transaction, frais)
+        CORRIGÉ : Extraction intelligente des données financières PEA
+        Gestion des montants avec espaces et format français
         """
         quantity = 0.0
         unit_price = 0.0
@@ -883,89 +880,197 @@ class UnifiedPortfolioParser:
         
         try:
             # 1. Extraire quantité si présente
-            qty_match = re.search(r'Qté\s*:\s*([\d,\.]+)', line)
+            qty_match = re.search(r'Qté\s*:\s*([\d\s,\.]+)', line)
             if qty_match:
-                quantity = clean_amount(qty_match.group(1))
+                quantity = self._clean_french_amount(qty_match.group(1))
             
             # 2. Extraire cours si présent
-            cours_match = re.search(r'Cours\s*:\s*([\d,\.]+)', line)
+            cours_match = re.search(r'Cours\s*:\s*([\d\s,\.]+)', line)
             if cours_match:
-                unit_price = clean_amount(cours_match.group(1))
+                unit_price = self._clean_french_amount(cours_match.group(1))
             
-            # 3. Extraction du montant final selon le type d'opération
+            # 3. Extraction du montant selon le type d'opération
             if flow_type in ['purchase', 'sale']:
-                # Achat/Vente : chercher le montant débité/crédité (pas le cours)
-                transaction_amount = self._extract_transaction_amount(line, flow_type)
+                # Achat/Vente : chercher le montant final (pas le cours)
+                transaction_amount = self._extract_pea_transaction_amount_french(line, flow_type)
                 
                 # Calculer les frais si on a quantité × cours
                 if quantity > 0 and unit_price > 0:
                     theoretical_amount = quantity * unit_price
                     if transaction_amount > theoretical_amount:
                         fees = transaction_amount - theoretical_amount
-                        print(f"    💰 Frais détectés: {fees:.2f}€ (Transaction: {transaction_amount}€ - Théorique: {theoretical_amount}€)")
+                        print(f"    💰 Frais détectés: {fees:.2f}€")
             
             elif flow_type == 'dividend':
-                # Dividende : montant simple
-                amounts = re.findall(r'[\d,\.]+', line)
-                if amounts:
-                    transaction_amount = clean_amount(amounts[-1])
+                # Dividende : prendre le montant final
+                transaction_amount = self._extract_last_amount_french(line)
             
             elif flow_type == 'deposit':
                 # Dépôt : montant simple
-                amounts = re.findall(r'[\d,\.]+', line)
-                if amounts:
-                    transaction_amount = clean_amount(amounts[-1])
+                transaction_amount = self._extract_last_amount_french(line)
             
             elif flow_type == 'fee':
                 # Frais/taxes : montant simple
-                amounts = re.findall(r'[\d,\.]+', line)
-                if amounts:
-                    transaction_amount = clean_amount(amounts[-1])
+                transaction_amount = self._extract_last_amount_french(line)
             
             else:
                 # Autres : prendre le dernier montant
-                amounts = re.findall(r'[\d,\.]+', line)
-                if amounts:
-                    transaction_amount = clean_amount(amounts[-1])
+                transaction_amount = self._extract_last_amount_french(line)
         
         except Exception as e:
             print(f"⚠️  Erreur extraction données financières: {e}")
         
         return quantity, unit_price, transaction_amount, fees
 
-    def _extract_transaction_amount(self, line: str, flow_type: str) -> float:
-        """Extraire le montant de transaction réel (débité/crédité)"""
+    def _clean_french_amount(self, amount_str: str) -> float:
+        """
+        NOUVEAU : Nettoyer montant français avec gestion des espaces
+        Exemples : "1 088,41" → 1088.41, "143,40" → 143.40
+        """
+        if not amount_str or pd.isna(amount_str):
+            return 0.0
         
-        # Stratégie : chercher le montant à la fin de la ligne
-        # Éviter de prendre le cours qui est après "Cours :"
-        # Supprimer la partie "Cours : XXX" pour ne pas la confondre avec le montant final
-        line_cleaned = line
-        cours_match = re.search(r'Cours\s*:\s*[\d,\.]+', line)
-        if cours_match:
-            line_cleaned = line.replace(cours_match.group(0), '')
+        try:
+            # Nettoyer la chaîne
+            cleaned = str(amount_str).strip()
+            
+            # Supprimer les caractères non numériques sauf espace, virgule, point
+            cleaned = re.sub(r'[^\d\s,\.]', '', cleaned)
+            
+            # CORRECTION PRINCIPALE : Gestion format français avec espaces
+            # Format: "1 088,41" ou "143,40" ou "1088.41"
+            
+            if ',' in cleaned:
+                # Format français : "1 088,41" ou "143,40"
+                if ' ' in cleaned:
+                    # Format avec espaces : "1 088,41" → "1088,41" → "1088.41"
+                    cleaned = cleaned.replace(' ', '')
+                # Remplacer virgule par point : "1088,41" → "1088.41"
+                cleaned = cleaned.replace(',', '.')
+            
+            # Convertir en float
+            return float(cleaned) if cleaned else 0.0
+            
+        except Exception as e:
+            print(f"⚠️  Erreur nettoyage montant '{amount_str}': {e}")
+            return 0.0
+
+    def _extract_last_amount_french(self, line: str) -> float:
+        """
+        NOUVEAU : Extraire le dernier montant d'une ligne en format français
+        """
+        try:
+            # Chercher tous les patterns de montants français
+            # Patterns : "1 088,41", "143,40", "1088.41", etc.
+            patterns = [
+                r'(\d{1,3}(?:\s\d{3})*),(\d{2})',  # 1 088,41
+                r'(\d+),(\d{2})',                   # 143,40
+                r'(\d+)\.(\d{2})',                  # 1088.41
+                r'(\d+)'                            # 1088
+            ]
+            
+            all_amounts = []
+            
+            for pattern in patterns:
+                matches = re.findall(pattern, line)
+                for match in matches:
+                    if isinstance(match, tuple):
+                        if len(match) == 2:
+                            # Format avec décimales
+                            integer_part = match[0].replace(' ', '')
+                            decimal_part = match[1]
+                            amount_str = f"{integer_part}.{decimal_part}"
+                        else:
+                            # Entier simple
+                            amount_str = match[0].replace(' ', '')
+                    else:
+                        # Match simple
+                        amount_str = match.replace(' ', '')
+                    
+                    try:
+                        amount = float(amount_str)
+                        if amount > 0:
+                            all_amounts.append(amount)
+                    except:
+                        continue
+            
+            # Retourner le plus gros montant (souvent le montant de transaction)
+            return max(all_amounts) if all_amounts else 0.0
+            
+        except Exception as e:
+            print(f"⚠️  Erreur extraction dernier montant: {e}")
+            return 0.0
+
+    def _extract_pea_transaction_amount_french(self, line: str, flow_type: str) -> float:
+        """
+        NOUVEAU : Extraire montant transaction PEA en format français
+        Gestion spéciale pour purchase/deposit vs dividend/fee
+        """
+        try:
+            # Supprimer les parties "Cours :" et "Qté :" pour éviter confusion
+            line_cleaned = line
+            
+            # Supprimer partie cours
+            cours_match = re.search(r'Cours\s*:\s*[\d\s,\.]+', line)
+            if cours_match:
+                line_cleaned = line_cleaned.replace(cours_match.group(0), '')
+            
+            # Supprimer partie quantité  
+            qty_match = re.search(r'Qté\s*:\s*[\d\s,\.]+', line_cleaned)
+            if qty_match:
+                line_cleaned = line_cleaned.replace(qty_match.group(0), '')
+            
+            # Extraction selon type de transaction
+            if flow_type in ['purchase', 'sale']:
+                # Pour achat/vente : chercher le montant le plus important (transaction totale)
+                return self._extract_largest_amount_french(line_cleaned)
+            
+            elif flow_type in ['dividend', 'fee', 'deposit']:
+                # Pour dividende/frais/dépôt : prendre le dernier montant
+                return self._extract_last_amount_french(line_cleaned)
+            
+            else:
+                # Autres : dernier montant
+                return self._extract_last_amount_french(line_cleaned)
         
-        # Supprimer la partie "Qté : XXX" aussi
-        qty_match = re.search(r'Qté\s*:\s*[\d,\.]+', line_cleaned)
-        if qty_match:
-            line_cleaned = line_cleaned.replace(qty_match.group(0), '')
-        
-        # Chercher les montants dans la ligne nettoyée
-        amounts = re.findall(r'[\d\s,\.]+', line_cleaned)
-        
-        # Nettoyer et convertir
-        cleaned_amounts = []
-        for amount_str in amounts:
-            try:
-                amount = clean_amount(amount_str)
-                if amount > 0:
-                    cleaned_amounts.append(amount)
-            except:
-                continue
-        
-        # Prendre le plus gros montant (souvent le montant de transaction)
-        if cleaned_amounts:
-            return max(cleaned_amounts)
-        else:
+        except Exception as e:
+            print(f"⚠️  Erreur extraction montant transaction: {e}")
+            return 0.0
+
+    def _extract_largest_amount_french(self, line: str) -> float:
+        """
+        NOUVEAU : Extraire le plus gros montant d'une ligne (pour transactions)
+        """
+        try:
+            # Chercher tous les montants français possibles
+            patterns = [
+                r'(\d{1,3}(?:\s\d{3})*),(\d{2})',  # 1 088,41
+                r'(\d+),(\d{2})',                   # 143,40  
+                r'(\d+)\.(\d{2})',                  # 1088.41
+            ]
+            
+            all_amounts = []
+            
+            for pattern in patterns:
+                matches = re.findall(pattern, line)
+                for match in matches:
+                    if len(match) == 2:
+                        integer_part = match[0].replace(' ', '')
+                        decimal_part = match[1]
+                        amount_str = f"{integer_part}.{decimal_part}"
+                        
+                        try:
+                            amount = float(amount_str)
+                            if amount > 0:
+                                all_amounts.append(amount)
+                        except:
+                            continue
+            
+            # Retourner le plus gros montant (montant de la transaction)
+            return max(all_amounts) if all_amounts else 0.0
+            
+        except Exception as e:
+            print(f"⚠️  Erreur extraction plus gros montant: {e}")
             return 0.0
 
     def _extract_pea_description(self, line: str) -> str:
@@ -974,8 +1079,8 @@ class UnifiedPortfolioParser:
         cleaned = re.sub(r'^\d{2}/\d{2}/\d{4}\s+', '', line)
         
         # Enlever quantité et cours avec leurs valeurs
-        cleaned = re.sub(r'Qté\s*:\s*[\d,\.]+(?=\s|$)', '', cleaned)
-        cleaned = re.sub(r'Cours\s*:\s*[\d,\.]+(?=\s|$)', '', cleaned)
+        cleaned = re.sub(r'Qté\s*:\s*[\d\s,\.]+(?=\s|$)', '', cleaned)
+        cleaned = re.sub(r'Cours\s*:\s*[\d\s,\.]+(?=\s|$)', '', cleaned)
         
         # Enlever les montants en fin de ligne (garder seulement le texte descriptif)
         cleaned = re.sub(r'(?:\d{1,3}(?:\s\d{3})*|\d+),\d{2}(?:\s|$)', '', cleaned)
@@ -1036,232 +1141,62 @@ class UnifiedPortfolioParser:
             
             if has_multiline:
                 print("🔧 Données multi-lignes détectées pour portfolio")
-                positions = self._parse_multiline_to_portfolio(first_row)
+                positions = self._parse_multiline_pea_data(first_row)
             else:
                 print("📄 Données normales pour portfolio")
-                positions = self._parse_normal_to_portfolio(data_rows)
-        
-        return positions
-
-    def _parse_multiline_to_portfolio(self, multiline_row: List) -> List[Dict]:
-        """Parser multi-lignes vers portfolio_positions"""
-        positions = []
-        
-        try:
-            # Diviser les colonnes
-            designations = [d.strip() for d in str(multiline_row[0]).split('\n') if d.strip()]
-            quantities = [q.strip() for q in str(multiline_row[1]).split('\n') if q.strip()]
-            prices = [p.strip() for p in str(multiline_row[2]).split('\n') if p.strip()]
-            values = [v.strip() for v in str(multiline_row[3]).split('\n') if v.strip()]
-            percentages = [p.strip() for p in str(multiline_row[4]).split('\n') if p.strip()]
-            
-            min_length = min(len(designations), len(quantities), len(prices), len(values))
-            
-            for i in range(min_length):
-                designation = designations[i]
-                
-                # Filtrer les lignes non-positions
-                if not re.search(r'[A-Z]{2}\d{10}', designation):
-                    continue
-                
-                # Extraire ISIN
-                isin_match = re.search(r'[A-Z]{2}\d{10}', designation)
-                isin = isin_match.group(0) if isin_match else None
-                
-                if not isin:
-                    continue
-                
-                # Nom de l'actif
-                asset_name = designation.replace(isin, '').strip()
-                asset_name = re.sub(r'^\d+\s*', '', asset_name).strip()
-                
-                # Valeurs numériques
-                quantity = clean_amount(quantities[i]) if i < len(quantities) else 0
-                current_price = clean_amount(prices[i]) if i < len(prices) else 0
-                market_value = clean_amount(values[i]) if i < len(values) else 0
-                percentage = clean_amount(percentages[i]) if i < len(percentages) else 0
-                
-                # Validation
-                if quantity <= 0 and market_value <= 0:
-                    continue
-                
-                # Calculer prix moyen et PnL
-                average_price = current_price  # Approximation (on n'a pas l'historique d'achat)
-                unrealized_pnl = 0.0  # À calculer si on a le prix d'achat
-                unrealized_pnl_pct = 0.0
-                
-                # STRUCTURE PORTFOLIO_POSITIONS
-                position = {
-                    'id': str(uuid.uuid4()),
-                    'user_id': self.user_id,
-                    'platform': 'PEA',
-                    
-                    # Identification actif
-                    'isin': isin,
-                    'ticker': None,  # À compléter si disponible
-                    'asset_name': asset_name[:200],  # Limiter taille
-                    
-                    # Position
-                    'quantity': quantity,
-                    'average_price': average_price,
-                    'current_price': current_price,
-                    'currency': 'EUR',
-                    
-                    # Valorisation
-                    'market_value': market_value,
-                    'unrealized_pnl': unrealized_pnl,
-                    'unrealized_pnl_pct': unrealized_pnl_pct,
-                    
-                    # Classification
-                    'asset_class': self._classify_pea_asset(asset_name),
-                    'portfolio_percentage': percentage,
-                    
-                    # Métadonnées
-                    'valuation_date': datetime.now().strftime('%Y-%m-%d'),
-                    'created_at': datetime.now().isoformat()
-                }
-                
-                positions.append(position)
-                print(f"    ✅ Portfolio {i}: {isin} - {asset_name[:30]}... | Qté:{quantity} | Val:{market_value}€")
-        
-        except Exception as e:
-            print(f"❌ Erreur parsing portfolio multi-lignes: {e}")
-        
-        return positions
-    
-    def _parse_pea_positions_text(self, text: str) -> List[Dict]:
-        """Parser positions PEA depuis texte brut (fallback)"""
-        positions = []
-        
-        print("📝 Extraction PEA depuis texte...")
-        
-        lines = text.split('\n')
-        
-        for line_num, line in enumerate(lines):
-            # Chercher les lignes avec ISIN
-            isin_match = re.search(r'FR\d{10}', line)
-            if isin_match:
-                isin = isin_match.group(0)
-                
-                # Extraire nom (après ISIN)
-                asset_name = line.replace(isin, '').strip()
-                asset_name = re.sub(r'^\d+\s*', '', asset_name)  # Supprimer numéros début
-                
-                # Chercher les montants dans la ligne
-                amounts = re.findall(r'[\d\s,\.]+', line)
-                cleaned_amounts = []
-                
-                for amount_str in amounts:
-                    try:
-                        amount = clean_amount(amount_str)
-                        if amount > 0:
-                            cleaned_amounts.append(amount)
-                    except:
-                        continue
-                
-                # Assigner les montants selon l'ordre attendu: quantité, cours, valorisation
-                quantity = cleaned_amounts[0] if len(cleaned_amounts) > 0 else 0
-                price = cleaned_amounts[1] if len(cleaned_amounts) > 1 else 0
-                market_value = cleaned_amounts[2] if len(cleaned_amounts) > 2 else 0
-                
-                if quantity > 0 or market_value > 0:
-                    position = {
-                        'id': str(uuid.uuid4()),
-                        'user_id': self.user_id,
-                        'platform': 'PEA',
-                        'isin': isin,
-                        'asset_name': asset_name or f"Asset_{isin}",
-                        'quantity': quantity,
-                        'current_price': price,
-                        'market_value': market_value,
-                        'portfolio_percentage': 0.0,
-                        'asset_class': self._classify_pea_asset(asset_name),
-                        'valuation_date': datetime.now().strftime('%Y-%m-%d'),
-                        'created_at': datetime.now().isoformat()
-                    }
-                    
-                    positions.append(position)
-                    print(f"  ✅ Position texte: {isin} - {asset_name[:20]}...")
-        
-        return positions
-
-    def _parse_pea_positions_table(self, table: List[List]) -> List[Dict]:
-        """Parser tableau positions PEA CORRIGÉ pour gérer les données multi-lignes"""
-        positions = []
-        
-        print(f"📊 Analyse tableau PEA: {len(table)} lignes")
-        
-        if not table or len(table) < 2:
-            print("⚠️  Tableau PEA vide ou trop petit")
-            return positions
-        
-        # Analyser l'en-tête
-        header = table[0] if table[0] else []
-        print(f"📋 En-tête détecté: {header}")
-        
-        # Vérifier si on a le cas "toutes les données dans une ligne avec \n"
-        data_rows = table[1:]  # Lignes de données
-        
-        # Détecter le cas problématique : première ligne contient des \n
-        if data_rows and len(data_rows[0]) >= 4:
-            first_row = data_rows[0]
-            
-            # Vérifier si les cellules contiennent des \n (données multi-lignes)
-            has_multiline = any('\n' in str(cell) for cell in first_row if cell)
-            
-            if has_multiline:
-                print("🔧 DÉTECTION: Données multi-lignes dans une seule ligne")
-                return self._parse_multiline_pea_data(first_row)
-            else:
-                print("📄 Données normales (une ligne par position)")
-                return self._parse_normal_pea_data(data_rows)
+                positions = self._parse_normal_pea_data(data_rows)
         
         return positions
 
     def _parse_multiline_pea_data(self, multiline_row: List) -> List[Dict]:
-        """Parser données PEA quand tout est dans une ligne avec des \\n"""
+        """
+        CORRIGÉ : Parser données PEA multi-lignes avec nettoyage des codes et montants
+        """
         positions = []
         
-        print("🔧 Parsing données multi-lignes...")
+        print("🔧 Parsing données multi-lignes PEA corrigé...")
         
-        # Extraire et diviser chaque colonne
         try:
-            # Colonne 0 : Désignations (ISIN + Nom)
+            # Extraire et diviser chaque colonne
             designations_raw = str(multiline_row[0]) if len(multiline_row) > 0 else ''
             designations = [d.strip() for d in designations_raw.split('\n') if d.strip()]
             
-            # Colonne 1 : Quantités
             quantities_raw = str(multiline_row[1]) if len(multiline_row) > 1 else ''
             quantities = [q.strip() for q in quantities_raw.split('\n') if q.strip()]
             
-            # Colonne 2 : Cours
             prices_raw = str(multiline_row[2]) if len(multiline_row) > 2 else ''
             prices = [p.strip() for p in prices_raw.split('\n') if p.strip()]
             
-            # Colonne 3 : Valorisations
             values_raw = str(multiline_row[3]) if len(multiline_row) > 3 else ''
             values = [v.strip() for v in values_raw.split('\n') if v.strip()]
             
-            # Colonne 4 : Pourcentages
             percentages_raw = str(multiline_row[4]) if len(multiline_row) > 4 else ''
             percentages = [p.strip() for p in percentages_raw.split('\n') if p.strip()]
             
-            print(f"  📊 Lignes extraites: {len(designations)} désignations, {len(quantities)} quantités, {len(prices)} cours")
+            print(f"  📊 Lignes extraites: {len(designations)} désignations")
             
-            # Synchroniser les listes (prendre la plus petite longueur)
-            min_length = min(len(designations), len(quantities), len(prices), len(values))
-            print(f"  🔢 Positions à traiter: {min_length}")
+            # Filtrer et nettoyer les désignations
+            cleaned_designations = []
+            for i, designation in enumerate(designations):
+                # CORRECTION 1 : Ignorer les sections en gras
+                if self._is_section_header(designation):
+                    print(f"    ⚠️  Section ignorée: {designation}")
+                    continue
+                
+                # CORRECTION 2 : Vérifier présence ISIN
+                if not re.search(r'[A-Z]{2}\d{10}', designation):
+                    print(f"    ⚠️  Ligne sans ISIN ignorée: {designation}")
+                    continue
+                
+                # CORRECTION 3 : Supprimer le code "025" à la fin
+                cleaned_designation = self._clean_pea_designation(designation)
+                cleaned_designations.append((i, cleaned_designation))
             
-            # Créer une position pour chaque ligne
-            for i in range(min_length):
+            print(f"  ✅ Positions valides: {len(cleaned_designations)}")
+            
+            # Créer les positions
+            for original_index, designation in cleaned_designations:
                 try:
-                    designation = designations[i]
-                    
-                    # Filtrer les lignes qui ne sont pas des positions (titres de sections, etc.)
-                    if not re.search(r'[A-Z]{2}\d{10}', designation):  # Pas d'ISIN
-                        print(f"    ⚠️  Ligne {i} ignorée (pas d'ISIN): {designation}")
-                        continue
-                    
                     # Extraire ISIN
                     isin_match = re.search(r'[A-Z]{2}\d{10}', designation)
                     isin = isin_match.group(0) if isin_match else None
@@ -1271,17 +1206,17 @@ class UnifiedPortfolioParser:
                     
                     # Extraire nom de l'actif
                     asset_name = designation.replace(isin, '').strip()
-                    asset_name = re.sub(r'^\d+\s*', '', asset_name).strip()  # Supprimer codes début
+                    asset_name = re.sub(r'^\d+\s*', '', asset_name).strip()
                     
-                    # Nettoyer les valeurs numériques
-                    quantity = clean_amount(quantities[i]) if i < len(quantities) else 0
-                    price = clean_amount(prices[i]) if i < len(prices) else 0
-                    market_value = clean_amount(values[i]) if i < len(values) else 0
-                    percentage = clean_amount(percentages[i]) if i < len(percentages) else 0
+                    # CORRECTION 4 : Nettoyer les valeurs avec format français
+                    quantity = self._clean_french_amount(quantities[original_index]) if original_index < len(quantities) else 0
+                    price = self._clean_french_amount(prices[original_index]) if original_index < len(prices) else 0
+                    market_value = self._clean_french_amount(values[original_index]) if original_index < len(values) else 0
+                    percentage = self._clean_french_amount(percentages[original_index]) if original_index < len(percentages) else 0
                     
                     # Validation
                     if quantity <= 0 and market_value <= 0:
-                        print(f"    ⚠️  Position {i} ignorée: quantité et valorisation nulles")
+                        print(f"    ⚠️  Position ignorée (valeurs nulles): {asset_name}")
                         continue
                     
                     # Créer la position
@@ -1304,10 +1239,10 @@ class UnifiedPortfolioParser:
                     }
                     
                     positions.append(position)
-                    print(f"    ✅ Position {i}: {isin} - {asset_name[:30]}... | Qté:{quantity} | Val:{market_value}")
+                    print(f"    ✅ Position: {isin} - {asset_name[:30]}... | Qté:{quantity} | Val:{market_value}€")
                     
                 except Exception as e:
-                    print(f"    ❌ Erreur position {i}: {e}")
+                    print(f"    ❌ Erreur position {original_index}: {e}")
                     continue
             
             print(f"✅ Parsing multi-lignes terminé: {len(positions)} positions créées")
@@ -1317,8 +1252,45 @@ class UnifiedPortfolioParser:
         
         return positions
 
+    def _is_section_header(self, designation: str) -> bool:
+        """
+        NOUVEAU : Détecter si une ligne est un en-tête de section
+        """
+        sections_keywords = [
+            'ACTIONS FRANCAISES',
+            'VALEUR EUROPE', 
+            'ACTIONS ETRANGERES',
+            'Divers',
+            'LIQUIDITES',
+            'OBLIGATIONS',
+            'TOTAL PORTEFEUILLE',
+            'SOLDE ESPECES'
+        ]
+        
+        designation_upper = designation.upper()
+        
+        return any(keyword in designation_upper for keyword in sections_keywords)
+
+    def _clean_pea_designation(self, designation: str) -> str:
+        """
+        NOUVEAU : Nettoyer la désignation PEA
+        Supprime le code "025" à la fin et autres codes internes
+        """
+        cleaned = designation.strip()
+        
+        # CORRECTION : Supprimer le code "025" à la fin
+        cleaned = re.sub(r'\s+025\s*$', '', cleaned)
+        
+        # Supprimer autres codes potentiels (3 chiffres à la fin)
+        cleaned = re.sub(r'\s+\d{3}\s*$', '', cleaned)
+        
+        # Nettoyer espaces multiples
+        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+        
+        return cleaned
+
     def _parse_normal_pea_data(self, data_rows: List[List]) -> List[Dict]:
-        """Parser données PEA normales (une ligne par position)"""
+        """Parser données PEA normales (une ligne par position) CORRIGÉ"""
         positions = []
         
         print("📄 Parsing données normales...")
@@ -1331,6 +1303,10 @@ class UnifiedPortfolioParser:
                 # Extraction normale
                 designation = str(row[0]) if len(row) > 0 else ''
                 
+                # Ignorer sections
+                if self._is_section_header(designation):
+                    continue
+                
                 # Extraire ISIN
                 isin_match = re.search(r'[A-Z]{2}\d{10}', designation)
                 isin = isin_match.group(0) if isin_match else None
@@ -1338,15 +1314,18 @@ class UnifiedPortfolioParser:
                 if not isin:
                     continue
                 
+                # Nettoyer désignation
+                designation = self._clean_pea_designation(designation)
+                
                 # Nom de l'actif
                 asset_name = designation.replace(isin, '').strip()
                 asset_name = re.sub(r'^\d+\s*', '', asset_name).strip()
                 
-                # Valeurs numériques
-                quantity = clean_amount(row[1]) if len(row) > 1 else 0
-                price = clean_amount(row[2]) if len(row) > 2 else 0
-                market_value = clean_amount(row[3]) if len(row) > 3 else 0
-                percentage = clean_amount(row[4]) if len(row) > 4 else 0
+                # Valeurs numériques CORRIGÉES
+                quantity = self._clean_french_amount(row[1]) if len(row) > 1 else 0
+                price = self._clean_french_amount(row[2]) if len(row) > 2 else 0
+                market_value = self._clean_french_amount(row[3]) if len(row) > 3 else 0
+                percentage = self._clean_french_amount(row[4]) if len(row) > 4 else 0
                 
                 # Validation
                 if quantity <= 0 and market_value <= 0:
@@ -1358,7 +1337,7 @@ class UnifiedPortfolioParser:
                     'platform': 'PEA',
                     
                     'isin': isin,
-                    'asset_name': asset_name[:250],  # LIMITER À 250 caractères
+                    'asset_name': asset_name[:250],
                     'quantity': quantity,
                     'current_price': price,
                     'market_value': market_value,
