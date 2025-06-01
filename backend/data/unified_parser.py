@@ -849,73 +849,52 @@ class UnifiedPortfolioParser:
 
     def _extract_valuation_date(self, file_path: str = None, text: str = None) -> str:
         """
-        Extraire date de valorisation depuis nom fichier ou contenu - VERSION GÉNÉRIQUE
-        Supporte toutes les années, pas seulement 2025
+        Extraire date de valorisation depuis nom fichier ou contenu
         """
+        
+        print(f"🔍 extract_valuation_date appelée:")
+        print(f"   file_path: {file_path}")
+        print(f"   text fourni: {'Oui' if text else 'Non'}")
         
         # Priorité 1 : Nom du fichier
         if file_path:
             filename = os.path.basename(file_path).lower()
-            print(f"🔍 Extraction date depuis fichier: {filename}")
+            print(f"🔍 Nom fichier: {filename}")
             
-            # Patterns pour différents formats de noms
+            # Patterns pour différents formats
             patterns = [
-                # evaluation_avril_2025.pdf, portefeuille_juin_2024.pdf
                 r'(?:evaluation|portefeuille)_(\w+)_(\d{4})',
-                # positions_février_2024.pdf
                 r'positions_(\w+)_(\d{4})',
-                # 2024_03_evaluation.pdf, 2025-04-positions.pdf
                 r'(\d{4})[_-](\d{2})[_-]',
                 r'(\d{4})[_-](\w+)[_-]',
-                # pea_2024_mars.pdf
                 r'pea_(\d{4})_(\w+)',
-                # mars2024.pdf, avril_25.pdf
                 r'(\w+)(\d{4})',
                 r'(\w+)[_-]?(\d{2})'
             ]
             
-            for pattern in patterns:
+            for pattern_idx, pattern in enumerate(patterns):
                 match = re.search(pattern, filename)
                 if match:
+                    print(f"   ✅ Pattern {pattern_idx} match: {match.groups()}")
+                    
                     try:
                         group1, group2 = match.groups()
                         
-                        # Cas 1 : mois_année (evaluation_avril_2025)
+                        # Cas mois_année
                         if group2.isdigit() and len(group2) == 4:
                             mois_nom = group1
                             annee = int(group2)
                             
-                        # Cas 2 : année_mois_chiffre (2024_03)
-                        elif group1.isdigit() and len(group1) == 4:
-                            annee = int(group1)
-                            if group2.isdigit():
-                                mois_num = int(group2)
-                                date_obj = datetime(annee, mois_num, 1)
-                                return date_obj.strftime('%Y-%m-%d')
-                            else:
-                                mois_nom = group2
-                        
-                        # Cas 3 : année courte (avril_25)
-                        elif group2.isdigit() and len(group2) == 2:
-                            annee_courte = int(group2)
-                            # 25 = 2025, 24 = 2024, etc.
-                            annee = 2000 + annee_courte if annee_courte < 50 else 1900 + annee_courte
-                            mois_nom = group1
-                        
-                        else:
-                            continue
-                        
-                        # Convertir nom de mois en numéro
-                        if 'mois_nom' in locals():
+                            # Mapping mois
                             mois_mapping = {
                                 'janvier': 1, 'jan': 1,
-                                'février': 2, 'fevrier': 2, 'fev': 2, 'feb': 2,
+                                'février': 2, 'fevrier': 2, 'fev': 2,
                                 'mars': 3, 'mar': 3,
-                                'avril': 4, 'avr': 4, 'apr': 4,
-                                'mai': 5, 'may': 5,
+                                'avril': 4, 'avr': 4,
+                                'mai': 5,
                                 'juin': 6, 'jun': 6,
-                                'juillet': 7, 'juil': 7, 'jul': 7,
-                                'août': 8, 'aout': 8, 'aug': 8,
+                                'juillet': 7, 'juil': 7,
+                                'août': 8, 'aout': 8,
                                 'septembre': 9, 'sept': 9, 'sep': 9,
                                 'octobre': 10, 'oct': 10,
                                 'novembre': 11, 'nov': 11,
@@ -923,8 +902,8 @@ class UnifiedPortfolioParser:
                             }
                             
                             mois_num = mois_mapping.get(mois_nom.lower())
-                            if mois_num and 1 <= mois_num <= 12:
-                                # Utiliser le dernier jour du mois pour l'évaluation
+                            if mois_num:
+                                # Dernier jour du mois
                                 if mois_num == 2:
                                     last_day = 29 if annee % 4 == 0 else 28
                                 elif mois_num in [4, 6, 9, 11]:
@@ -934,16 +913,16 @@ class UnifiedPortfolioParser:
                                 
                                 date_obj = datetime(annee, mois_num, last_day)
                                 date_result = date_obj.strftime('%Y-%m-%d')
-                                print(f"✅ Date extraite du fichier: {date_result}")
+                                print(f"   ✅ Date extraite: {date_result}")
                                 return date_result
                     
                     except Exception as e:
-                        print(f"⚠️  Erreur parsing date pattern {pattern}: {e}")
+                        print(f"   ❌ Erreur pattern {pattern_idx}: {e}")
                         continue
         
         # Priorité 2 : Contenu du fichier
         if text:
-            # Chercher "Le XX/XX/XXXX" dans le contenu
+            print(f"🔍 Recherche dans le contenu...")
             date_patterns = [
                 r'Le (\d{2}/\d{2}/\d{4})',
                 r'le (\d{2}/\d{2}/\d{4})',
@@ -958,48 +937,22 @@ class UnifiedPortfolioParser:
                     try:
                         date_obj = datetime.strptime(date_str, '%d/%m/%Y')
                         date_result = date_obj.strftime('%Y-%m-%d')
-                        print(f"✅ Date extraite du contenu: {date_result}")
+                        print(f"   ✅ Date extraite du contenu: {date_result}")
                         return date_result
                     except:
                         continue
         
-        # Fallback : Date actuelle
-        print("⚠️  Aucune date trouvée, utilisation date actuelle")
+        # Fallback
+        print("   ⚠️  Aucune date trouvée → fallback date actuelle")
         return datetime.now().strftime('%Y-%m-%d')
-
-    def _parse_pea_positions_with_date(self, table: List[List], valuation_date: str) -> List[Dict]:
-        """
-        CORRIGÉ : Parser positions avec date et synchronisation parfaite
-        """
-        positions = []
         
-        if not table or len(table) < 2:
-            return positions
-        
-        header = table[0]
-        data_rows = table[1:]
-        
-        # Détecter le cas multi-lignes
-        if data_rows and len(data_rows[0]) >= 4:
-            first_row = data_rows[0]
-            has_multiline = any('\n' in str(cell) for cell in first_row if cell)
-            
-            if has_multiline:
-                print("🔧 Données multi-lignes")
-                positions = self._parse_multiligne_synchronized(first_row)
-            else:
-                print("📄 Données normales")
-                positions = self._parse_normal_pea_data_with_date(data_rows, valuation_date)
-        
-        return positions
-
     def _parse_multiligne_synchronized(self, multiline_row: List) -> List[Dict]:
         """ Parser multi-lignes vers portfolio_positions """
         positions = []
         
         try:
-            # Extraire la date
-            valuation_date = self._extract_valuation_date(
+            # Extraire la date UNE FOIS avec debug
+            valuation_date = self.extract_valuation_date(
                 file_path=getattr(self, 'current_file_path', None)
             )
             print(f"📅 Date pour toutes positions: {valuation_date}")
@@ -1017,22 +970,33 @@ class UnifiedPortfolioParser:
                 designation = designations[i]
                 designation_upper = designation.upper()
                 
-                # ✅ Filtrer sections AVANT ISIN
-                if any(keyword in designation_upper for keyword in [
-                    'TOTAL PORTEFEUILLE', 'TOTAL', 'LIQUIDITES', 'SOLDE ESPECES',
-                    'ACTIONS FRANCAISES', 'VALEUR EUROPE', 'DIVERS',
-                    'SOUS-TOTAL', 'CUMUL'
-                ]):
-                    print(f"    ⚠️  Filtrée (section): {designation}")
-                    continue
+                print(f"    🔍 Test ligne {i}: '{designation}'")
                 
-                # ✅ Vérifier ISIN
+                # Vérifier ISIN d'abord
                 isin_match = re.search(r'([A-Z]{2}[A-Z0-9]{10})', designation)
-                if not isin_match:
-                    print(f"    ⚠️  Filtrée (pas d'ISIN): {designation}")
-                    continue
                 
-                isin = isin_match.group(1)
+                if isin_match:
+                    # Si ISIN trouvé, c'est une vraie position
+                    isin = isin_match.group(1)
+                    print(f"    ✅ ISIN trouvé: {isin} → Position valide")
+                    
+                    # ✅ PAS de filtrage de section si ISIN présent
+                    # TOTALENERGIES SE avec ISIN = position valide
+                    
+                else:
+                    # Pas d'ISIN = vérifier si c'est une section/total
+                    if any(keyword in designation_upper for keyword in [
+                        'TOTAL PORTEFEUILLE', 'LIQUIDITES', 'SOLDE ESPECES',
+                        'ACTIONS FRANCAISES', 'VALEUR EUROPE', 'DIVERS',
+                        'SOUS-TOTAL', 'CUMUL'
+                    ]):
+                        print(f"    ⚠️  Filtrée (section sans ISIN): {designation}")
+                        continue
+                    else:
+                        print(f"    ⚠️  Filtrée (pas d'ISIN): {designation}")
+                        continue
+                
+                # À ce stade : on a un ISIN valide
                 
                 # Nom actif nettoyé
                 asset_name = designation.replace(isin, '').strip()
@@ -1047,9 +1011,10 @@ class UnifiedPortfolioParser:
                 
                 # Validation
                 if quantity <= 0 and market_value <= 0:
+                    print(f"    ⚠️  Position {i} ignorée: quantité et valorisation nulles")
                     continue
                 
-                # ✅ Position avec date correcte
+                # Position avec date correcte
                 position = {
                     'id': str(uuid.uuid4()),
                     'user_id': self.user_id,
@@ -1075,6 +1040,7 @@ class UnifiedPortfolioParser:
             traceback.print_exc()
         
         return positions
+
 
     def _is_total_line(self, line: str) -> bool:
         """
@@ -1238,7 +1204,7 @@ class UnifiedPortfolioParser:
         
         line_upper = line.upper()
         
-        # Classification des opérations
+        # Classification
         if 'COUPONS' in line_upper or 'DIVIDENDE' in line_upper:
             flow_type = 'dividend'
             flow_direction = 'in'
@@ -1267,75 +1233,95 @@ class UnifiedPortfolioParser:
         cleaned = line.replace('\u00A0', ' ').replace('\t', ' ')
         words = cleaned.split()
         
-        print(f"    📦 Mots: {words[-5:]}")  # Afficher seulement les 5 derniers
+        print(f"    📦 Derniers mots: {words[-6:]}")
         
         transaction_amount = 0.0
         
-        # ✅ STRATÉGIE MULTI-ÉTAPES
-        
-        # ÉTAPE 1 : Montants avec espaces numériques (2 000,00)
+        # ✅ ÉTAPE 1 : Montants avec espaces - CRITÈRES STRICTS
         for i in range(len(words) - 1, 0, -1):
             if i >= 1:
-                word1 = words[i-1]  # "2"
-                word2 = words[i]    # "000,00"
+                word1 = words[i-1]  # Premier mot
+                word2 = words[i]    # Deuxième mot
                 
-                # Pattern : chiffre + (chiffres,décimales)
-                if (word1.isdigit() and 
-                    len(word1) <= 2 and  # Max 2 chiffres pour la première partie
-                    ',' in word2 and 
-                    word2.replace(',', '').replace('.', '').isdigit()):
-                    
+                print(f"    🔍 Test combinaison: '{word1}' + '{word2}'")
+                
+                # Critères TRÈS stricts pour éviter cours+montant
+                # Conditions pour une combinaison valide de milliers :
+                combine_ok = (
+                    word1.isdigit() and                           # Premier = chiffres purs
+                    len(word1) <= 3 and                          # Max 3 chiffres (1-999)
+                    int(word1) >= 1 and                          # Au moins 1 (pas 0)
+                    ',' in word2 and                             # Deuxième a une virgule
+                    len(word2) >= 5 and                          # Au moins "000,X" (5 caractères)
+                    word2.startswith(('0', '00', '000')) and     # Commence par des zéros (milliers)
+                    word2.count(',') == 1                        # Une seule virgule
+                )
+                
+                if combine_ok:
                     try:
-                        # Reconstruction : "2" + "000,00" = "2000,00"
-                        combined = word1 + word2
+                        combined = word1 + word2  # Ex: "2" + "000,00" = "2000,00"
                         amount = float(combined.replace(',', '.'))
-                        if 1 <= amount <= 999999:
+                        
+                        # Validation : montant raisonnable
+                        if 100 <= amount <= 999999:  # Au moins 100€ pour les milliers
                             transaction_amount = amount
-                            print(f"    ✅ TROUVÉ (espace): {amount} de '{word1}' + '{word2}'")
+                            print(f"    ✅ TROUVÉ (milliers): {amount} de '{word1}' + '{word2}'")
                             break
+                        else:
+                            print(f"    ⚠️  Montant hors plage: {amount}")
+                            
                     except Exception as e:
                         print(f"    ❌ Erreur combinaison: {e}")
+                else:
+                    print(f"    ❌ Critères non respectés pour combinaison")
         
-        # ÉTAPE 2 : Montants simples avec virgule
+        # ✅ ÉTAPE 2 : Montants simples avec virgule (priorité élevée)
         if transaction_amount == 0:
-            for word in reversed(words[-5:]):
+            print(f"    🔍 Recherche montants simples...")
+            
+            for word in reversed(words[-4:]):  # Les 4 derniers mots
                 if (',' in word and 
                     not word.startswith(',') and 
                     not word.endswith(',') and
-                    len(word) >= 3):  # Au moins "X,Y"
+                    len(word) >= 3):
                     
                     try:
-                        # Nettoyer et garder seulement chiffres + virgule
+                        # Nettoyer soigneusement
                         clean_word = ''.join(c for c in word if c.isdigit() or c == ',')
+                        
                         if ',' in clean_word and clean_word.count(',') == 1:
                             amount = float(clean_word.replace(',', '.'))
+                            
+                            # Validation plus permissive pour les montants simples
                             if 0.01 <= amount <= 999999:
                                 transaction_amount = amount
                                 print(f"    ✅ TROUVÉ (virgule): {amount} de '{word}'")
                                 break
                     except Exception as e:
-                        print(f"    ❌ Erreur virgule: {e}")
+                        print(f"    ❌ Erreur montant simple: {e}")
         
-        # ÉTAPE 3 : Entiers (mais éviter les petits nombres)
+        # ✅ ÉTAPE 3 : Entiers (très restrictif)
         if transaction_amount == 0:
-            for word in reversed(words[-3:]):  # Seulement les 3 derniers
+            print(f"    🔍 Recherche entiers (restrictif)...")
+            
+            for word in reversed(words[-2:]):  # Seulement les 2 derniers
                 if word.isdigit():
                     try:
                         amount = float(word)
-                        # Éviter les petits entiers qui pourraient être des codes
-                        if 50 <= amount <= 999999:  # Seuil relevé
+                        # Très restrictif pour éviter les cours
+                        if 100 <= amount <= 999999:  # Au moins 100€
                             transaction_amount = amount
                             print(f"    ✅ TROUVÉ (entier): {amount}")
                             break
                     except:
                         pass
         
-        # ÉTAPE 4 : Fallback avec clean_amount sur phrases
+        # ✅ ÉTAPE 4 : Fallback clean_amount (dernier recours)
         if transaction_amount == 0:
-            print(f"    ⚠️  Fallback phrases...")
+            print(f"    ⚠️  Fallback clean_amount...")
             
-            # Tester les 3 dernières combinaisons possibles
-            for length in [3, 2, 1]:
+            # Tester seulement les dernières phrases courtes
+            for length in [2, 1]:
                 if len(words) >= length:
                     phrase = ' '.join(words[-length:])
                     try:
@@ -1348,7 +1334,7 @@ class UnifiedPortfolioParser:
                         continue
         
         if transaction_amount <= 0:
-            print(f"    ❌ ÉCHEC TOTAL: {line}")
+            print(f"    ❌ ÉCHEC: {line}")
             return None
         
         # Description nettoyée
@@ -1590,29 +1576,41 @@ class UnifiedPortfolioParser:
         return cleaned if cleaned else "Transaction PEA"
 
     def _parse_pea_evaluation(self, pdf_path: str) -> List[Dict]:
-        """Parser évaluation PEA"""
+        """Debug complet de la date + stockage correct"""
         positions = []
         
         print(f"📄 Parsing évaluation: {pdf_path}")
         
-        # ✅ Stocker le chemin pour extraction date
         self.current_file_path = pdf_path
+        print(f"🔗 current_file_path stocké: {self.current_file_path}")
+        
+        # Test direct extraction date
+        test_date = self.extract_valuation_date(file_path=pdf_path)
+        print(f"🧪 Test direct extraction date: {test_date}")
         
         with pdfplumber.open(pdf_path) as pdf:
             for page_num, page in enumerate(pdf.pages):
+                print(f"  📖 Page {page_num + 1}...")
+                
                 tables = page.extract_tables()
                 
                 if tables:
-                    for table in tables:
+                    for table_idx, table in enumerate(tables):
                         if table and len(table) > 1:
-                            has_isin = any(re.search(r'[A-Z]{2}[A-Z0-9]{10}', str(cell)) 
+                            # Vérifier si c'est un tableau de positions
+                            has_isin = any(re.search(r'[A-Z]{2}\d{10}', str(cell)) 
                                         for row in table[:3] for cell in row if cell)
                             
                             if has_isin:
-                                print(f"    ✅ Tableau détecté")
+                                print(f"    ✅ Tableau de positions détecté")
+                                
+                                # ✅ Vérifier que current_file_path est encore là
+                                print(f"    🔗 Avant parsing, current_file_path: {getattr(self, 'current_file_path', 'NON DÉFINI')}")
+                                
                                 extracted_positions = self._parse_pea_positions_to_portfolio(table)
                                 positions.extend(extracted_positions)
         
+        print(f"✅ PEA évaluation parsée: {len(positions)} positions portfolio")
         return positions
 
     def _parse_pea_positions_to_portfolio(self, table: List[List]) -> List[Dict]:
