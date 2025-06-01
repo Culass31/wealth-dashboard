@@ -1053,7 +1053,7 @@ class UnifiedPortfolioParser:
                 unrealized_pnl_pct = 0.0
                 
                 # ✅ AMÉLIORATION : Extraction date depuis fichier ou contenu
-                valuation_date = self.extract_valuation_date(
+                valuation_date = self._extract_valuation_date(
                     file_path=getattr(self, 'current_file_path', None)
                 )
                 
@@ -1212,7 +1212,7 @@ class UnifiedPortfolioParser:
                 self.current_file_path = pdf_path
                 
                 # Extraire date de valorisation
-                valuation_date = self.extract_valuation_date(pdf_path, text)
+                valuation_date = self._extract_valuation_date(pdf_path, text)
                 
                 # ✅ NOUVELLE APPROCHE : Parser par lignes avec structure Débit/Crédit
                 lines = text.split('\n')
