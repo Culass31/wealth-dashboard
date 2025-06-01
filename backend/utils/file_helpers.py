@@ -76,64 +76,47 @@ def standardize_date(date_input: Union[str, datetime, pd.Timestamp, date]) -> st
 
 def clean_amount(amount: Union[str, float, int]) -> float:
     """
-    Nettoyer et convertir un montant en float avec gestion robuste
+    ✅ Version améliorée de clean_amount pour PEA
     """
     if pd.isna(amount) or amount is None or amount == '':
         return 0.0
 
-    #Gérer les strings multi-lignes (problème PEA)
+    # Gérer les strings multi-lignes
     if isinstance(amount, str) and '\n' in amount:
-        # Prendre seulement la première ligne
         amount = amount.split('\n')[0].strip()
-        print(f"🔧 String multi-lignes détectée, prise première ligne: '{amount}'")
     
     try:
         # Si c'est déjà un nombre
         if isinstance(amount, (int, float)):
             return float(amount)
         
-        # Si c'est une chaîne
         if isinstance(amount, str):
             # Nettoyer la chaîne
             cleaned = str(amount).strip()
             
-            # NOUVEAU: Gérer les montants multiples séparés par des espaces
-            # Ex: "44,25 443,49" -> prendre le dernier (montant total)
-            if ' ' in cleaned:
-                # Diviser par espaces et prendre le dernier élément non vide
-                parts = [part.strip() for part in cleaned.split() if part.strip()]
-                if parts:
-                    # Chercher le dernier élément qui ressemble à un montant
-                    for part in reversed(parts):
-                        if re.match(r'^[\d\s,\.]+$', part):
-                            cleaned = part
-                            break
-                    else:
-                        # Si aucun montant trouvé, prendre le dernier élément
-                        cleaned = parts[-1]
+            # Gérer les montants avec espaces (1 234,56)
+            # Remplacer les espaces entre chiffres par rien
+            if re.match(r'^\d{1,3}(\s\d{3})*,\d{2}$', cleaned):
+                cleaned = cleaned.replace(' ', '')
             
-            # Supprimer symboles monétaires et espaces
-            cleaned = re.sub(r'[€$£¥₹\s]', '', cleaned)
+            # Supprimer symboles monétaires et autres caractères
+            cleaned = re.sub(r'[€$£¥₹]', '', cleaned)
             
             # Gérer les parenthèses (montants négatifs)
             if cleaned.startswith('(') and cleaned.endswith(')'):
                 cleaned = '-' + cleaned[1:-1]
             
-            # Gérer les séparateurs de milliers et décimales
-            # Ex: "1,234.56" ou "1 234,56" ou "1.234,56"
+            # ✅ Gestion séparateurs décimaux
+            if ',' in cleaned and cleaned.count(',') == 1:
+                # Format français : 1234,56 ou 1.234,56
+                if '.' in cleaned and cleaned.rfind('.') < cleaned.rfind(','):
+                    # Format: 1.234,56 → 1234.56
+                    cleaned = cleaned.replace('.', '').replace(',', '.')
+                else:
+                    # Format: 1234,56 → 1234.56
+                    cleaned = cleaned.replace(',', '.')
             
-            # Si virgule comme séparateur décimal (format français)
-            if ',' in cleaned and cleaned.count(',') == 1 and cleaned.rfind(',') > cleaned.rfind('.'):
-                # Format: 1.234,56 -> 1234.56
-                cleaned = cleaned.replace('.', '').replace(',', '.')
-            elif ',' in cleaned and '.' not in cleaned:
-                # Format: 1234,56 -> 1234.56
-                cleaned = cleaned.replace(',', '.')
-            elif ',' in cleaned:
-                # Format: 1,234.56 -> 1234.56 (garder le point)
-                cleaned = cleaned.replace(',', '')
-            
-            # Supprimer les caractères non numériques restants (sauf - et .)
+            # Supprimer caractères non numériques (sauf - et .)
             cleaned = re.sub(r'[^\d\-\.]', '', cleaned)
             
             # Convertir
@@ -141,7 +124,7 @@ def clean_amount(amount: Union[str, float, int]) -> float:
                 return float(cleaned)
     
     except Exception as e:
-        print(f"⚠️  Erreur lors du nettoyage du montant '{amount}': {e}")
+        print(f"⚠️  Erreur nettoyage montant '{amount}': {e}")
     
     return 0.0
 
