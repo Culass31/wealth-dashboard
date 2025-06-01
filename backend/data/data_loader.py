@@ -1,9 +1,9 @@
 # ===== backend/data/data_loader.py - AVEC PARSER UNIFIÉ =====
 from backend.models.database import DatabaseManager
 from backend.data.unified_parser import UnifiedPortfolioParser
-import os
 from typing import Dict
 import pandas as pd
+import os
 
 class DataLoader:
     """DataLoader corrigé utilisant le parser unifié expert"""
@@ -56,9 +56,7 @@ class DataLoader:
             return False
     
     def load_pea_data(self, releve_path: str = None, evaluation_path: str = None, user_id: str = None) -> bool:
-        """
-        CORRIGÉ : Charger PEA avec portfolio_positions pour l'évaluation
-        """
+        """Charger PEA avec portfolio_positions pour l'évaluation"""
         if not user_id:
             user_id = "29dec51d-0772-4e3a-8e8f-1fece8fefe0e"
             
@@ -69,7 +67,6 @@ class DataLoader:
         
         # Si pas de fichiers fournis, chercher dans le répertoire
         if not releve_path and not evaluation_path:
-            import os
             for file in os.listdir('.'):
                 if 'pea' in file.lower() and file.lower().endswith('.pdf'):
                     if any(keyword in file.lower() for keyword in ['releve', 'compte', 'transaction']):
@@ -185,12 +182,15 @@ class DataLoader:
         success_count = 0
         total_platforms = len(fichiers_plateformes)
         
-        # Charger les plateformes crowdfunding/AV
+        # Charger les plateformes
         for plateforme, filename in fichiers_plateformes.items():
-            file_path = filename  # Fichiers dans le répertoire racine
+            file_path = os.path.join(data_folder, filename)
+            
+            print(f"\n📊 Traitement {plateforme.upper()}...")
+            print(f"  🔍 Recherche: {file_path}")
             
             if os.path.exists(file_path):
-                print(f"\n📊 Traitement {plateforme.upper()}...")
+                print(f"  ✅ Fichier trouvé")
                 
                 if plateforme == 'assurance_vie':
                     success = self.load_assurance_vie_data(file_path, user_id)
@@ -199,38 +199,37 @@ class DataLoader:
                 
                 if success:
                     success_count += 1
-                    print(f"✅ {plateforme.upper()} chargé")
+                    print(f"  ✅ {plateforme.upper()} chargé")
                 else:
-                    print(f"❌ Échec {plateforme.upper()}")
+                    print(f"  ❌ Échec {plateforme.upper()}")
             else:
-                print(f"⚠️  Fichier non trouvé: {file_path}")
+                print(f"  ⚠️  Fichier non trouvé: {filename}")
         
-        # CORRECTION : Charger PEA avec la signature corrigée
+        # Charger PEA si fichiers PDF disponibles
         print(f"\n🏦 Traitement PEA...")
+        pea_folder = os.path.join(data_folder, "pea")
+        if os.path.exists(pea_folder):
+            releve_pea = None
+            evaluation_pea = None
         
-        # Chercher fichiers PEA dans le répertoire
-        releve_pea = None
-        evaluation_pea = None
-        
-        import os
-        for file in os.listdir('.'):
-            if 'pea' in file.lower() and file.lower().endswith('.pdf'):
-                if any(keyword in file.lower() for keyword in ['releve', 'compte', 'transaction']):
-                    releve_pea = file
-                elif any(keyword in file.lower() for keyword in ['evaluation', 'portefeuille', 'position']):
-                    evaluation_pea = file
+        # Chercher fichiers PEA
+        for file in os.listdir(pea_folder):
+            if file.lower().endswith('.pdf'):
+                if any(keyword in file.lower() for keyword in ['releve', 'compte']):
+                    releve_pea = os.path.join(pea_folder, file)
+                elif any(keyword in file.lower() for keyword in ['evaluation', 'portefeuille']):
+                    evaluation_pea = os.path.join(pea_folder, file)
         
         if releve_pea or evaluation_pea:
-            # APPEL CORRIGÉ avec la bonne signature
             if self.load_pea_data(releve_pea, evaluation_pea, user_id):
                 success_count += 1
                 total_platforms += 1
-                print("✅ PEA chargé")
+                print("  ✅ PEA chargé")
             else:
-                print("❌ Échec PEA")
+                print("  ❌ Échec PEA")
                 total_platforms += 1
         else:
-            print("⚠️  Aucun fichier PEA trouvé")
+            print("  ⚠️  Aucun fichier PEA PDF trouvé")
         
         # Résumé
         print(f"\n📋 RÉSUMÉ CHARGEMENT:")
@@ -434,6 +433,44 @@ def load_user_data_auto(user_id: str = "29dec51d-0772-4e3a-8e8f-1fece8fefe0e", d
     
     if validation_report['valid_count'] == 0:
         print("❌ Aucun fichier valide trouvé")
+        return False    
+    
+    # Validation des fichiers
+    fichiers_attendus = [
+        'Portefeuille LPB.xlsx',
+        'Portefeuille PretUp.xlsx',
+        'Portefeuille BienPreter.xlsx',
+        'Portefeuille Homunity.xlsx',
+        'Portefeuille Linxea.xlsx'
+    ]
+    
+    print(f"\n📋 VÉRIFICATION FICHIERS dans {data_folder}:")
+    files_found = 0
+
+    # Créer le dossier s'il n'existe pas
+    if not os.path.exists(data_folder):
+        print(f"📁 Création du dossier {data_folder}")
+        os.makedirs(data_folder)
+    
+    for fichier in fichiers_attendus:
+        file_path = os.path.join(data_folder, fichier)
+        if os.path.exists(file_path):
+            print(f"  ✅ {fichier}")
+            files_found += 1
+        else:
+            print(f"  ❌ {fichier}")
+    
+    # Vérifier dossier PEA
+    pea_folder = os.path.join(data_folder, "pea")
+    if os.path.exists(pea_folder):
+        pea_files = [f for f in os.listdir(pea_folder) if f.endswith('.pdf')]
+        if pea_files:
+            print(f"  🏦 PEA: {len(pea_files)} fichier(s) PDF dans {pea_folder}")
+            files_found += len(pea_files)
+    
+    if files_found == 0:
+        print("❌ Aucun fichier trouvé")
+        print(f"💡 Placez vos fichiers dans le dossier '{data_folder}'")
         return False
     
     # Chargement
