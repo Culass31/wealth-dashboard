@@ -1212,8 +1212,7 @@ class UnifiedPortfolioParser:
                         if not date_transaction:
                             continue
                         
-                        # ✅ UTILISER nouvelle fonction extraction
-                        transaction_data = self._parse_pea_transaction_line_v2(rest_of_line)
+                        transaction_data = self._parse_pea_transaction_line(rest_of_line)
                         
                         if transaction_data:
                             transaction_data.update({
