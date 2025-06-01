@@ -994,15 +994,15 @@ class UnifiedPortfolioParser:
         return positions
 
     def _parse_multiligne_synchronized(self, multiline_row: List) -> List[Dict]:
-        """Parser multi-lignes vers portfolio_positions - AVEC DATE CORRECTE"""
+        """ Parser multi-lignes vers portfolio_positions """
         positions = []
         
         try:
-            # Extraire la date
+            # Extraire la date UNE FOIS
             valuation_date = self.extract_valuation_date(
                 file_path=getattr(self, 'current_file_path', None)
             )
-            print(f"📅 Date de valorisation pour toutes les positions: {valuation_date}")
+            print(f"📅 Date pour toutes positions: {valuation_date}")
             
             # Diviser les colonnes
             designations = [d.strip() for d in str(multiline_row[0]).split('\n') if d.strip()]
@@ -1017,30 +1017,27 @@ class UnifiedPortfolioParser:
                 designation = designations[i]
                 designation_upper = designation.upper()
                 
-                # Filtrer les lignes de section/total AVANT la vérification ISIN
+                # ✅ Filtrer sections AVANT ISIN
                 if any(keyword in designation_upper for keyword in [
                     'TOTAL PORTEFEUILLE', 'TOTAL', 'LIQUIDITES', 'SOLDE ESPECES',
                     'ACTIONS FRANCAISES', 'VALEUR EUROPE', 'DIVERS',
                     'SOUS-TOTAL', 'CUMUL'
                 ]):
-                    print(f"    ⚠️  Ligne filtrée (total/section): {designation}")
+                    print(f"    ⚠️  Filtrée (section): {designation}")
                     continue
                 
-                # Vérification ISIN
+                # ✅ Vérifier ISIN
                 isin_match = re.search(r'([A-Z]{2}[A-Z0-9]{10})', designation)
                 if not isin_match:
-                    print(f"    ⚠️  Ligne filtrée (pas d'ISIN): {designation}")
+                    print(f"    ⚠️  Filtrée (pas d'ISIN): {designation}")
                     continue
                 
                 isin = isin_match.group(1)
                 
-                # Afficher l'ISIN trouvé
-                print(f"    🔍 ISIN détecté: {isin} dans '{designation}'")
-                
-                # Nom de l'actif (enlever ISIN et codes numériques)
+                # Nom actif nettoyé
                 asset_name = designation.replace(isin, '').strip()
                 asset_name = re.sub(r'^\d+\s*', '', asset_name).strip()
-                asset_name = re.sub(r'\s*\d+$', '', asset_name).strip()  # Enlever codes de fin
+                asset_name = re.sub(r'\s*\d+$', '', asset_name).strip()
                 
                 # Valeurs numériques
                 quantity = clean_amount(quantities[i]) if i < len(quantities) else 0
@@ -1050,36 +1047,30 @@ class UnifiedPortfolioParser:
                 
                 # Validation
                 if quantity <= 0 and market_value <= 0:
-                    print(f"    ⚠️  Position {i} ignorée: quantité et valorisation nulles")
                     continue
                 
-                # STRUCTURE PORTFOLIO_POSITIONS
+                # ✅ Position avec date correcte
                 position = {
                     'id': str(uuid.uuid4()),
                     'user_id': self.user_id,
                     'platform': 'PEA',
-                    
-                    # Identification actif
                     'isin': isin,
                     'asset_name': asset_name[:200],
                     'asset_class': self._classify_pea_asset(asset_name),
-                    
-                    # Position
                     'quantity': quantity,
                     'current_price': current_price,
                     'market_value': market_value,
                     'portfolio_percentage': percentage,
-                    
-                    'valuation_date': valuation_date,
+                    'valuation_date': valuation_date,  # ✅ Date correcte
                     'created_at': datetime.now().isoformat(),
                     'updated_at': datetime.now().isoformat()
                 }
                 
                 positions.append(position)
-                print(f"    ✅ Position {i}: {isin} - {asset_name[:30]}... | Qté:{quantity} | Val:{market_value}€ | Date:{valuation_date}")
+                print(f"    ✅ Position: {isin} - {asset_name[:30]}... | {market_value}€ | {valuation_date}")
         
         except Exception as e:
-            print(f"❌ Erreur parsing portfolio multi-lignes: {e}")
+            print(f"❌ Erreur parsing positions: {e}")
             import traceback
             traceback.print_exc()
         
@@ -1191,34 +1182,26 @@ class UnifiedPortfolioParser:
         return positions
 
     def _parse_pea_releve(self, pdf_path: str) -> List[Dict]:
-        """Parser relevé PEA avec extraction CORRECTE des montants Débit/Crédit"""
+        """ Parser relevé PEA """
         flux_tresorerie = []
         
-        print(f"📄 Parsing relevé PEA: {pdf_path}")
+        print(f"📄 Parsing relevé: {pdf_path}")
+        
+        # ✅ Stocker le chemin
+        self.current_file_path = pdf_path
         
         with pdfplumber.open(pdf_path) as pdf:
             for page_num, page in enumerate(pdf.pages):
-                print(f"  📖 Page {page_num + 1}...")
-                
-                # Extraire le texte complet
                 text = page.extract_text()
                 if not text:
                     continue
                 
-                # Stocker le chemin pour extraction date
-                self.current_file_path = pdf_path
-                
-                # Extraire date de valorisation
-                valuation_date = self._extract_valuation_date(pdf_path, text)
-                
-                # ✅ NOUVELLE APPROCHE : Parser par lignes avec structure Débit/Crédit
                 lines = text.split('\n')
                 
-                for line_num, line in enumerate(lines):
+                for line in lines:
                     line = line.strip()
                     
-                    # ✅ PATTERN AMÉLIORÉ : Date au début + Description + Montants
-                    # Exemple: "28/03/2025 ACH CPT LVMH MOET VUITTON Qté : 1 Cours : 585    586,90"
+                    # Pattern date au début
                     date_match = re.match(r'^(\d{2}/\d{2}/\d{4})\s+(.+)', line)
                     
                     if date_match:
@@ -1229,8 +1212,8 @@ class UnifiedPortfolioParser:
                         if not date_transaction:
                             continue
                         
-                        # ✅ EXTRACTION AMÉLIORÉE des montants
-                        transaction_data = self._parse_pea_transaction_line(rest_of_line)
+                        # ✅ UTILISER nouvelle fonction extraction
+                        transaction_data = self._parse_pea_transaction_line_v2(rest_of_line)
                         
                         if transaction_data:
                             transaction_data.update({
@@ -1239,26 +1222,24 @@ class UnifiedPortfolioParser:
                                 'platform': 'PEA',
                                 'transaction_date': date_transaction,
                                 'status': 'completed',
-                                'payment_method': 'PEA',
                                 'created_at': datetime.now().isoformat()
                             })
                             
                             flux_tresorerie.append(transaction_data)
-                            print(f"    ✅ Transaction: {transaction_data['flow_type']} | {transaction_data['gross_amount']}€")
         
-        print(f"✅ Relevé PEA parsé: {len(flux_tresorerie)} transactions")
+        print(f"✅ Relevé parsé: {len(flux_tresorerie)} transactions")
         return flux_tresorerie
-    
+
     def get_pea_portfolio_positions(self) -> List[Dict]:
         """Récupérer les positions de portefeuille PEA pour insertion séparée"""
         return getattr(self, 'pea_portfolio_positions', [])
     
     def _parse_pea_transaction_line(self, line: str) -> Optional[Dict]:
-        """ CORRIGÉ : Parser transaction PEA avec extraction des montants """
+        """ Extraction montants PEA """
         
         line_upper = line.upper()
         
-        # Classification des opérations
+        # Classification
         if 'COUPONS' in line_upper or 'DIVIDENDE' in line_upper:
             flow_type = 'dividend'
             flow_direction = 'in'
@@ -1281,90 +1262,93 @@ class UnifiedPortfolioParser:
             flow_type = 'other'
             flow_direction = 'in'
         
-        print(f"    🔍 Analyse ligne: {line}")
+        print(f"    🔍 Ligne: {line}")
         
-        # 1. Nettoyer la ligne des infos Qté/Cours pour isoler les montants
-        cleaned_line = line
+        # ✅ EXTRACTION BRUTALE - Sans regex
+        cleaned = line.replace('\u00A0', ' ').replace('\t', ' ')
+        words = cleaned.split()
         
-        # Supprimer "Qté : XXX"
-        cleaned_line = re.sub(r'Qté\s*:\s*[\d,\.\s]+(?=\s|Cours|$)', '', cleaned_line)
+        transaction_amount = 0.0
         
-        # Supprimer "Cours : XXX" 
-        cleaned_line = re.sub(r'Cours\s*:\s*[\d,\.\s]+(?=\s|$)', '', cleaned_line)
-        
-        print(f"    🧹 Ligne nettoyée: '{cleaned_line}'")
-        
-        # 2. PATTERNS MONTANTS
-        montant_patterns = [
-            r'(\d{1,3}(?:\s\d{3})*,\d{2})',  # 1 234,56 (avec espaces)
-            r'(\d+,\d{2})',                   # 123,45 (simple)
-            r'(\d{1,3}(?:\.\d{3})*\.\d{2})', # 1.234.56 (points)
-            r'(\d+\.\d{2})',                  # 123.45 (simple point)
-            r'(\d+,\d{1})',                   # 1,2 (un seul chiffre décimal)
-            r'(\d+)',                         # 123 (entier, en dernier recours)
-        ]
-        
-        montants_trouves = []
-        
-        # 3. Chercher les montants dans la ligne nettoyée
-        for pattern in montant_patterns:
-            matches = re.findall(pattern, cleaned_line)
-            for match in matches:
-                try:
-                    montant_clean = clean_amount(match)
-                    if montant_clean > 0:
-                        montants_trouves.append(montant_clean)
-                        print(f"      💰 Montant trouvé: {match} → {montant_clean}")
-                except Exception as e:
-                    print(f"      ⚠️  Erreur nettoyage montant '{match}': {e}")
-        
-        # 4. Fallback si aucun montant trouvé
-        if not montants_trouves:
-            print(f"    ⚠️  Aucun montant avec patterns, extraction finale...")
+        # Tester les derniers mots
+        for word in reversed(words[-5:]):  # Les 5 derniers mots max
+            word = word.strip()
             
-            # Chercher tous les nombres dans la ligne (même sans virgule)
-            all_numbers = re.findall(r'[\d\s,\.]+', cleaned_line)
-            for num_str in all_numbers:
+            # Test format français X,YZ
+            if ',' in word and not word.startswith(',') and not word.endswith(','):
                 try:
-                    num_clean = clean_amount(num_str)
-                    if num_clean > 0:
-                        montants_trouves.append(num_clean)
-                        print(f"      💰 Montant fallback: {num_str} → {num_clean}")
+                    # Enlever caractères non numériques sauf virgule
+                    clean_word = ''.join(c for c in word if c.isdigit() or c == ',')
+                    if ',' in clean_word:
+                        amount = float(clean_word.replace(',', '.'))
+                        if 0.01 <= amount <= 999999:
+                            transaction_amount = amount
+                            print(f"      ✅ Trouvé (virgule): {amount} depuis '{word}'")
+                            break
+                except:
+                    pass
+            
+            # Test entier pur
+            elif word.isdigit():
+                try:
+                    amount = float(word)
+                    if 1 <= amount <= 999999:
+                        transaction_amount = amount
+                        print(f"      ✅ Trouvé (entier): {amount}")
+                        break
+                except:
+                    pass
+            
+            # Test avec espaces (1 000,50)
+            elif ' ' in word:
+                try:
+                    no_space = word.replace(' ', '')
+                    if ',' in no_space:
+                        clean_word = ''.join(c for c in no_space if c.isdigit() or c == ',')
+                        amount = float(clean_word.replace(',', '.'))
+                        if 0.01 <= amount <= 999999:
+                            transaction_amount = amount
+                            print(f"      ✅ Trouvé (espaces): {amount} depuis '{word}'")
+                            break
+                except:
+                    pass
+        
+        # Fallback clean_amount
+        if transaction_amount == 0:
+            print(f"    ⚠️  Fallback clean_amount...")
+            for word in reversed(words):
+                try:
+                    amount = clean_amount(word)
+                    if amount > 0:
+                        transaction_amount = amount
+                        print(f"    ✅ Fallback: {amount} depuis '{word}'")
+                        break
                 except:
                     continue
         
-        if not montants_trouves:
-            print(f"    ❌ AUCUN montant trouvé dans: {line}")
+        if transaction_amount <= 0:
+            print(f"    ❌ ÉCHEC: {line}")
             return None
         
-        # 5. Prendre le plus gros montant (généralement le montant principal)
-        transaction_amount = max(montants_trouves)
-        print(f"    ✅ Montant principal retenu: {transaction_amount}")
+        # Description
+        description = line.split('Qté :')[0].strip() if 'Qté :' in line else line.strip()
         
-        # 6. Calculer frais si plusieurs montants
-        fees = 0.0
-        if len(montants_trouves) > 1:
-            autres_montants = [m for m in montants_trouves if m != transaction_amount]
-            fees = sum(autres_montants)
-            print(f"    💸 Frais détectés: {fees}")
-        
-        # 7. Description nettoyée
-        description = self._extract_pea_description(line)
-        
-        # 8. Montant net final
+        # Montants finaux
         if flow_direction == 'out':
-            net_amount = -(transaction_amount + fees)  # Sortie avec frais
-            gross_amount = transaction_amount + fees
-        else:
-            net_amount = transaction_amount  # Entrée
+            net_amount = -transaction_amount
             gross_amount = transaction_amount
+        else:
+            net_amount = transaction_amount
+            gross_amount = transaction_amount
+        
+        print(f"    ✅ SUCCÈS: {flow_type} | {transaction_amount}€")
         
         return {
             'flow_type': flow_type,
             'flow_direction': flow_direction,
             'gross_amount': gross_amount,
             'net_amount': net_amount,
-            'tax_amount': fees, # Taxes/frais de Bourse Direct
+            'tax_amount': 0.0,
             'description': description
         }
 
@@ -1585,18 +1569,52 @@ class UnifiedPortfolioParser:
         return cleaned if cleaned else "Transaction PEA"
 
     def _parse_pea_evaluation(self, pdf_path: str) -> List[Dict]:
-        """
-        Parser évaluation PEA vers portfolio_positions - OBSOLÈTE
-        Remplacé par _parse_pea_evaluation_single_file
-        """
-        return self._parse_pea_evaluation_single_file(pdf_path)
+        """Parser évaluation PEA - AVEC STOCKAGE CHEMIN"""
+        positions = []
+        
+        print(f"📄 Parsing évaluation: {pdf_path}")
+        
+        # ✅ Stocker le chemin pour extraction date
+        self.current_file_path = pdf_path
+        
+        with pdfplumber.open(pdf_path) as pdf:
+            for page_num, page in enumerate(pdf.pages):
+                tables = page.extract_tables()
+                
+                if tables:
+                    for table in tables:
+                        if table and len(table) > 1:
+                            has_isin = any(re.search(r'[A-Z]{2}[A-Z0-9]{10}', str(cell)) 
+                                        for row in table[:3] for cell in row if cell)
+                            
+                            if has_isin:
+                                print(f"    ✅ Tableau détecté")
+                                extracted_positions = self._parse_pea_positions_to_portfolio(table)
+                                positions.extend(extracted_positions)
+        
+        return positions
 
     def _parse_pea_positions_to_portfolio(self, table: List[List]) -> List[Dict]:
-        """
-        Parser positions PEA vers portfolio_positions - OBSOLÈTE
-        Remplacé par _parse_pea_positions_with_date
-        """
-        return self._parse_pea_positions_with_date(table, datetime.now().strftime('%Y-%m-%d'))
+        """Parser positions PEA - APPEL CORRIGÉ"""
+        positions = []
+        
+        if not table or len(table) < 2:
+            return positions
+        
+        data_rows = table[1:]
+        
+        if data_rows and len(data_rows[0]) >= 4:
+            first_row = data_rows[0]
+            has_multiline = any('\n' in str(cell) for cell in first_row if cell)
+            
+            if has_multiline:
+                print("🔧 Données multi-lignes détectées")
+                positions = self._parse_multiligne_synchronized(first_row)
+            else:
+                print("📄 Données normales")
+                positions = self._parse_normal_to_portfolio(data_rows)
+        
+        return positions
 
     def _is_section_header(self, designation: str) -> bool:
         """
