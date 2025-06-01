@@ -986,7 +986,7 @@ class UnifiedPortfolioParser:
             
             if has_multiline:
                 print("🔧 Données multi-lignes")
-                positions = self._parse_multiligne_synchronized(first_row, valuation_date)
+                positions = self._parse_multiligne_synchronized(first_row)
             else:
                 print("📄 Données normales")
                 positions = self._parse_normal_pea_data_with_date(data_rows, valuation_date)
@@ -998,8 +998,8 @@ class UnifiedPortfolioParser:
         positions = []
         
         try:
-            # Extraire la date UNE FOIS
-            valuation_date = self.extract_valuation_date(
+            # Extraire la date
+            valuation_date = self._extract_valuation_date(
                 file_path=getattr(self, 'current_file_path', None)
             )
             print(f"📅 Date pour toutes positions: {valuation_date}")
@@ -1238,7 +1238,7 @@ class UnifiedPortfolioParser:
         
         line_upper = line.upper()
         
-        # Classification
+        # Classification des opérations
         if 'COUPONS' in line_upper or 'DIVIDENDE' in line_upper:
             flow_type = 'dividend'
             flow_direction = 'in'
@@ -1263,73 +1263,95 @@ class UnifiedPortfolioParser:
         
         print(f"    🔍 Ligne: {line}")
         
-        # ✅ EXTRACTION BRUTALE - Sans regex
+        # Nettoyer et diviser
         cleaned = line.replace('\u00A0', ' ').replace('\t', ' ')
         words = cleaned.split()
         
+        print(f"    📦 Mots: {words[-5:]}")  # Afficher seulement les 5 derniers
+        
         transaction_amount = 0.0
         
-        # Tester les derniers mots
-        for word in reversed(words[-5:]):  # Les 5 derniers mots max
-            word = word.strip()
-            
-            # Test format français X,YZ
-            if ',' in word and not word.startswith(',') and not word.endswith(','):
-                try:
-                    # Enlever caractères non numériques sauf virgule
-                    clean_word = ''.join(c for c in word if c.isdigit() or c == ',')
-                    if ',' in clean_word:
-                        amount = float(clean_word.replace(',', '.'))
-                        if 0.01 <= amount <= 999999:
-                            transaction_amount = amount
-                            print(f"      ✅ Trouvé (virgule): {amount} depuis '{word}'")
-                            break
-                except:
-                    pass
-            
-            # Test entier pur
-            elif word.isdigit():
-                try:
-                    amount = float(word)
-                    if 1 <= amount <= 999999:
-                        transaction_amount = amount
-                        print(f"      ✅ Trouvé (entier): {amount}")
-                        break
-                except:
-                    pass
-            
-            # Test avec espaces (1 000,50)
-            elif ' ' in word:
-                try:
-                    no_space = word.replace(' ', '')
-                    if ',' in no_space:
-                        clean_word = ''.join(c for c in no_space if c.isdigit() or c == ',')
-                        amount = float(clean_word.replace(',', '.'))
-                        if 0.01 <= amount <= 999999:
-                            transaction_amount = amount
-                            print(f"      ✅ Trouvé (espaces): {amount} depuis '{word}'")
-                            break
-                except:
-                    pass
+        # ✅ STRATÉGIE MULTI-ÉTAPES
         
-        # Fallback clean_amount
+        # ÉTAPE 1 : Montants avec espaces numériques (2 000,00)
+        for i in range(len(words) - 1, 0, -1):
+            if i >= 1:
+                word1 = words[i-1]  # "2"
+                word2 = words[i]    # "000,00"
+                
+                # Pattern : chiffre + (chiffres,décimales)
+                if (word1.isdigit() and 
+                    len(word1) <= 2 and  # Max 2 chiffres pour la première partie
+                    ',' in word2 and 
+                    word2.replace(',', '').replace('.', '').isdigit()):
+                    
+                    try:
+                        # Reconstruction : "2" + "000,00" = "2000,00"
+                        combined = word1 + word2
+                        amount = float(combined.replace(',', '.'))
+                        if 1 <= amount <= 999999:
+                            transaction_amount = amount
+                            print(f"    ✅ TROUVÉ (espace): {amount} de '{word1}' + '{word2}'")
+                            break
+                    except Exception as e:
+                        print(f"    ❌ Erreur combinaison: {e}")
+        
+        # ÉTAPE 2 : Montants simples avec virgule
         if transaction_amount == 0:
-            print(f"    ⚠️  Fallback clean_amount...")
-            for word in reversed(words):
-                try:
-                    amount = clean_amount(word)
-                    if amount > 0:
-                        transaction_amount = amount
-                        print(f"    ✅ Fallback: {amount} depuis '{word}'")
-                        break
-                except:
-                    continue
+            for word in reversed(words[-5:]):
+                if (',' in word and 
+                    not word.startswith(',') and 
+                    not word.endswith(',') and
+                    len(word) >= 3):  # Au moins "X,Y"
+                    
+                    try:
+                        # Nettoyer et garder seulement chiffres + virgule
+                        clean_word = ''.join(c for c in word if c.isdigit() or c == ',')
+                        if ',' in clean_word and clean_word.count(',') == 1:
+                            amount = float(clean_word.replace(',', '.'))
+                            if 0.01 <= amount <= 999999:
+                                transaction_amount = amount
+                                print(f"    ✅ TROUVÉ (virgule): {amount} de '{word}'")
+                                break
+                    except Exception as e:
+                        print(f"    ❌ Erreur virgule: {e}")
+        
+        # ÉTAPE 3 : Entiers (mais éviter les petits nombres)
+        if transaction_amount == 0:
+            for word in reversed(words[-3:]):  # Seulement les 3 derniers
+                if word.isdigit():
+                    try:
+                        amount = float(word)
+                        # Éviter les petits entiers qui pourraient être des codes
+                        if 50 <= amount <= 999999:  # Seuil relevé
+                            transaction_amount = amount
+                            print(f"    ✅ TROUVÉ (entier): {amount}")
+                            break
+                    except:
+                        pass
+        
+        # ÉTAPE 4 : Fallback avec clean_amount sur phrases
+        if transaction_amount == 0:
+            print(f"    ⚠️  Fallback phrases...")
+            
+            # Tester les 3 dernières combinaisons possibles
+            for length in [3, 2, 1]:
+                if len(words) >= length:
+                    phrase = ' '.join(words[-length:])
+                    try:
+                        amount = clean_amount(phrase)
+                        if amount > 0:
+                            transaction_amount = amount
+                            print(f"    ✅ Fallback: {amount} de '{phrase}'")
+                            break
+                    except:
+                        continue
         
         if transaction_amount <= 0:
-            print(f"    ❌ ÉCHEC: {line}")
+            print(f"    ❌ ÉCHEC TOTAL: {line}")
             return None
         
-        # Description
+        # Description nettoyée
         description = line.split('Qté :')[0].strip() if 'Qté :' in line else line.strip()
         
         # Montants finaux
@@ -1568,7 +1590,7 @@ class UnifiedPortfolioParser:
         return cleaned if cleaned else "Transaction PEA"
 
     def _parse_pea_evaluation(self, pdf_path: str) -> List[Dict]:
-        """Parser évaluation PEA - AVEC STOCKAGE CHEMIN"""
+        """Parser évaluation PEA"""
         positions = []
         
         print(f"📄 Parsing évaluation: {pdf_path}")
