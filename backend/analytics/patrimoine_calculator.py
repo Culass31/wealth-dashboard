@@ -264,7 +264,8 @@ class PatrimoineCalculator:
                 "projected_liquidity_24m": liquidity_duration_metrics["projected_liquidity_24m"],
                 "weighted_average_duration": liquidity_duration_metrics["weighted_average_duration"],
                 "duration_distribution": liquidity_duration_metrics["duration_distribution"],
-                "reinvestment_rate": self.get_reinvestment_rate(flows_p)
+                "reinvestment_rate": self.get_reinvestment_rate(flows_p),
+                "maturity_indicator": self.calculate_maturity_indicator(details[p])
             }
         return details
 
@@ -551,3 +552,40 @@ class PatrimoineCalculator:
             reinvestment_rate = 0.0
 
         return reinvestment_rate
+
+    def calculate_maturity_indicator(self, platform_details: Dict[str, Any]) -> float:
+        """
+        Calcule un indicateur composite de maturité du portefeuille pour une plateforme.
+        Un score plus élevé indique un portefeuille plus 'jeune' et dynamique.
+        """
+        logging.info("Calcul de l'indicateur de maturité...")
+
+        # Récupération des métriques existantes
+        repayment_rate = platform_details.get("repayment_rate_platform", 0.0)
+        projected_liquidity_6m = platform_details.get("projected_liquidity_6m", 0.0)
+        weighted_average_duration = platform_details.get("weighted_average_duration", 0.0)
+        reinvestment_rate = platform_details.get("reinvestment_rate", 0.0)
+        cap_encours = platform_details.get("capital_investi_encours", (0.0, 0.0))[1] # Le deuxième élément du tuple
+
+        # Normalisation et pondération des scores (les poids peuvent être ajustés)
+        # Score de Liquidité (0-100)
+        liquidity_score = (projected_liquidity_6m / cap_encours) * 100 if cap_encours > 0 else 0
+
+        # Score de Duration (0-100, plus la duration est faible, plus le score est élevé)
+        # Assumons une duration max de 60 mois pour la normalisation
+        MAX_DURATION_MONTHS = 60 
+        duration_score = (1 - (weighted_average_duration / MAX_DURATION_MONTHS)) * 100 if weighted_average_duration > 0 else 0
+        duration_score = max(0, min(100, duration_score)) # S'assurer que le score est entre 0 et 100
+
+        # Score de Réinvestissement (0-100)
+        reinvestment_score = min(100, reinvestment_rate) # Capper à 100% si > 100
+
+        # Score de Remboursement (0-100)
+        repayment_score = min(100, repayment_rate) # Capper à 100% si > 100
+
+        # Indicateur composite (moyenne des scores)
+        maturity_indicator = (liquidity_score + duration_score + reinvestment_score + repayment_score) / 4
+        maturity_indicator = round(maturity_indicator, 2)
+
+        logging.info(f"Indicateur de maturité calculé : {maturity_indicator:.2f}")
+        return maturity_indicator

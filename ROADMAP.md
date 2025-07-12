@@ -23,7 +23,7 @@ Cette feuille de route détaille les fonctionnalités futures envisagées pour e
         *   **Base de Données :** Ajouter les colonnes `geographical_location` et `sector` à la table `investments`.
         *   **Frontend (`dashboard.py`) :** Créer des graphiques de répartition (camemberts, barres) pour la diversification géographique et sectorielle.
 
-*   **1.3. Calcul du Ratio de Sharpe (adapté au Crowdfunding)**
+*   **1.3. Calcul du Ratio de Sharpe (adapté au Crowdfunding)** - **EN PAUSE (Méthodologie de volatilité incertaine)**
     *   **Valeur Ajoutée :** Le Ratio de Sharpe mesure le rendement ajusté au risque. L'adapter au crowdfunding (en utilisant un taux sans risque approprié et une volatilité calculée ou estimée pour ce type d'actif) fournirait une métrique de performance plus pertinente.
     *   **Considérations Techniques :**
         *   **Backend (`PatrimoineCalculator`) :** Implémenter le calcul du Ratio de Sharpe. Cela nécessiterait de définir un "taux sans risque" et de calculer la volatilité des rendements du crowdfunding (ce qui pourrait être complexe sans une série historique de rendements agrégés).
@@ -76,7 +76,7 @@ Cette feuille de route détaille les fonctionnalités futures envisagées pour e
     *   **Considérations Techniques :**
         *   **Backend (`PatrimoineCalculator`) :** Calculé ce ratio en comparant les flux de remboursement/intérêts aux nouveaux investissements.
 
-*   **4.2. Indicateur de Maturité du Portefeuille**
+*   **4.2. Indicateur de Maturité du Portefeuille** - **TERMINÉ (par plateforme)**
     *   **Valeur Ajoutée :** Un indicateur composite qui évalue la proportion d'investissements arrivant à terme, la liquidité disponible et la capacité de réinvestissement, donnant une idée de la "vieillesse" ou de la "jeunesse" du portefeuille.
     *   **Considérations Techniques :**
-        *   **Backend (`PatrimoineCalculator`) :** Développer une métrique composite basée sur la duration, les projections de liquidité et le taux de réinvestissement.
+        *   **Backend (`PatrimoineCalculator`) :** Développé une métrique composite basée sur la duration, les projections de liquidité et le taux de réinvestissement.

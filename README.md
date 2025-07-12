@@ -351,6 +351,9 @@ Capital en Cours = Capital Investi - Capital Remboursé + Valorisation Actuelle
 - **Analyse des retards** vs dates prévues
 - **Impact liquidité** et optimisation des flux
 
+### **Indicateur de Maturité du Portefeuille**
+- **Indicateur de Maturité du Portefeuille** : Un score composite par plateforme évaluant la proportion d'investissements arrivant à terme, la liquidité disponible et la capacité de réinvestissement, donnant une idée de la "vieillesse" ou de la "jeunesse" du portefeuille.
+
 ## 🎯 Interprétation Expert
 
 ### **Seuils d'Alerte TRI**
