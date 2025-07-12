@@ -1,11 +1,14 @@
 # ===== backend/analytics/expert_metrics.py - MÉTRIQUES EXPERT PATRIMOINE =====
+import logging
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Tuple, Optional
-from datetime import datetime, timedelta
+from typing import Dict, List, Tuple
+from datetime import datetime
 from scipy.optimize import fsolve
 import warnings
 warnings.filterwarnings('ignore')
+
+from backend.models.database import ExpertDatabaseManager # Ajout de l'import
 
 class ExpertPatrimoineCalculator:
     """Calculateur expert pour métriques avancées de gestion de patrimoine"""
@@ -13,6 +16,74 @@ class ExpertPatrimoineCalculator:
     def __init__(self):
         self.oat_10y_rate = 0.035  # OAT 10 ans France ~3.5% (benchmark sans risque)
         self.real_estate_benchmark = 0.055  # Benchmark immobilier ~5.5%
+        self.db = ExpertDatabaseManager() # Initialisation du gestionnaire de BDD
+    
+    def calculate_total_patrimony(self, investments_df: pd.DataFrame) -> Dict:
+        """
+        Calcule le patrimoine total par plateforme en sommant les montants investis.
+        """
+        logging.info("💰 Calcul du patrimoine total par plateforme...")
+        patrimony_by_platform = {}
+
+        if investments_df.empty:
+            return patrimony_by_platform
+
+        platforms = investments_df['platform'].unique()
+        for platform in platforms:
+            platform_investments = investments_df[investments_df['platform'] == platform]
+            total_invested_amount = platform_investments['invested_amount'].sum()
+            patrimony_by_platform[platform] = total_invested_amount
+        
+        return patrimony_by_platform
+
+    def calculate_total_liquidity(self, cash_flows_df: pd.DataFrame) -> Dict:
+        """
+        Calcule la liquidité totale par plateforme en sommant les flux nets.
+        Les flux 'out' sont soustraits, les flux 'in' sont ajoutés.
+        """
+        logging.info("💧 Calcul de la liquidité totale par plateforme...")
+        liquidity_by_platform = {}
+
+        if cash_flows_df.empty or 'platform' not in cash_flows_df.columns:
+            return liquidity_by_platform
+
+        platforms = cash_flows_df['platform'].unique()
+        for platform in platforms:
+            platform_flows = cash_flows_df[cash_flows_df['platform'] == platform]
+            
+            total_liquidity = 0.0
+            for _, flow in platform_flows.iterrows():
+                if flow['flow_direction'] == 'in':
+                    total_liquidity += flow['net_amount']
+                elif flow['flow_direction'] == 'out':
+                    total_liquidity -= flow['net_amount']
+            liquidity_by_platform[platform] = total_liquidity
+        
+        return liquidity_by_platform
+
+    def calculate_gross_interests_received(self, cash_flows_df: pd.DataFrame) -> Dict:
+        """
+        Calcule les intérêts bruts perçus par plateforme.
+        Somme la colonne 'interest_amount' pour les flux de type 'interest' ou 'dividend' et de direction 'in'.
+        """
+        logging.info("💸 Calcul des intérêts bruts perçus par plateforme...")
+        gross_interests_by_platform = {}
+
+        if cash_flows_df.empty or 'platform' not in cash_flows_df.columns:
+            return gross_interests_by_platform
+
+        platforms = cash_flows_df['platform'].unique()
+        for platform in platforms:
+            platform_flows = cash_flows_df[cash_flows_df['platform'] == platform]
+            
+            total_gross_interests = platform_flows[
+                (platform_flows['flow_type'].isin(['interest', 'dividend'])) &
+                (platform_flows['flow_direction'] == 'in')
+            ]['interest_amount'].sum()
+            
+            gross_interests_by_platform[platform] = total_gross_interests
+        
+        return gross_interests_by_platform
     
     def calculate_capital_en_cours(self, investments_df: pd.DataFrame, cash_flows_df: pd.DataFrame) -> Dict:
         """
@@ -26,6 +97,8 @@ class ExpertPatrimoineCalculator:
         if investments_df.empty:
             return capital_by_platform
         
+        user_id = investments_df['user_id'].iloc[0] # Récupérer l'ID utilisateur
+        
         platforms = investments_df['platform'].unique()
         
         for platform in platforms:
@@ -35,7 +108,7 @@ class ExpertPatrimoineCalculator:
             # Flux de la plateforme
             platform_flows = cash_flows_df[cash_flows_df['platform'] == platform] if 'platform' in cash_flows_df.columns else pd.DataFrame()
             
-            # Capital investi total
+            # Capital investi total (pour crowdfunding)
             capital_investi = platform_investments['invested_amount'].sum()
             
             # Capital remboursé (remboursements + ventes)
@@ -47,16 +120,23 @@ class ExpertPatrimoineCalculator:
                 ]['net_amount'].sum()
                 capital_rembourse = repayments
             
-            # Valorisation actuelle (pour PEA principalement)
             valorisation_actuelle = 0.0
-            if 'current_value' in platform_investments.columns:
-                valorisation_actuelle = platform_investments['current_value'].fillna(0).sum()
-            
-            # Capital en cours = Investi - Remboursé (pour crowdfunding) ou Valorisation actuelle (pour PEA)
-            if platform in ['PEA']:
+            capital_en_cours = 0.0
+
+            if platform == 'PEA':
+                # Pour PEA, récupérer la valorisation la plus récente depuis portfolio_positions
+                pea_positions_df = self.db.get_portfolio_positions(user_id, platform='PEA')
+                if not pea_positions_df.empty:
+                    # Convertir valuation_date en datetime pour tri
+                    pea_positions_df['valuation_date'] = pd.to_datetime(pea_positions_df['valuation_date'])
+                    # Trier par date et prendre la dernière valorisation pour chaque ISIN/actif
+                    latest_positions = pea_positions_df.sort_values(by='valuation_date', ascending=False).drop_duplicates(subset=['isin', 'asset_name'])
+                    valorisation_actuelle = latest_positions['market_value'].sum()
                 capital_en_cours = valorisation_actuelle
             else:
+                # Pour les autres plateformes (crowdfunding), le capital en cours est le capital investi - remboursé
                 capital_en_cours = capital_investi - capital_rembourse
+                valorisation_actuelle = capital_en_cours # Pour cohérence dans le rapport
             
             capital_by_platform[platform] = {
                 'capital_investi': capital_investi,
@@ -285,9 +365,16 @@ class ExpertPatrimoineCalculator:
             
             # 3. Valorisation actuelle pour positions ouvertes (PEA)
             if platform == 'PEA':
-                current_value = platform_investments['current_value'].sum() if 'current_value' in platform_investments.columns else 0
-                if current_value > 0:
-                    cash_flows_list.append((datetime.now().strftime('%Y-%m-%d'), current_value))
+                user_id = investments_df['user_id'].iloc[0] # Récupérer l'ID utilisateur
+                pea_positions_df = self.db.get_portfolio_positions(user_id, platform='PEA')
+                if not pea_positions_df.empty:
+                    # Convertir valuation_date en datetime pour tri
+                    pea_positions_df['valuation_date'] = pd.to_datetime(pea_positions_df['valuation_date'])
+                    # Trier par date et prendre la dernière valorisation pour chaque ISIN/actif
+                    latest_positions = pea_positions_df.sort_values(by='valuation_date', ascending=False).drop_duplicates(subset=['isin', 'asset_name'])
+                    current_value_pea = latest_positions['market_value'].sum()
+                    if current_value_pea > 0:
+                        cash_flows_list.append((datetime.now().strftime('%Y-%m-%d'), current_value_pea))
             
             # Calculer TRI
             if len(cash_flows_list) >= 2:
@@ -579,23 +666,79 @@ class ExpertPatrimoineCalculator:
             
             # Scénario 3 : Baisse valorisation (PEA/AV)
             if platform in ['PEA', 'Assurance_Vie']:
-                current_value = platform_investments['current_value'].sum() if 'current_value' in platform_investments.columns else platform_capital
-                baisse_20_pct = current_value * 0.2
+                user_id = investments_df['user_id'].iloc[0] # Récupérer l'ID utilisateur
+                current_value_platform = 0
+                
+                # Récupérer la valorisation la plus récente depuis portfolio_positions
+                platform_positions_df = self.db.get_portfolio_positions(user_id, platform=platform)
+                if not platform_positions_df.empty:
+                    platform_positions_df['valuation_date'] = pd.to_datetime(platform_positions_df['valuation_date'])
+                    latest_positions = platform_positions_df.sort_values(by='valuation_date', ascending=False).drop_duplicates(subset=['isin', 'asset_name'])
+                    current_value_platform = latest_positions['market_value'].sum()
+
+                baisse_20_pct = current_value_platform * 0.2
                 scenarios['baisse_valorisation_20pct'] = {
                     'perte_absolue': baisse_20_pct,
                     'perte_pct_platform': 20.0,
-                    'nouvelle_valorisation': current_value - baisse_20_pct
+                    'nouvelle_valorisation': current_value_platform - baisse_20_pct
                 }
             
             stress_results[platform] = scenarios
         
         return stress_results
     
+    def calculate_expected_gross_interests(self, investments_df: pd.DataFrame) -> Dict:
+        """Calculer les intérêts bruts attendus pour les projets actifs."""
+        logging.info("📈 Calcul des intérêts bruts attendus...")
+        expected_interests_by_platform = {}
+        
+        if investments_df.empty:
+            return expected_interests_by_platform
+
+        today = datetime.now()
+
+        for platform in investments_df['platform'].unique():
+            platform_investments = investments_df[
+                (investments_df['platform'] == platform) &
+                (investments_df['status'] == 'active')
+            ].copy()
+
+            total_expected_interests = 0.0
+
+            if not platform_investments.empty:
+                platform_investments['expected_end_date'] = pd.to_datetime(platform_investments['expected_end_date'], errors='coerce')
+                
+                for _, inv in platform_investments.iterrows():
+                    if pd.notna(inv['expected_end_date']) and inv['expected_end_date'] > today:
+                        # Calculer le nombre de mois restants
+                        remaining_days = (inv['expected_end_date'] - today).days
+                        remaining_months = remaining_days / 30.44 # Approximation
+
+                        if inv.get('monthly_payment') is not None and inv['monthly_payment'] > 0 and inv.get('remaining_capital') is not None:
+                            # Calcul plus précis des intérêts futurs si monthly_payment et remaining_capital sont disponibles
+                            # On estime le nombre de paiements restants
+                            remaining_payments_approx = remaining_days / (365.25 / 12) # Nombre de mois restants
+                            
+                            # Total des paiements futurs (capital + intérêts)
+                            total_future_payments = inv['monthly_payment'] * remaining_payments_approx
+                            
+                            # Intérêts futurs = Total des paiements futurs - Capital restant dû
+                            expected_interest_for_this_project = total_future_payments - inv['remaining_capital']
+                            total_expected_interests += max(0, expected_interest_for_this_project)
+                            
+                        elif inv.get('annual_rate') is not None and inv['annual_rate'] > 0 and inv.get('remaining_capital') is not None:
+                            # Si pas de monthly_payment, mais un taux annuel, on estime sur le remaining_capital
+                            # Approximation simple: Intérêt = Capital Restant * Taux Annuel * (Mois Restants / 12)
+                            expected_interest_for_this_project = inv['remaining_capital'] * (inv['annual_rate'] / 100) * (remaining_months / 12)
+                            total_expected_interests += max(0, expected_interest_for_this_project)
+
+            expected_interests_by_platform[platform] = total_expected_interests
+
+        return expected_interests_by_platform
+
     def generate_expert_report(self, investments_df: pd.DataFrame, cash_flows_df: pd.DataFrame) -> Dict:
-        """
-        Générer le rapport expert complet avec toutes les métriques avancées
-        """
-        print("📋 Génération rapport expert patrimoine...")
+        """Générer le rapport expert complet avec toutes les métriques avancées"""
+        logging.info("📋 Génération rapport expert patrimoine...")
         
         report = {
             'generated_at': datetime.now().isoformat(),
@@ -625,13 +768,25 @@ class ExpertPatrimoineCalculator:
             # 7. Stress test
             report['stress_test'] = self.calculate_stress_test(investments_df, cash_flows_df)
             
-            # 8. Recommandations automatiques
+            # 8. Patrimoine total
+            report['total_patrimony'] = self.calculate_total_patrimony(investments_df)
+
+            # 9. Liquidités
+            report['total_liquidity'] = self.calculate_total_liquidity(cash_flows_df)
+            
+            # 10. Intérêts bruts perçus
+            report['gross_interests_received'] = self.calculate_gross_interests_received(cash_flows_df)
+
+            # 11. Intérêts bruts attendus
+            report['expected_gross_interests'] = self.calculate_expected_gross_interests(investments_df)
+
+            # 10. Recommandations automatiques
             report['recommandations'] = self._generate_auto_recommendations(report)
             
-            print("✅ Rapport expert généré avec succès")
+            logging.info("✅ Rapport expert généré avec succès")
             
         except Exception as e:
-            print(f"❌ Erreur génération rapport expert: {e}")
+            logging.exception(f"❌ Erreur génération rapport expert: {e}")
             import traceback
             traceback.print_exc()
         
