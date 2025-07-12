@@ -12,7 +12,7 @@ Une solution complète d'analyse patrimoniale développée par un agent expert e
 - **Taux de remboursement** et rotation du capital par plateforme
 - **Projections de liquidité** à court/moyen terme par plateforme
 - **Duration moyenne pondérée** et répartition par échéance par plateforme
-- **Taux de réinvestissement** et effet boule de neige
+- **Taux de réinvestissement** et effet boule de neige par plateforme
 - **Performance mensuelle** et annualisée
 - **Outperformance vs benchmarks** (OAT 10Y, Immobilier)
 

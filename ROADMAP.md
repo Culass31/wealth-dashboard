@@ -71,10 +71,10 @@ Cette feuille de route détaille les fonctionnalités futures envisagées pour e
 
 **Objectif :** Fournir des métriques supplémentaires pour évaluer la performance et la maturité du portefeuille.
 
-*   **4.1. Taux de Réinvestissement**
+*   **4.1. Taux de Réinvestissement** - **TERMINÉ (par plateforme)**
     *   **Valeur Ajoutée :** Mesure la part des flux de capital (remboursements, intérêts) qui est réinvestie dans de nouveaux projets, illustrant l'effet boule de neige et la croissance du capital par réinvestissement.
     *   **Considérations Techniques :**
-        *   **Backend (`PatrimoineCalculator`) :** Calculer ce ratio en comparant les flux de remboursement/intérêts aux nouveaux investissements.
+        *   **Backend (`PatrimoineCalculator`) :** Calculé ce ratio en comparant les flux de remboursement/intérêts aux nouveaux investissements.
 
 *   **4.2. Indicateur de Maturité du Portefeuille**
     *   **Valeur Ajoutée :** Un indicateur composite qui évalue la proportion d'investissements arrivant à terme, la liquidité disponible et la capacité de réinvestissement, donnant une idée de la "vieillesse" ou de la "jeunesse" du portefeuille.

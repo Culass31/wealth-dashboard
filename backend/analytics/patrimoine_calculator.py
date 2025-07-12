@@ -263,7 +263,8 @@ class PatrimoineCalculator:
                 "projected_liquidity_12m": liquidity_duration_metrics["projected_liquidity_12m"],
                 "projected_liquidity_24m": liquidity_duration_metrics["projected_liquidity_24m"],
                 "weighted_average_duration": liquidity_duration_metrics["weighted_average_duration"],
-                "duration_distribution": liquidity_duration_metrics["duration_distribution"]
+                "duration_distribution": liquidity_duration_metrics["duration_distribution"],
+                "reinvestment_rate": self.get_reinvestment_rate(flows_p)
             }
         return details
 
@@ -523,3 +524,30 @@ class PatrimoineCalculator:
                 ) * 100
 
         return metrics
+
+    def get_reinvestment_rate(self, flows_p: pd.DataFrame) -> float:
+        """
+        Calcule le taux de réinvestissement pour une plateforme donnée.
+        Taux de réinvestissement = (Nouveaux investissements) / (Capital remboursé + Intérêts/Dividendes reçus)
+        """
+        logging.info("Calcul du taux de réinvestissement...")
+        if flows_p.empty: return 0.0
+
+        # Capital remboursé + Intérêts/Dividendes reçus
+        capital_returned = flows_p[
+            flows_p['flow_type'].isin(['repayment', 'interest', 'dividend']) &
+            (flows_p['flow_direction'] == 'in')
+        ]['gross_amount'].sum()
+
+        # Nouveaux investissements
+        new_investments = flows_p[
+            (flows_p['flow_type'] == 'investment') &
+            (flows_p['flow_direction'] == 'out')
+        ]['gross_amount'].sum()
+
+        if capital_returned > 0:
+            reinvestment_rate = (new_investments / capital_returned) * 100
+        else:
+            reinvestment_rate = 0.0
+
+        return reinvestment_rate
