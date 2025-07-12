@@ -62,10 +62,10 @@ Cette feuille de route détaille les fonctionnalités futures envisagées pour e
         *   **Backend (`PatrimoineCalculator`) :** Nécessiterait une logique complexe de suivi des prix de revient, des dates d'acquisition/cession, et des règles fiscales spécifiques au PEA.
         *   **Data :** Assurer la disponibilité des prix d'achat et des dates d'acquisition pour les positions PEA.
 
-*   **3.2. Optimisation Fiscale des Flux Entrants**
+*   **3.2. Optimisation Fiscale des Flux Entrants** - **TERMINÉ**
     *   **Valeur Ajoutée :** Analyser comment les dépôts et les réinvestissements peuvent être structurés pour optimiser la fiscalité globale (par exemple, utilisation des enveloppes fiscales).
     *   **Considérations Techniques :**
-        *   **Backend (`PatrimoineCalculator`) :** Développer des règles et des simulations basées sur les types de flux et les plateformes.
+        *   **Backend (`PatrimoineCalculator`) :** Développé des règles et des simulations basées sur les types de flux et les plateformes.
 
 ### 4. Indicateurs de Performance et de Maturité
 

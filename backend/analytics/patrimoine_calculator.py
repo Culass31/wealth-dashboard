@@ -266,7 +266,8 @@ class PatrimoineCalculator:
                 "duration_distribution": liquidity_duration_metrics["duration_distribution"],
                 "reinvestment_rate": self.get_reinvestment_rate(flows_p),
                 "maturity_indicator": self.calculate_maturity_indicator(details[p])
-            }
+            },
+        
         return details
 
     def get_crowdfunding_project_details(self) -> Dict[str, pd.DataFrame]:
@@ -590,39 +591,71 @@ class PatrimoineCalculator:
         logging.info(f"Indicateur de maturité calculé : {maturity_indicator:.2f}")
         return maturity_indicator
 
-    def calculate_maturity_indicator(self, platform_details: Dict[str, Any]) -> float:
+    def analyze_tax_optimization_of_flows(self) -> Dict[str, Any]:
         """
-        Calcule un indicateur composite de maturité du portefeuille pour une plateforme.
-        Un score plus élevé indique un portefeuille plus 'jeune' et dynamique.
+        Analyse les flux de trésorerie pour identifier les opportunités d'optimisation fiscale.
         """
-        logging.info("Calcul de l'indicateur de maturité...")
+        logging.info("Analyse de l'optimisation fiscale des flux...")
+        
+        if self.cash_flows_df.empty: 
+            return {
+                "total_deposits": 0.0,
+                "total_reinvestments": 0.0,
+                "total_taxes_paid": 0.0,
+                "tax_optimization_insights": "Aucun flux de trésorerie pour l'analyse fiscale."
+            }
 
-        # Récupération des métriques existantes
-        repayment_rate = platform_details.get("repayment_rate_platform", 0.0)
-        projected_liquidity_6m = platform_details.get("projected_liquidity_6m", 0.0)
-        weighted_average_duration = platform_details.get("weighted_average_duration", 0.0)
-        reinvestment_rate = platform_details.get("reinvestment_rate", 0.0)
-        cap_encours = platform_details.get("capital_investi_encours", (0.0, 0.0))[1] # Le deuxième élément du tuple
+        # Convertir la colonne 'transaction_date' en datetime si ce n'est pas déjà fait
+        self.cash_flows_df['transaction_date'] = pd.to_datetime(self.cash_flows_df['transaction_date'])
 
-        # Normalisation et pondération des scores (les poids peuvent être ajustés)
-        # Score de Liquidité (0-100)
-        liquidity_score = (projected_liquidity_6m / cap_encours) * 100 if cap_encours > 0 else 0
+        # Flux de dépôts (argent frais entrant)
+        deposits = self.cash_flows_df[
+            (self.cash_flows_df['flow_type'] == 'deposit') &
+            (self.cash_flows_df['flow_direction'] == 'in')
+        ]
+        total_deposits = deposits['gross_amount'].sum()
 
-        # Score de Duration (0-100, plus la duration est faible, plus le score est élevé)
-        # Assumons une duration max de 60 mois pour la normalisation
-        MAX_DURATION_MONTHS = 60 
-        duration_score = (1 - (weighted_average_duration / MAX_DURATION_MONTHS)) * 100 if weighted_average_duration > 0 else 0
-        duration_score = max(0, min(100, duration_score)) # S'assurer que le score est entre 0 et 100
+        # Flux de réinvestissements (argent sortant pour de nouveaux investissements)
+        # On considère ici les flux de type 'investment' qui sont des sorties
+        reinvestments = self.cash_flows_df[
+            (self.cash_flows_df['flow_type'] == 'investment') &
+            (self.cash_flows_df['flow_direction'] == 'out')
+        ]
+        total_reinvestments = reinvestments['gross_amount'].sum()
 
-        # Score de Réinvestissement (0-100)
-        reinvestment_score = min(100, reinvestment_rate) # Capper à 100% si > 100
+        # Taxes payées (flux de type 'tax' ou 'fee' qui sont des sorties, ou tax_amount dans les remboursements)
+        taxes_from_flows = self.cash_flows_df[
+            (self.cash_flows_df['flow_type'] == 'tax') &
+            (self.cash_flows_df['flow_direction'] == 'out')
+        ]['gross_amount'].sum()
+        
+        fees_from_flows = self.cash_flows_df[
+            (self.cash_flows_df['flow_type'] == 'fee') &
+            (self.cash_flows_df['flow_direction'] == 'out')
+        ]['gross_amount'].sum()
 
-        # Score de Remboursement (0-100)
-        repayment_score = min(100, repayment_rate) # Capper à 100% si > 100
+        # Somme des tax_amount dans tous les flux (pour couvrir les taxes prélevées sur les intérêts/dividendes)
+        taxes_from_amounts = self.cash_flows_df['tax_amount'].sum()
 
-        # Indicateur composite (moyenne des scores)
-        maturity_indicator = (liquidity_score + duration_score + reinvestment_score + repayment_score) / 4
-        maturity_indicator = round(maturity_indicator, 2)
+        total_taxes_paid = taxes_from_flows + fees_from_flows + taxes_from_amounts
 
-        logging.info(f"Indicateur de maturité calculé : {maturity_indicator:.2f}")
-        return maturity_indicator
+        # Insights d'optimisation (exemples basés sur des règles simples)
+        insights = []
+        if total_deposits > 0 and total_reinvestments > 0:
+            if (total_reinvestments / total_deposits) > 0.5: # Si plus de 50% des dépôts sont réinvestis
+                insights.append("Vous avez une bonne dynamique de réinvestissement. Considérez l'utilisation d'enveloppes fiscales (PEA, Assurance Vie) pour optimiser la fiscalité sur le long terme.")
+            else:
+                insights.append("Votre taux de réinvestissement est modéré. Explorez les opportunités de réinvestissement pour maximiser l'effet boule de neige et potentiellement bénéficier d'avantages fiscaux.")
+        
+        if total_taxes_paid > 0:
+            insights.append(f"Un total de {total_taxes_paid:.2f}€ de taxes et frais a été payé. Une analyse détaillée par type d'investissement pourrait révéler des pistes d'optimisation (ex: arbitrage PEA après 5 ans).")
+
+        if not insights: # Si aucune insight spécifique n'est générée
+            insights.append("Aucune recommandation fiscale spécifique identifiée pour le moment. Continuez à suivre vos flux.")
+
+        return {
+            "total_deposits": total_deposits,
+            "total_reinvestments": total_reinvestments,
+            "total_taxes_paid": total_taxes_paid,
+            "tax_optimization_insights": " ".join(insights)
+        }

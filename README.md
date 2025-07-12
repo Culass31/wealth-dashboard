@@ -26,7 +26,7 @@ Une solution complète d'analyse patrimoniale développée par un agent expert e
 ### 🔄 **Gestion Fiscale Intelligente**
 - **Calcul automatique des taxes** (Flat tax 30%, CSG/CRDS)
 - **Suivi de la fiscalité** par type d'investissement
-- **Impact fiscal** sur la performance nette
+- **Optimisation Fiscale des Flux Entrants** : Analyse des dépôts et réinvestissements pour des stratégies d'optimisation fiscale (ex: utilisation d'enveloppes fiscales).
 
 ### 🏢 **Support Multi-Plateformes**
 - **LPB (La Première Brique)** - Crowdfunding immobilier
