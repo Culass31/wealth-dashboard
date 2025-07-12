@@ -240,12 +240,30 @@ class PatrimoineCalculator:
             tri_brut = self._xirr(self._prepare_flows_for_tri(flows_tri_platform, 'gross_amount'))
             tri_net = self._xirr(self._prepare_flows_for_tri(flows_tri_platform, 'net_amount'))
 
+            # Calcul du capital remboursé et du taux de remboursement par plateforme
+            total_invested_platform = inv_p['invested_amount'].sum() if not inv_p.empty else 0
+            total_repaid_platform = inv_p['capital_repaid'].sum() if not inv_p.empty else 0
+            repayment_rate_platform = (total_repaid_platform / total_invested_platform) * 100 if total_invested_platform > 0 else 0
+
+            # Calcul des métriques de liquidité et de duration
+            liquidity_duration_metrics = self.get_liquidity_and_duration_metrics(inv_p)
+
             details[p] = {
-                "capital_investi_encours": (cap_investi, cap_encours), "plus_value_realisee_nette": int_bruts - taxes,
+                "capital_investi_encours": (cap_investi, cap_encours),
+                "plus_value_realisee_nette": int_bruts - taxes,
                 "tri_brut": tri_brut * 100,
                 "tri_net": tri_net * 100,
-                "interets_bruts_recus": int_bruts, "impots_et_frais": taxes,
-                "nombre_projets": len(inv_p) if is_cf else len(pos_p)
+                "interets_bruts_recus": int_bruts,
+                "impots_et_frais": taxes,
+                "nombre_projets": len(inv_p) if is_cf else len(pos_p),
+                "total_invested_platform": total_invested_platform,
+                "total_repaid_platform": total_repaid_platform,
+                "repayment_rate_platform": repayment_rate_platform,
+                "projected_liquidity_6m": liquidity_duration_metrics["projected_liquidity_6m"],
+                "projected_liquidity_12m": liquidity_duration_metrics["projected_liquidity_12m"],
+                "projected_liquidity_24m": liquidity_duration_metrics["projected_liquidity_24m"],
+                "weighted_average_duration": liquidity_duration_metrics["weighted_average_duration"],
+                "duration_distribution": liquidity_duration_metrics["duration_distribution"]
             }
         return details
 
@@ -428,3 +446,80 @@ class PatrimoineCalculator:
 
         logging.info(f"Indice de Herfindahl calculé : {hhi:.2f}")
         return hhi
+
+    def get_liquidity_and_duration_metrics(self, inv_p: pd.DataFrame) -> Dict[str, Any]:
+        """
+        Calcule les projections de liquidité et la duration moyenne pondérée pour une plateforme donnée.
+        """
+        metrics = {
+            "projected_liquidity_6m": 0.0,
+            "projected_liquidity_12m": 0.0,
+            "projected_liquidity_24m": 0.0,
+            "weighted_average_duration": 0.0,
+            "duration_distribution": {"<6m": 0.0, "6-12m": 0.0, ">12m": 0.0}
+        }
+
+        if inv_p.empty: return metrics
+
+        # --- Projections de Liquidité (2.2) ---
+        today = datetime.now().date()
+        future_investments = inv_p[
+            (inv_p['status'] == 'active') &
+            (inv_p['expected_end_date'].notna()) &
+            (pd.to_datetime(inv_p['expected_end_date']).dt.date >= today)
+        ].copy()
+
+        if not future_investments.empty:
+            future_investments['expected_end_date'] = pd.to_datetime(future_investments['expected_end_date'])
+            
+            # Calcul des projections
+            end_6m = today + pd.DateOffset(months=6)
+            end_12m = today + pd.DateOffset(months=12)
+            end_24m = today + pd.DateOffset(months=24)
+
+            metrics["projected_liquidity_6m"] = future_investments[
+                future_investments['expected_end_date'].dt.date <= end_6m.date()
+            ]['remaining_capital'].sum()
+
+            metrics["projected_liquidity_12m"] = future_investments[
+                future_investments['expected_end_date'].dt.date <= end_12m.date()
+            ]['remaining_capital'].sum()
+
+            metrics["projected_liquidity_24m"] = future_investments[
+                future_investments['expected_end_date'].dt.date <= end_24m.date()
+            ]['remaining_capital'].sum()
+
+        # --- Duration Moyenne Pondérée et Répartition par Échéance (2.3) ---
+        duration_investments = inv_p[
+            (inv_p['duration_months'].notna()) &
+            (inv_p['invested_amount'] > 0)
+        ].copy()
+
+        if not duration_investments.empty:
+            # Duration moyenne pondérée
+            total_invested_for_duration = duration_investments['invested_amount'].sum()
+            if total_invested_for_duration > 0:
+                metrics["weighted_average_duration"] = (
+                    (duration_investments['duration_months'] * duration_investments['invested_amount']).sum() /
+                    total_invested_for_duration
+                )
+            
+            # Répartition par échéance
+            total_investments_count = len(duration_investments)
+            if total_investments_count > 0:
+                metrics["duration_distribution"]["<6m"] = (
+                    len(duration_investments[duration_investments['duration_months'] < 6]) /
+                    total_investments_count
+                ) * 100
+                metrics["duration_distribution"]["6-12m"] = (
+                    len(duration_investments[
+                        (duration_investments['duration_months'] >= 6) &
+                        (duration_investments['duration_months'] <= 12)
+                    ]) / total_investments_count
+                ) * 100
+                metrics["duration_distribution"][">12m"] = (
+                    len(duration_investments[duration_investments['duration_months'] > 12]) /
+                    total_investments_count
+                ) * 100
+
+        return metrics

@@ -9,8 +9,10 @@ Une solution complète d'analyse patrimoniale développée par un agent expert e
 ### 📊 **Métriques Financières Avancées**
 - **TRI (Taux de Rendement Interne)** avec dates réelles d'investissement
 - **Capital en cours** vs capital remboursé par plateforme
+- **Taux de remboursement** et rotation du capital par plateforme
+- **Projections de liquidité** à court/moyen terme par plateforme
+- **Duration moyenne pondérée** et répartition par échéance par plateforme
 - **Taux de réinvestissement** et effet boule de neige
-- **Duration moyenne** et analyse d'immobilisation
 - **Performance mensuelle** et annualisée
 - **Outperformance vs benchmarks** (OAT 10Y, Immobilier)
 
@@ -358,7 +360,7 @@ Capital en Cours = Capital Investi - Capital Remboursé + Valorisation Actuelle
 - **🔴 < 3%** : Sous-performance, révision stratégie
 
 ### **Concentration Émetteurs**
-*Le système fournit la part en pourcentage de chaque émetteur dans le portefeuille, ce qui permet d'évaluer la concentration. L'Indice de Herfindahl n'est pas calculé directement.*
+- **Indice de Herfindahl (HHI)** : Calculé pour évaluer la concentration des investissements par émetteur. Un HHI < 1500 indique une faible concentration, 1500-2500 une concentration modérée, et > 2500 une forte concentration.
 - **Part en pourcentage par émetteur**
 
 
