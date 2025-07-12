@@ -8,11 +8,11 @@ Cette feuille de route détaille les fonctionnalités futures envisagées pour e
 
 **Objectif :** Fournir des outils plus sophistiqués pour évaluer et visualiser les risques du portefeuille.
 
-*   **1.1. Calcul de l'Indice de Herfindahl pour la Concentration par Émetteur**
+*   **1.1. Calcul de l'Indice de Herfindahl pour la Concentration par Émetteur** - **TERMINÉ**
     *   **Valeur Ajoutée :** L'Indice de Herfindahl est une mesure standard de la concentration du marché. Son calcul permettrait une évaluation plus formelle et quantitative du risque de concentration par émetteur, au-delà d'un simple pourcentage.
     *   **Considérations Techniques :**
-        *   **Backend (`PatrimoineCalculator`) :** Implémenter une méthode pour calculer l'indice à partir des données de `investments_df` (en utilisant `company_name` et `invested_amount`).
-        *   **Base de Données :** La vue `v_concentration_analysis` fournit déjà les données nécessaires (`share_percentage`), il s'agirait d'une agrégation supplémentaire côté application.
+        *   **Backend (`PatrimoineCalculator`) :** Implémenté une méthode pour calculer l'indice à partir des données de `investments_df` (en utilisant `company_name` et `invested_amount`).
+        *   **Base de Données :** La vue `v_concentration_analysis` fournit déjà les données nécessaires (`share_percentage`), il s'agit d'une agrégation supplémentaire côté application.
         *   **Frontend (`dashboard.py`) :** Afficher l'indice et son interprétation (par exemple, seuils de faible/moyenne/forte concentration).
 
 *   **1.2. Analyse de la Diversification (Géographique et Sectorielle)**

@@ -161,7 +161,14 @@ class PatrimoineCalculator:
         tri_brut = self._xirr(self._prepare_flows_for_tri(all_flows_for_tri, 'gross_amount'))
         tri_net = self._xirr(self._prepare_flows_for_tri(all_flows_for_tri, 'net_amount'))
         
-        return {"patrimoine_total": patrimoine_total, "plus_value_nette": plus_value_nette, "total_apports": total_apports, "tri_global_brut": tri_brut * 100, "tri_global_net": tri_net * 100}
+        herfindahl_index = self.calculate_herfindahl_index()
+        
+        return {"patrimoine_total": patrimoine_total, 
+                "plus_value_nette": plus_value_nette, 
+                "total_apports": total_apports, 
+                "tri_global_brut": tri_brut * 100, 
+                "tri_global_net": tri_net * 100,
+                "herfindahl_index": herfindahl_index}
 
     def get_platform_details(self) -> Dict[str, Dict[str, Any]]:
         logging.info("Calcul des métriques par plateforme...")
@@ -383,3 +390,41 @@ class PatrimoineCalculator:
                 "evolution_data": {"apports_cumules": apports_cumules,
                                    "patrimoine_total_evolution": patrimoine_total_evolution,
                                    "benchmark": benchmark_data}}
+
+    def calculate_herfindahl_index(self) -> float:
+        """
+        Calcule l'indice de Herfindahl-Hirschman (HHI) pour la concentration des investissements
+        par émetteur (company_name).
+        L'HHI est calculé comme la somme des carrés des parts de marché (ici, parts d'investissement)
+        de chaque émetteur.
+        Un HHI inférieur à 1500 indique une faible concentration, entre 1500 et 2500 une concentration modérée,
+        et supérieur à 2500 une forte concentration.
+        """
+        logging.info("Calcul de l'indice de Herfindahl...")
+        if self.investments_df.empty or 'company_name' not in self.investments_df.columns or 'invested_amount' not in self.investments_df.columns:
+            logging.warning("Données d'investissement insuffisantes pour calculer l'indice de Herfindahl.")
+            return 0.0
+
+        # Filtrer les investissements avec un montant investi > 0
+        active_investments = self.investments_df[self.investments_df['invested_amount'] > 0].copy()
+
+        if active_investments.empty:
+            logging.warning("Aucun investissement actif avec un montant investi > 0 pour calculer l'indice de Herfindahl.")
+            return 0.0
+
+        # Calculer le montant total investi
+        total_invested_amount = active_investments['invested_amount'].sum()
+        
+        if total_invested_amount == 0:
+            logging.warning("Le montant total investi est zéro, impossible de calculer l'indice de Herfindahl.")
+            return 0.0
+
+        # Calculer la part de chaque émetteur
+        company_investments = active_investments.groupby('company_name')['invested_amount'].sum().reset_index()
+        company_investments['share'] = company_investments['invested_amount'] / total_invested_amount
+
+        # Calculer l'indice de Herfindahl
+        hhi = (company_investments['share'] ** 2).sum() * 10000 # Multiplier par 10000 pour avoir l'échelle standard
+
+        logging.info(f"Indice de Herfindahl calculé : {hhi:.2f}")
+        return hhi
