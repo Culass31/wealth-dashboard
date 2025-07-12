@@ -4,10 +4,16 @@ import pandas as pd
 from typing import List, Dict, Any, Optional
 import os
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, date
+from uuid import UUID, uuid4
+import logging
+from backend.data.parser_constants import PLATFORM_MAPPING
 
 # Load environment variables
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class ExpertDatabaseManager:
     """Gestionnaire de base de données expert avec support complet nouvelles fonctionnalités"""
@@ -18,69 +24,106 @@ class ExpertDatabaseManager:
         self.supabase_key = os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_SERVICE_KEY")
         
         if not self.supabase_url or not self.supabase_key:
-            raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set in .env file")
+            logging.error("SUPABASE_URL et SUPABASE_KEY doivent être définis dans le fichier .env")
+            raise ValueError("SUPABASE_URL et SUPABASE_KEY doivent être définis dans le fichier .env")
         
         try:
             self.supabase: Client = create_client(
                 self.supabase_url, 
                 self.supabase_key
             )
-            print("✅ Connected to Supabase successfully")
+            logging.info("Connexion à Supabase réussie.")
         except Exception as e:
-            raise ConnectionError(f"Failed to connect to Supabase: {e}")
+            logging.exception(f"Échec de la connexion à Supabase : {e}")
+            raise ConnectionError(f"Échec de la connexion à Supabase : {e}")
     
     def test_connection(self) -> bool:
         """Test the database connection"""
         try:
             result = self.supabase.table('investments').select("count").limit(1).execute()
+            logging.info("Test de connexion à la base de données réussi.")
             return True
         except Exception as e:
-            print(f"Connection test failed: {e}")
+            logging.error(f"Échec du test de connexion à la base de données : {e}", exc_info=True)
             return False
     
     # ===== MÉTHODES INVESTISSEMENTS =====
     
-    def insert_investments(self, investments: List[Dict[str, Any]]) -> bool:
-        """Insert multiple investments avec validation"""
-        if not investments:
-            return True
+    
+
+# Import Pydantic models
+from backend.models.models import InvestmentCreate, CashFlowCreate, PortfolioPositionCreate, ExpertMetricCacheCreate
+
+# Load environment variables
+load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+class ExpertDatabaseManager:
+    """Gestionnaire de base de données expert avec support complet nouvelles fonctionnalités"""
+    
+    def __init__(self):
+        # Get credentials from environment
+        self.supabase_url = os.getenv("SUPABASE_URL")
+        self.supabase_key = os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_SERVICE_KEY")
+        
+        if not self.supabase_url or not self.supabase_key:
+            logging.error("SUPABASE_URL et SUPABASE_KEY doivent être définis dans le fichier .env")
+            raise ValueError("SUPABASE_URL et SUPABASE_KEY doivent être définis dans le fichier .env")
         
         try:
-            # Validation des données
-            for investment in investments:
-                if not self._validate_investment(investment):
-                    print(f"⚠️  Investment invalide ignoré: {investment.get('project_name', 'Unknown')}")
-                    continue
-            
-            result = self.supabase.table('investments').insert(investments).execute()
-            print(f"✅ Inserted {len(investments)} investments")
+            self.supabase: Client = create_client(
+                self.supabase_url, 
+                self.supabase_key
+            )
+            logging.info("Connexion à Supabase réussie.")
+        except Exception as e:
+            logging.exception(f"Échec de la connexion à Supabase : {e}")
+            raise ConnectionError(f"Échec de la connexion à Supabase : {e}")
+    
+    def test_connection(self) -> bool:
+        """Test the database connection"""
+        try:
+            result = self.supabase.table('investments').select("count").limit(1).execute()
+            logging.info("Test de connexion à la base de données réussi.")
             return True
         except Exception as e:
-            print(f"❌ Error inserting investments: {e}")
+            logging.error(f"Échec du test de connexion à la base de données : {e}", exc_info=True)
             return False
     
-    def _validate_investment(self, investment: Dict[str, Any]) -> bool:
-        """Valider un investissement avant insertion"""
-        required_fields = ['id', 'user_id', 'platform', 'invested_amount']
+    # ===== MÉTHODES INVESTISSEMENTS =====
+    
+    def insert_investments(self, investments_data: List[Dict[str, Any]]) -> bool:
+        """Insert multiple investments avec validation Pydantic"""
+        if not investments_data:
+            logging.info("Aucun investissement à insérer.")
+            return True
         
-        # Vérifier champs requis
-        for field in required_fields:
-            if field not in investment or investment[field] is None:
-                print(f"⚠️  Champ manquant: {field}")
-                return False
+        validated_investments = []
+        for inv_data in investments_data:
+            try:
+                # Generate UUID if not provided (for new records)
+                if 'id' not in inv_data or inv_data['id'] is None:
+                    inv_data['id'] = str(uuid4())
+                
+                investment = InvestmentCreate(**inv_data)
+                validated_investments.append(investment.model_dump(mode='json')) # Use model_dump for Pydantic v2
+            except Exception as e:
+                logging.warning(f"Investissement invalide ignoré : {inv_data.get('project_name', 'Inconnu')} - Erreur: {e}")
+                continue
         
-        # Vérifier montant positif
-        if investment['invested_amount'] <= 0:
-            print(f"⚠️  Montant invalide: {investment['invested_amount']}")
+        if not validated_investments:
+            logging.info("Aucun investissement valide à insérer.")
+            return True
+            
+        try:
+            result = self.supabase.table('investments').insert(validated_investments).execute()
+            logging.info(f"{len(validated_investments)} investissements insérés avec succès.")
+            return True
+        except Exception as e:
+            logging.error(f"Erreur lors de l'insertion des investissements : {e}", exc_info=True)
             return False
-        
-        # Vérifier plateforme valide
-        valid_platforms = ['La Première Brique', 'PretUp', 'BienPrêter', 'Homunity', 'PEA', 'Assurance_Vie']
-        if investment['platform'] not in valid_platforms:
-            print(f"⚠️  Plateforme invalide: {investment['platform']}")
-            return False
-        
-        return True
     
     def get_user_investments(self, user_id: str, platform: Optional[str] = None) -> pd.DataFrame:
         """Get user investments as DataFrame avec filtres"""
@@ -89,83 +132,70 @@ class ExpertDatabaseManager:
             if platform:
                 query = query.eq('platform', platform)
             result = query.execute()
+            logging.info(f"Récupération de {len(result.data) if result.data else 0} investissements pour l'utilisateur {user_id}.")
             return pd.DataFrame(result.data) if result.data else pd.DataFrame()
         except Exception as e:
-            print(f"❌ Error fetching investments: {e}")
+            logging.error(f"Erreur lors de la récupération des investissements pour l'utilisateur {user_id} : {e}", exc_info=True)
             return pd.DataFrame()
     
-    def update_investment_status(self, investment_id: str, status: str, actual_end_date: str = None) -> bool:
+    def update_investment_status(self, investment_id: str, status: str, actual_end_date: Optional[datetime.date] = None) -> bool:
         """Mettre à jour le statut d'un investissement"""
         try:
-            update_data = {'status': status, 'updated_at': 'now()'}
+            update_data = {'status': status, 'updated_at': datetime.now().isoformat()}
             if actual_end_date:
-                update_data['actual_end_date'] = actual_end_date
+                update_data['actual_end_date'] = actual_end_date.isoformat() # Convert date to ISO format
             
             result = self.supabase.table('investments').update(update_data).eq('id', investment_id).execute()
+            logging.info(f"Statut de l'investissement {investment_id} mis à jour à {status}.")
             return True
         except Exception as e:
-            print(f"❌ Error updating investment status: {e}")
+            logging.error(f"Erreur lors de la mise à jour du statut de l'investissement {investment_id} : {e}", exc_info=True)
             return False
     
     # ===== MÉTHODES CASH FLOWS =====
     
-    def insert_cash_flows(self, cash_flows: List[Dict[str, Any]]) -> bool:
-        """Insert multiple cash flows avec validation platform"""
-        if not cash_flows:
+    def insert_cash_flows(self, cash_flows_data: List[Dict[str, Any]]) -> bool:
+        """Insert multiple cash flows avec validation Pydantic"""
+        if not cash_flows_data:
+            logging.info("Aucun flux de trésorerie à insérer.")
             return True
         
-        try:
-            # Validation des données
-            validated_flows = []
-            for flow in cash_flows:
-                if self._validate_cash_flow(flow):
-                    validated_flows.append(flow)
-                else:
-                    print(f"⚠️  Cash flow invalide ignoré: {flow.get('description', 'Unknown')}")
+        validated_flows = []
+        for flow_data in cash_flows_data:
+            try:
+                # Generate UUID if not provided
+                if 'id' not in flow_data or flow_data['id'] is None:
+                    flow_data['id'] = str(uuid4())
+                
+                cash_flow = CashFlowCreate(**flow_data)
+                validated_flows.append(cash_flow.model_dump(mode='json'))
+            except Exception as e:
+                logging.warning(f"Flux de trésorerie invalide ignoré : {flow_data.get('description', 'Inconnu')} - Erreur: {e}")
+                continue
+        
+        if not validated_flows:
+            logging.info("Aucun flux de trésorerie valide à insérer.")
+            return True
             
-            if validated_flows:
-                result = self.supabase.table('cash_flows').insert(validated_flows).execute()
-                print(f"✅ Inserted {len(validated_flows)} cash flows")
+        try:
+            result = self.supabase.table('cash_flows').insert(validated_flows).execute()
+            logging.info(f"{len(validated_flows)} flux de trésorerie insérés avec succès.")
             return True
         except Exception as e:
-            print(f"❌ Error inserting cash flows: {e}")
+            logging.error(f"Erreur lors de l'insertion des flux de trésorerie : {e}", exc_info=True)
             return False
-    
-    def _validate_cash_flow(self, cash_flow: Dict[str, Any]) -> bool:
-        """Valider un flux de trésorerie"""
-        required_fields = ['id', 'user_id', 'platform', 'flow_type', 'flow_direction', 'gross_amount']
-        
-        # Vérifier champs requis
-        for field in required_fields:
-            if field not in cash_flow or cash_flow[field] is None:
-                print(f"⚠️  Champ cash flow manquant: {field}")
-                return False
-        
-        # Vérifier direction valide
-        if cash_flow['flow_direction'] not in ['in', 'out']:
-            print(f"⚠️  Direction invalide: {cash_flow['flow_direction']}")
-            return False
-        
-        # Vérifier type valide
-        valid_types = ['deposit', 'withdrawal', 'investment', 'repayment', 'interest', 'dividend', 'fee', 'sale', 'purchase', 'adjustment', 'other']
-        if cash_flow['flow_type'] not in valid_types:
-            print(f"⚠️  Type invalide: {cash_flow['flow_type']}")
-            return False
-        
-        return True
     
     def get_user_cash_flows(self, user_id: str, start_date: Optional[str] = None, platform: Optional[str] = None) -> pd.DataFrame:
         """Get user cash flows as DataFrame avec filtres avancés"""
         try:
             query = self.supabase.table('cash_flows').select("*").eq('user_id', user_id)
-            if start_date:
-                query = query.gte('transaction_date', start_date)
             if platform:
                 query = query.eq('platform', platform)
             result = query.execute()
+            logging.info(f"Récupération de {len(result.data) if result.data else 0} flux de trésorerie pour l'utilisateur {user_id}.")
             return pd.DataFrame(result.data) if result.data else pd.DataFrame()
         except Exception as e:
-            print(f"❌ Error fetching cash flows: {e}")
+            logging.error(f"Erreur lors de la récupération des flux de trésorerie pour l'utilisateur {user_id} : {e}", exc_info=True)
             return pd.DataFrame()
     
     def get_platform_cash_flows(self, user_id: str, platform: str) -> pd.DataFrame:
@@ -173,24 +203,42 @@ class ExpertDatabaseManager:
         return self.get_user_cash_flows(user_id, platform=platform)
     
     # ===== MÉTHODES PORTFOLIO POSITIONS =====
-    
-    def insert_portfolio_positions(self, positions: List[Dict[str, Any]]) -> bool:
-        """Insert portfolio positions (PEA/AV)"""
-        if not positions:
+    def insert_portfolio_positions(self, positions_data: List[Dict[str, Any]]) -> bool:
+        """Insert portfolio positions (PEA/AV) avec validation Pydantic"""
+        if not positions_data:
+            logging.info("Aucune position de portefeuille à insérer.")
             return True
         
-        try:
-            # Supprimer anciennes positions avant insertion
-            if positions:
-                user_id = positions[0]['user_id']
-                platform = positions[0]['platform']
-                self.supabase.table('portfolio_positions').delete().eq('user_id', user_id).eq('platform', platform).execute()
+        validated_positions = []
+        for pos_data in positions_data:
+            try:
+                # Generate UUID if not provided
+                if 'id' not in pos_data or pos_data['id'] is None:
+                    pos_data['id'] = str(uuid4())
+                
+                position = PortfolioPositionCreate(**pos_data)
+                validated_positions.append(position.model_dump(mode='json'))
+            except Exception as e:
+                logging.warning(f"Position de portefeuille invalide ignorée : {pos_data.get('asset_name', 'Inconnu')} - Erreur: {e}")
+                continue
+        
+        if not validated_positions:
+            logging.info("Aucune position de portefeuille valide à insérer.")
+            return True
             
-            result = self.supabase.table('portfolio_positions').insert(positions).execute()
-            print(f"✅ Inserted {len(positions)} portfolio positions")
+        try:
+            # Supprimer anciennes positions avant insertion si user_id et platform sont présents
+            if validated_positions:
+                user_id = validated_positions[0]['user_id']
+                platform = validated_positions[0]['platform']
+                # This delete is commented out in the original code, uncomment if desired behavior
+                # self.supabase.table('portfolio_positions').delete().eq('user_id', user_id).eq('platform', platform).execute()
+            
+            result = self.supabase.table('portfolio_positions').insert(validated_positions).execute()
+            logging.info(f"{len(validated_positions)} positions de portefeuille insérées avec succès.")
             return True
         except Exception as e:
-            print(f"❌ Error inserting portfolio positions: {e}")
+            logging.error(f"Erreur lors de l'insertion des positions de portefeuille : {e}", exc_info=True)
             return False
     
     def get_portfolio_positions(self, user_id: str, platform: Optional[str] = None) -> pd.DataFrame:
@@ -200,17 +248,55 @@ class ExpertDatabaseManager:
             if platform:
                 query = query.eq('platform', platform)
             result = query.execute()
+            logging.info(f"Récupération de {len(result.data) if result.data else 0} positions de portefeuille pour l'utilisateur {user_id}.")
             return pd.DataFrame(result.data) if result.data else pd.DataFrame()
         except Exception as e:
-            print(f"❌ Error fetching portfolio positions: {e}")
+            logging.error(f"Erreur lors de la récupération des positions de portefeuille pour l'utilisateur {user_id} : {e}", exc_info=True)
             return pd.DataFrame()
     
+    # ===== MÉTHODES LIQUIDITY BALANCES =====
+    def insert_liquidity_balance(self, balance_data: Dict[str, Any]) -> bool:
+        """Insert ou upsert une entrée de solde de liquidités"""
+        if not balance_data:
+            logging.info("Aucune donnée de solde de liquidités à insérer.")
+            return True
+        
+        try:
+            # Generate UUID if not provided
+            if 'id' not in balance_data or balance_data['id'] is None:
+                balance_data['id'] = str(uuid4())
+            
+            # Validate with Pydantic model
+            from backend.models.models import LiquidityBalanceCreate # Import local pour éviter les imports circulaires
+            balance_entry = LiquidityBalanceCreate(**balance_data)
+            
+            # Upsert (insert or update) based on user_id, platform, and balance_date
+            result = self.supabase.table('liquidity_balances').upsert(balance_entry.model_dump(mode='json')).execute()
+            logging.info(f"Solde de liquidités pour {balance_data.get('platform')} à {balance_data.get('balance_date')} inséré/mis à jour.")
+            return True
+        except Exception as e:
+            logging.error(f"Erreur lors de l'insertion/mise à jour du solde de liquidités : {e}", exc_info=True)
+            return False
+
+    def get_liquidity_balances(self, user_id: str, platform: Optional[str] = None) -> pd.DataFrame:
+        """Obtenir les soldes de liquidités"""
+        try:
+            query = self.supabase.table('liquidity_balances').select("*").eq('user_id', user_id)
+            if platform:
+                query = query.eq('platform', platform)
+            result = query.execute()
+            logging.info(f"Récupération de {len(result.data) if result.data else 0} soldes de liquidités pour l'utilisateur {user_id}.")
+            return pd.DataFrame(result.data) if result.data else pd.DataFrame()
+        except Exception as e:
+            logging.error(f"Erreur lors de la récupération des soldes de liquidités pour l'utilisateur {user_id} : {e}", exc_info=True)
+            return pd.DataFrame()
+
     # ===== MÉTHODES EXPERT METRICS CACHE =====
-    
-    def cache_expert_metric(self, user_id: str, platform: Optional[str], metric_type: str, 
-                          metric_value: float = None, metric_percentage: float = None, 
-                          metric_json: Dict = None) -> bool:
-        """Mettre en cache une métrique calculée"""
+    def cache_expert_metric(self, user_id: str, metric_type: str, 
+                          platform: Optional[str] = None, metric_value: Optional[float] = None, 
+                          metric_percentage: Optional[float] = None, 
+                          metric_json: Optional[Dict] = None) -> bool:
+        """Mettre en cache une métrique calculée avec validation Pydantic"""
         try:
             cache_data = {
                 'user_id': user_id,
@@ -219,17 +305,21 @@ class ExpertDatabaseManager:
                 'metric_value': metric_value,
                 'metric_percentage': metric_percentage,
                 'metric_json': metric_json,
-                'calculation_date': 'now()'
+                'calculation_date': datetime.now().isoformat()
             }
             
+            # Validate with Pydantic model
+            metric_entry = ExpertMetricCacheCreate(**cache_data)
+            
             # Upsert (insert or update)
-            result = self.supabase.table('expert_metrics_cache').upsert(cache_data).execute()
+            result = self.supabase.table('expert_metrics_cache').upsert(metric_entry.model_dump(mode='json')).execute()
+            logging.info(f"Métrique {metric_type} mise en cache pour l'utilisateur {user_id} et la plateforme {platform}.")
             return True
         except Exception as e:
-            print(f"❌ Error caching metric: {e}")
+            logging.error(f"Erreur lors de la mise en cache de la métrique {metric_type} pour l'utilisateur {user_id} : {e}", exc_info=True)
             return False
     
-    def get_cached_metric(self, user_id: str, platform: Optional[str], metric_type: str) -> Optional[Dict]:
+    def get_cached_metric(self, user_id: str, metric_type: str, platform: Optional[str] = None) -> Optional[Dict]:
         """Récupérer une métrique en cache"""
         try:
             query = self.supabase.table('expert_metrics_cache').select("*").eq('user_id', user_id).eq('metric_type', metric_type)
@@ -239,9 +329,14 @@ class ExpertDatabaseManager:
                 query = query.is_('platform', 'null')
             
             result = query.execute()
-            return result.data[0] if result.data else None
+            if result.data:
+                logging.info(f"Métrique {metric_type} récupérée du cache pour l'utilisateur {user_id}.")
+                return result.data[0]
+            else:
+                logging.info(f"Aucune métrique {metric_type} trouvée dans le cache pour l'utilisateur {user_id}.")
+                return None
         except Exception as e:
-            print(f"❌ Error fetching cached metric: {e}")
+            logging.error(f"Erreur lors de la récupération de la métrique {metric_type} pour l'utilisateur {user_id} : {e}", exc_info=True)
             return None
     
     def clear_metrics_cache(self, user_id: str, platform: Optional[str] = None) -> bool:
@@ -251,17 +346,17 @@ class ExpertDatabaseManager:
             if platform:
                 query = query.eq('platform', platform)
             query.execute()
+            logging.info(f"Cache des métriques vidé pour l'utilisateur {user_id} et la plateforme {platform if platform else 'toutes'}.")
             return True
         except Exception as e:
-            print(f"❌ Error clearing metrics cache: {e}")
+            logging.error(f"Erreur lors du vidage du cache des métriques pour l'utilisateur {user_id} : {e}", exc_info=True)
             return False
     
     # ===== MÉTHODES DE NETTOYAGE =====
-    
     def clear_user_data(self, user_id: str) -> bool:
         """Supprimer toutes les données d'un utilisateur"""
         try:
-            print(f"🗑️  Suppression données utilisateur {user_id}...")
+            logging.info(f"Suppression de toutes les données pour l'utilisateur {user_id}...")
             
             # Supprimer dans l'ordre (contraintes clés étrangères)
             tables = ['expert_metrics_cache', 'cash_flows', 'portfolio_positions', 'investments']
@@ -269,39 +364,63 @@ class ExpertDatabaseManager:
             for table in tables:
                 try:
                     result = self.supabase.table(table).delete().eq('user_id', user_id).execute()
-                    print(f"  ✅ {table}: supprimé")
+                    logging.info(f"Données de la table {table} supprimées avec succès pour l'utilisateur {user_id}.")
                 except Exception as e:
-                    print(f"  ⚠️  {table}: erreur - {e}")
+                    logging.error(f"Erreur lors de la suppression des données de la table {table} pour l'utilisateur {user_id} : {e}", exc_info=True)
             
-            print(f"✅ Données utilisateur {user_id} supprimées")
+            logging.info(f"Toutes les données pour l'utilisateur {user_id} ont été supprimées.")
             return True
         except Exception as e:
-            print(f"❌ Error clearing user data: {e}")
+            logging.error(f"Erreur lors de la suppression des données utilisateur pour {user_id} : {e}", exc_info=True)
             return False
     
-    def clear_platform_data(self, user_id: str, platform: str) -> bool:
-        """Supprimer les données d'une plateforme spécifique"""
-        try:
-            print(f"🗑️  Suppression données {platform} pour utilisateur {user_id}...")
-            
-            # Supprimer par plateforme
-            tables = ['expert_metrics_cache', 'cash_flows', 'portfolio_positions', 'investments']
-            
-            for table in tables:
-                try:
-                    result = self.supabase.table(table).delete().eq('user_id', user_id).eq('platform', platform).execute()
-                    print(f"  ✅ {table}: {platform} supprimé")
-                except Exception as e:
-                    print(f"  ⚠️  {table}: erreur - {e}")
-            
-            return True
-        except Exception as e:
-            print(f"❌ Error clearing platform data: {e}")
+    def clear_platform_data(self, user_id: str, platform_key: str) -> bool:
+        """
+        [NOUVEAU] Supprime toutes les données d'une plateforme spécifique pour un utilisateur.
+        Ceci inclut les investissements, les flux, le cache et les liquidités.
+        """
+        if not user_id or not platform_key:
+            logging.error("User ID et nom de la plateforme sont requis.")
             return False
+
+        platform_name = PLATFORM_MAPPING.get(platform_key.lower(), platform_key)
+        logging.info(f"Début de la suppression des données pour la plateforme '{platform_name}'...")
+        
+        # L'ordre est important pour respecter les contraintes de clés étrangères
+        tables_to_clear = [
+            "cash_flows",
+            "expert_metrics_cache",
+            "liquidity_balances",
+            "portfolio_positions",
+            "investments"
+        ]
+
+        all_successful = True
+        for table in tables_to_clear:
+            try:
+                logging.info(f"Suppression des données de la table '{table}' pour la plateforme '{platform_name}'...")
+                result = self.supabase.table(table).delete().eq('user_id', user_id).eq('platform', platform_name).execute()
+                
+                # La réponse de Supabase contient les données supprimées dans `data`
+                if result.data:
+                    logging.info(f"-> {len(result.data)} enregistrements supprimés de '{table}'.")
+                else:
+                    logging.info(f"-> Aucune donnée à supprimer dans '{table}' pour cette plateforme.")
+
+            except Exception as e:
+                logging.error(f"Erreur lors de la suppression dans la table '{table}' pour la plateforme '{platform_name}': {e}", exc_info=True)
+                all_successful = False
+        
+        if all_successful:
+            logging.info(f"✅ Suppression des données pour la plateforme '{platform_name}' terminée.")
+        else:
+            logging.error(f"❌ Échec de la suppression complète des données pour la plateforme '{platform_name}'.")
+
+        return all_successful
         
     def get_database_stats(self) -> Dict:
         """Obtenir les statistiques de la base de données"""
-        print("📊 Analyse de la base de données...")
+        logging.info("Analyse des statistiques de la base de données...")
         
         stats = {}
         tables = ['investments', 'cash_flows', 'portfolio_positions', 'financial_goals', 'user_preferences']
@@ -311,7 +430,8 @@ class ExpertDatabaseManager:
         for table in tables:
             try:
                 # Compter les lignes
-                result = self.supabase.table(table).select('id').execute()
+                select_column = 'user_id' if table == 'user_preferences' else 'id'
+                result = self.supabase.table(table).select(select_column).execute()
                 count = len(result.data) if result.data else 0
                 
                 # Obtenir quelques user_ids échantillons
@@ -328,74 +448,75 @@ class ExpertDatabaseManager:
                 total_records += count
                 
             except Exception as e:
+                logging.error(f"Erreur lors de la récupération des statistiques pour la table {table} : {e}", exc_info=True)
                 stats[table] = {'count': 0, 'error': str(e)}
         
         stats['total_records'] = total_records
         
         # Affichage
-        print(f"\n📋 STATISTIQUES BASE DE DONNÉES:")
-        print(f"   📊 Total enregistrements: {total_records}")
+        logging.info(f"\nSTATISTIQUES DE LA BASE DE DONNÉES:")
+        logging.info(f"   Total des enregistrements : {total_records}")
         
         for table, data in stats.items():
             if table != 'total_records':
                 count = data.get('count', 0)
                 users = data.get('sample_users', [])
-                print(f"   📄 {table}: {count} lignes")
+                logging.info(f"   {table} : {count} lignes")
                 if users:
-                    print(f"      👤 Utilisateurs: {', '.join(str(u)[:8] + '...' for u in users)}")
+                    logging.info(f"      Utilisateurs : {', '.join(str(u)[:8] + '...' for u in users)}")
         
         return stats
 
     def clear_all_data(self, confirm: bool = False) -> bool:
-        """Supprimer TOUTES les données de TOUTES les tables"""
+        """Supprimer TOUTES les données de TOUTES les tables, en gérant les cas particuliers."""
         if not confirm:
-            print("❌ Confirmation requise : clear_all_data(confirm=True)")
+            logging.warning("Confirmation requise : clear_all_data(confirm=True)")
             return False
         
-        print("🗑️ SUPPRESSION TOTALE DE TOUTES LES DONNÉES...")
+        logging.warning("SUPPRESSION TOTALE DE TOUTES LES DONNÉES...")
         
+        all_successful = True
+        
+        # L'ordre est important à cause des clés étrangères (foreign keys)
+        # Supprimer d'abord les tables dépendantes
+        tables_to_clear_by_id = [
+            'expert_metrics_cache', 
+            'cash_flows', 
+            'portfolio_positions', 
+            'investments', 
+            'financial_goals',
+            'liquidity_balances'
+        ]
+
+        for table in tables_to_clear_by_id:
+            try:
+                logging.info(f"Vidage de la table {table} (par 'id')...")
+                self.supabase.table(table).delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
+                logging.info(f"Table {table} vidée avec succès.")
+            except Exception as e:
+                logging.error(f"Erreur lors du vidage de la table {table} : {e}", exc_info=True)
+                all_successful = False
+
+        # Cas particulier pour user_preferences qui utilise 'user_id' comme clé primaire
         try:
-            # Obtenir tous les user_ids
-            result_inv = self.supabase.table('investments').select('user_id').execute()
-            result_cf = self.supabase.table('cash_flows').select('user_id').execute()
-            
-            user_ids = set()
-            
-            if result_inv.data:
-                for row in result_inv.data:
-                    if row.get('user_id'):
-                        user_ids.add(row['user_id'])
-            
-            if result_cf.data:
-                for row in result_cf.data:
-                    if row.get('user_id'):
-                        user_ids.add(row['user_id'])
-            
-            # Supprimer tous les utilisateurs
-            success_count = 0
-            for user_id in user_ids:
-                if self.clear_user_data(str(user_id)):
-                    success_count += 1
-            
-            # Nettoyage final
-            tables = ['portfolio_positions', 'financial_goals', 'user_preferences']
-            for table in tables:
-                try:
-                    self.supabase.table(table).delete().gte('id', '00000000-0000-0000-0000-000000000000').execute()
-                except:
-                    pass
-            
-            print(f"✅ {success_count} utilisateurs supprimés")
-            return True
-            
+            logging.info(f"Vidage de la table user_preferences (par 'user_id')...")
+            self.supabase.table('user_preferences').delete().neq('user_id', '00000000-0000-0000-0000-000000000000').execute()
+            logging.info("Table user_preferences vidée avec succès.")
         except Exception as e:
-            print(f"❌ Erreur suppression globale: {e}")
-            return False
+            logging.error(f"Erreur lors du vidage de la table user_preferences : {e}", exc_info=True)
+            all_successful = False
+        
+        if all_successful:
+            logging.info("Toutes les tables ont été vidées avec succès.")
+        else:
+            logging.warning("Certaines tables n'ont pas pu être vidées complètement.")
+            
+        return all_successful
 
     def truncate_table(self, table_name: str, confirm: bool = False) -> bool:
         """Vider une table spécifique"""
         if not confirm:
-            print(f"❌ Confirmation requise : truncate_table('{table_name}', confirm=True)")
+            logging.warning(f"Confirmation requise : truncate_table('{table_name}', confirm=True)")
             return False
         
         try:
@@ -404,11 +525,11 @@ class ExpertDatabaseManager:
             
             self.supabase.table(table_name).delete().gte('id', '00000000-0000-0000-0000-000000000000').execute()
             
-            print(f"✅ Table '{table_name}': {count_before} lignes supprimées")
+            logging.info(f"Table '{table_name}' : {count_before} lignes supprimées.")
             return True
             
         except Exception as e:
-            print(f"❌ Erreur truncate table '{table_name}': {e}")
+            logging.error(f"Erreur lors du vidage de la table '{table_name}' : {e}", exc_info=True)
             return False
     
     # ===== MÉTHODES D'ANALYSE =====
@@ -434,11 +555,13 @@ class ExpertDatabaseManager:
                         'avg_duration_months': row['avg_duration_months'],
                         'short_term_count': row['short_term_count']
                     }
+                logging.info(f"Résumé de la plateforme récupéré pour l'utilisateur {user_id}.")
                 return summary
             else:
+                logging.info(f"Aucun résumé de plateforme trouvé pour l'utilisateur {user_id}.")
                 return {}
         except Exception as e:
-            print(f"❌ Error fetching platform summary: {e}")
+            logging.error(f"Erreur lors de la récupération du résumé de la plateforme pour l'utilisateur {user_id} : {e}", exc_info=True)
             return {}
     
     def get_monthly_flows_summary(self, user_id: str, platform: Optional[str] = None) -> pd.DataFrame:
@@ -448,9 +571,10 @@ class ExpertDatabaseManager:
             if platform:
                 query = query.eq('platform', platform)
             result = query.execute()
+            logging.info(f"Récupération de {len(result.data) if result.data else 0} flux mensuels pour l'utilisateur {user_id}.")
             return pd.DataFrame(result.data) if result.data else pd.DataFrame()
         except Exception as e:
-            print(f"❌ Error fetching monthly flows: {e}")
+            logging.error(f"Erreur lors de la récupération des flux mensuels pour l'utilisateur {user_id} : {e}", exc_info=True)
             return pd.DataFrame()
     
     def get_concentration_analysis(self, user_id: str, platform: Optional[str] = None) -> pd.DataFrame:
@@ -460,29 +584,27 @@ class ExpertDatabaseManager:
             if platform:
                 query = query.eq('platform', platform)
             result = query.execute()
+            logging.info(f"Récupération de {len(result.data) if result.data else 0} enregistrements d'analyse de concentration pour l'utilisateur {user_id}.")
             return pd.DataFrame(result.data) if result.data else pd.DataFrame()
         except Exception as e:
-            print(f"❌ Error fetching concentration analysis: {e}")
-            return pd.DataFrame()
+            logging.error(f"Erreur lors de la récupération de l'analyse de concentration pour l'utilisateur {user_id} : {e}", exc_info=True)
+            return {}
     
     # ===== MÉTHODES DE MAINTENANCE =====
-    
     def update_delayed_status(self, user_id: str) -> bool:
         """Mettre à jour automatiquement les statuts de retard"""
         try:
-            # Marquer comme retardé les projets actifs dont expected_end_date < aujourd'hui
-            from datetime import datetime
             today = datetime.now().strftime('%Y-%m-%d')
             
             result = self.supabase.table('investments').update({
                 'is_delayed': True,
-                'updated_at': 'now()'
+                'updated_at': datetime.now().isoformat()
             }).eq('user_id', user_id).eq('status', 'active').lt('expected_end_date', today).execute()
             
-            print(f"✅ Statuts de retard mis à jour")
+            logging.info(f"Statuts de retard mis à jour pour l'utilisateur {user_id}.")
             return True
         except Exception as e:
-            print(f"❌ Error updating delayed status: {e}")
+            logging.error(f"Erreur lors de la mise à jour du statut de retard pour l'utilisateur {user_id} : {e}", exc_info=True)
             return False
     
     def analyze_data_quality(self, user_id: str) -> Dict:
@@ -521,13 +643,13 @@ class ExpertDatabaseManager:
             cf_score = quality_report['cash_flows'].get('data_completeness', 0)
             quality_report['overall_score'] = (inv_score + cf_score) / 2
             
+            logging.info(f"Analyse de la qualité des données pour l'utilisateur {user_id} terminée. Score global : {quality_report['overall_score']:.1f}%")
             return quality_report
         except Exception as e:
-            print(f"❌ Error analyzing data quality: {e}")
+            logging.error(f"Erreur lors de l'analyse de la qualité des données pour l'utilisateur {user_id} : {e}", exc_info=True)
             return {}
     
     # ===== MÉTHODES DE BACKUP =====
-    
     def export_user_data(self, user_id: str, format: str = 'json') -> Dict:
         """Exporter toutes les données utilisateur"""
         try:
@@ -538,10 +660,10 @@ class ExpertDatabaseManager:
                 'cash_flows': self.get_user_cash_flows(user_id).to_dict('records'),
                 'portfolio_positions': self.get_portfolio_positions(user_id).to_dict('records')
             }
-            
+            logging.info(f"Données exportées pour l'utilisateur {user_id}.")
             return export_data
         except Exception as e:
-            print(f"❌ Error exporting user data: {e}")
+            logging.error(f"Erreur lors de l'exportation des données pour l'utilisateur {user_id} : {e}", exc_info=True)
             return {}
 
 # ===== FACTORY FUNCTION =====
@@ -554,31 +676,83 @@ DatabaseManager = ExpertDatabaseManager
 
 # ===== TESTS =====
 if __name__ == "__main__":
-    print("🧪 Test du DatabaseManager Expert...")
+    logging.info("Démarrage des tests du DatabaseManager Expert...")
     
     try:
         db = ExpertDatabaseManager()
         
         # Test de connexion
         if db.test_connection():
-            print("✅ Connexion réussie")
+            logging.info("Test de connexion réussi.")
         else:
-            print("❌ Échec connexion")
+            logging.error("Test de connexion échoué.")
         
         # Test avec user de test
-        test_user_id = "test-user-123"
+        test_user_id = "29dec51d-0772-4e3a-8e8f-1fece8fefe0e" # Use a valid UUID for testing
+        
+        # Example data for insertion
+        sample_investment = {
+            "user_id": test_user_id,
+            "platform": "PEA",
+            "investment_type": "stocks",
+            "invested_amount": 1000.00,
+            "investment_date": "2023-01-01",
+            "project_name": "Test Stock",
+            "company_name": "TestCo",
+            "isin": "FR0000000000"
+        }
+        
+        sample_cash_flow = {
+            "user_id": test_user_id,
+            "platform": "PEA",
+            "flow_type": "deposit",
+            "flow_direction": "in",
+            "gross_amount": 500.00,
+            "transaction_date": "2023-01-05",
+            "description": "Initial deposit"
+        }
+        
+        sample_position = {
+            "user_id": test_user_id,
+            "platform": "PEA",
+            "asset_name": "Test Asset",
+            "valuation_date": "2023-12-31",
+            "quantity": 10.0,
+            "current_price": 100.0,
+            "market_value": 1000.0
+        }
+        
+        # Clear existing data for test user
+        db.clear_user_data(test_user_id)
+        
+        # Insert sample data
+        db.insert_investments([sample_investment])
+        db.insert_cash_flows([sample_cash_flow])
+        db.insert_portfolio_positions([sample_position])
+        
+        # Get and log data
+        investments = db.get_user_investments(test_user_id)
+        cash_flows = db.get_user_cash_flows(test_user_id)
+        positions = db.get_portfolio_positions(test_user_id)
+        
+        logging.info(f"Investments for {test_user_id}:\n{investments}")
+        logging.info(f"Cash Flows for {test_user_id}:\n{cash_flows}")
+        logging.info(f"Portfolio Positions for {test_user_id}:\n{positions}")
+        
+        # Cache and retrieve a metric
+        db.cache_expert_metric(test_user_id, "test_metric", platform="PEA", metric_value=123.45)
+        cached_metric = db.get_cached_metric(test_user_id, "test_metric", platform="PEA")
+        logging.info(f"Cached metric: {cached_metric}")
         
         # Analyser qualité données
         quality_report = db.analyze_data_quality(test_user_id)
-        print(f"📊 Qualité données: {quality_report.get('overall_score', 0):.1f}%")
+        logging.info(f"Qualité des données : {quality_report.get('overall_score', 0):.1f}%")
         
         # Résumé plateformes
         summary = db.get_platform_summary(test_user_id)
-        print(f"🏢 Plateformes actives: {len(summary)}")
+        logging.info(f"Plateformes actives : {len(summary)}")
         
-        print("✅ Tests terminés avec succès")
+        logging.info("Tous les tests sont terminés avec succès.")
         
     except Exception as e:
-        print(f"❌ Erreur tests: {e}")
-        import traceback
-        traceback.print_exc()
+        logging.exception(f"Erreur lors des tests : {e}")

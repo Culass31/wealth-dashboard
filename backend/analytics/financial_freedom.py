@@ -8,6 +8,10 @@ from typing import Dict, List, Tuple
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 import random
+import logging
+
+# Configuration du logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 @dataclass
 class FinancialProfile:
@@ -92,8 +96,8 @@ class FinancialFreedomSimulator:
         scenario = self.profile.risk_tolerance
         required_patrimoine = self.calculate_required_patrimoine()
         
-        print(f"🎲 Simulation Monte Carlo: {num_simulations} scénarios sur {num_years} ans")
-        print(f"🎯 Objectif: {required_patrimoine:,.0f}€")
+        logging.info(f"🎲 Simulation Monte Carlo: {num_simulations} scénarios sur {num_years} ans")
+        logging.info(f"🎯 Objectif: {required_patrimoine:,.0f}€")
         
         # Exécuter les simulations
         all_paths = []

@@ -17,7 +17,6 @@ CREATE TABLE IF NOT EXISTS investments (
     
     -- Données financières
     invested_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
-    current_value DECIMAL(15,2),    -- Valorisation actuelle
     annual_rate DECIMAL(5,2),       -- Taux annuel
     duration_months INTEGER,        -- Durée en mois
     capital_repaid DECIMAL(15,2),  -- Capital remboursé
@@ -72,7 +71,7 @@ CREATE TABLE IF NOT EXISTS cash_flows (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 3. NOUVELLE TABLE PORTFOLIO_POSITIONS (pour PEA/AV)
+-- 3. TABLE PORTFOLIO_POSITIONS (pour PEA/AV)
 CREATE TABLE IF NOT EXISTS portfolio_positions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL,
@@ -152,6 +151,20 @@ CREATE TABLE user_preferences (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 7. TABLE LIQUIDITY_BALANCES (pour suivre les liquidités par plateforme)
+CREATE TABLE liquidity_balances (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    platform VARCHAR(50) NOT NULL,
+    balance_date DATE NOT NULL,
+    amount DECIMAL(15,2) NOT NULL,
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    UNIQUE(user_id, platform, balance_date) -- Une seule entrée par jour et par plateforme
+);
+
 -- ===== INDEX POUR PERFORMANCES =====
 
 -- Index principales tables
@@ -168,6 +181,8 @@ CREATE INDEX IF NOT EXISTS idx_positions_user_platform ON portfolio_positions(us
 CREATE INDEX IF NOT EXISTS idx_positions_isin ON portfolio_positions(isin);
 
 CREATE INDEX IF NOT EXISTS idx_metrics_cache_user ON expert_metrics_cache(user_id, platform, metric_type);
+
+CREATE INDEX IF NOT EXISTS idx_liquidity_balances_user_platform ON liquidity_balances(user_id, platform, balance_date);
 
 -- ===== CONTRAINTES =====
 
@@ -214,7 +229,6 @@ SELECT
     COUNT(*) as nb_investments,
     SUM(i.invested_amount) as total_invested,
     AVG(i.invested_amount) as avg_investment,
-    SUM(i.current_value) as total_current_value,
     COUNT(CASE WHEN i.status = 'active' THEN 1 END) as active_count,
     COUNT(CASE WHEN i.status = 'completed' THEN 1 END) as completed_count,
     COUNT(CASE WHEN i.is_delayed THEN 1 END) as delayed_count,
@@ -323,6 +337,8 @@ COMMENT ON TABLE investments IS 'Table principale des investissements avec suppo
 COMMENT ON TABLE cash_flows IS 'Flux de trésorerie avec traçabilité par plateforme pour calculs TRI';
 COMMENT ON TABLE portfolio_positions IS 'Positions actuelles pour PEA et Assurance Vie';
 COMMENT ON TABLE expert_metrics_cache IS 'Cache des métriques calculées pour optimiser les performances';
+COMMENT ON TABLE liquidity_balances IS 'Soldes de liquidités par plateforme et par date';
+
 
 COMMENT ON COLUMN cash_flows.platform IS 'Plateforme source du flux - CRUCIAL pour calculs TRI par plateforme';
 COMMENT ON COLUMN cash_flows.gross_amount IS 'Montant brut avant taxes';

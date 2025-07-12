@@ -1,18 +1,30 @@
 # ===== backend/data/unified_parser.py - PARSER UNIFIÉ EXPERT =====
 import pandas as pd
 import pdfplumber
-from typing import List, Dict, Tuple, Optional
+import numpy as np
+from typing import List, Dict, Tuple, Optional, Any
 from datetime import datetime
 import uuid
 import re
 import os
-from backend.utils.file_helpers import standardize_date, clean_amount, clean_string_operation, safe_get
+import logging
+from pprint import pprint
+from backend.utils.file_helpers import (
+    standardize_date, clean_amount, clean_string_operation, safe_get, 
+    normalize_text, get_column_by_normalized_name
+)
+from backend.data.parser_constants import PRETUP_SHEET_NAMES, PLATFORM_MAPPING
+
+# Configuration du logging
+
 
 class UnifiedPortfolioParser:
     """Parser unifié pour toutes les plateformes d'investissement"""
     
     def __init__(self, user_id: str):
         self.user_id = user_id
+        self.pea_liquidity_balance = None
+        self.pretup_liquidity_balance = None
         self.platform_methods = {
             'lpb': self._parse_lpb,
             'pretup': self._parse_pretup, 
@@ -22,648 +34,1226 @@ class UnifiedPortfolioParser:
             'pea': self._parse_pea
         }
     
-    def parse_platform(self, file_path: str, platform: str) -> Tuple[List[Dict], List[Dict]]:
+    def _validate_data(self, data: List[Dict], required_fields: List[str], platform: str):
+        """Vérifie que les champs requis ne sont pas vides dans les données parsées."""
+        for i, item in enumerate(data):
+            for field in required_fields:
+                if field not in item or item[field] is None or (isinstance(item[field], str) and not item[field].strip()):
+                    logging.warning(f"Validation {platform.upper()}: Champ manquant ou vide '{field}' dans l'élément {i}. Données: {item}")
+
+    def parse_platform(self, file_path: str, platform_name: str) -> Dict[str, List[Dict]]:
         """Point d'entrée principal pour parser une plateforme"""
-        print(f"🔍 Parsing {platform.upper()} : {file_path}")
+        logging.info(f"Début du parsing pour la plateforme {platform_name.upper()} avec le fichier : {file_path}")
         
-        if platform.lower() not in self.platform_methods:
-            raise ValueError(f"Plateforme non supportée : {platform}")
+        # Convertir le nom complet en clé abrégée pour la recherche dans platform_methods
+        platform_key = None
+        for key, name in PLATFORM_MAPPING.items():
+            if name == platform_name:
+                platform_key = key
+                break
+
+        if platform_key not in self.platform_methods:
+            logging.error(f"Plateforme non supportée : {platform_name}")
+            raise ValueError(f"Plateforme non supportée : {platform_name}")
         
         try:
-            return self.platform_methods[platform.lower()](file_path)
-        except Exception as e:
-            print(f"❌ Erreur parsing {platform}: {e}")
-            import traceback
-            traceback.print_exc()
-            return [], []
+            # Passer le mode verbeux à la méthode de la plateforme si elle l'accepte
+            method = self.platform_methods[platform_key]
+            import inspect
+            sig = inspect.signature(method)
+            if 'verbose' in sig.parameters:
+                return method(file_path, verbose=self.verbose)
+            else:
+                return method(file_path)
+        except Exception:
+            logging.exception(f"Erreur critique lors du parsing de la plateforme {platform_name}")
+            return {
+                "investments": [],
+                "cash_flows": [],
+                "portfolio_positions": [],
+                "liquidity_balances": []
+            }
 
     # ===== LPB (LA PREMIÈRE BRIQUE) =====
-    def _parse_lpb(self, file_path: str) -> Tuple[List[Dict], List[Dict]]:
-        """Parser LPB"""
+    def _parse_lpb(self, file_path: str) -> Dict[str, List[Dict]]:
+        """Parser LPB amélioré avec lecture des échéanciers par projet."""
+        logging.info("Début du parsing pour La Première Brique avec la nouvelle logique d'échéancier.")
         
-        # Parser projets
-        projects_df = pd.read_excel(file_path, sheet_name='Projets')
-        investissements = self._parse_lpb_projects(projects_df)
+        try:
+            xls = pd.ExcelFile(file_path)
+            projects_df = pd.read_excel(xls, sheet_name='Projets')
+            account_df = pd.read_excel(xls, sheet_name='Relevé compte')
+        except Exception as e:
+            logging.error(f"Erreur critique lors de la lecture des onglets principaux du fichier LPB : {e}")
+            return {"investments": [], "cash_flows": [], "portfolio_positions": [], "liquidity_balances": []}
+
+        # 1. Parser les projets pour créer les investissements de base et les mappings
+        investment_map_by_name, investment_map_by_id = self._parse_lpb_projects(projects_df)
         
-        # Parser relevé avec gestion taxes
-        account_df = pd.read_excel(file_path, sheet_name='Relevé compte')
-        flux_tresorerie = self._parse_lpb_account(account_df)
+        # 2. Parser les échéanciers, ce qui met aussi à jour le statut des projets en retard
+        schedules = self._parse_lpb_schedules(xls, investment_map_by_name, investment_map_by_id)
+
+        # 3. Parser le relevé de compte en utilisant les échéanciers pour la ventilation
+        cash_flows_df = self._parse_lpb_account(account_df, self.investments, schedules)
         
-        return investissements, flux_tresorerie
-    
-    def _parse_lpb_projects(self, df: pd.DataFrame) -> List[Dict]:
-        """Parser projets LPB"""
-        investissements = []
+        # Convertir le DataFrame en liste de dictionnaires pour le post-traitement
+        cash_flows = cash_flows_df.to_dict(orient='records')
         
-        for idx, row in df.iterrows():
-            if pd.isna(safe_get(row, 1)) or safe_get(row, 1) == "Nom du projet":
+        # 4. Post-traitement final pour définir la date de fin réelle
+        self._update_investments_from_cashflows(self.investments, cash_flows)
+        
+        # 5. Validation finale des données
+        self._validate_data(self.investments, ['id', 'user_id', 'platform', 'project_name', 'invested_amount', 'status'], 'LPB')
+        self._validate_data(cash_flows, ['id', 'user_id', 'platform', 'flow_type', 'flow_direction', 'net_amount', 'transaction_date'], 'LPB')
+        
+        logging.info(f"Parsing LPB terminé. {len(self.investments)} investissements et {len(cash_flows)} flux trouvés.")
+
+        return {
+            "investments": self.investments,
+            "cash_flows": cash_flows,
+            "portfolio_positions": [],
+            "liquidity_balances": []
+        }
+
+    def _parse_lpb_schedules(self, xls: pd.ExcelFile, investment_map_by_name: Dict[str, str], investment_map_by_id: Dict[str, Dict]) -> Dict[str, pd.DataFrame]:
+        """
+        Parse tous les onglets d'échéancier, met à jour les projets en retard et retourne les échéanciers.
+        """
+        schedules = {}
+        ignored_sheets = ['Projets', 'Relevé compte']
+        
+        for sheet_name in xls.sheet_names:
+            if sheet_name in ignored_sheets:
                 continue
             
-            # Dates critiques pour TRI
-            date_collecte = standardize_date(safe_get(row, 0))  # investment_date
-            date_signature = standardize_date(safe_get(row, 5))  # signature_date
-            date_remb_max = standardize_date(safe_get(row, 7))   # expected_end_date
-            date_remb_effective = standardize_date(safe_get(row, 8))  # actual_end_date
+            normalized_sheet_name = normalize_text(sheet_name)
+            investment_id = investment_map_by_name.get(normalized_sheet_name)
             
-            # Détection retard
-            is_delayed = False
-            if date_remb_max and date_remb_effective:
-                if date_remb_effective > date_remb_max:
-                    is_delayed = True
-            elif date_remb_max and not date_remb_effective:
-                if datetime.now().strftime('%Y-%m-%d') > date_remb_max:
-                    is_delayed = True
-            
-            # Statut
-            statut_raw = safe_get(row, 2, '')
-            if 'Remboursée' in statut_raw:
+            if investment_id:
+                try:
+                    df = pd.read_excel(xls, sheet_name=sheet_name)
+                    df.columns = [normalize_text(col) for col in df.columns]
+                    
+                    # Convertir les colonnes de montant en numrique
+                    for col_name in ['partducapital', 'partdesinterets', 'csgcrds', 'ir']:
+                        if col_name in df.columns:
+                            df[col_name] = pd.to_numeric(df[col_name], errors='coerce').fillna(0)
+
+                    schedules[investment_id] = df
+                    logging.info(f"Échéancier trouvé et parsé pour le projet '{sheet_name}'.")
+                    logging.debug(f"Colonnes de l'chancier {sheet_name}: {df.columns.tolist()}")
+                    logging.debug(f"Types de donnes de l'chancier {sheet_name}: {df.dtypes}")
+                    logging.debug(f"Contenu de l'chancier {sheet_name}: {df.head()}")
+
+                    # Détection de retard via le mot "prolongation"
+                    if 'prolongation' in df.to_string().lower():
+                        investment = investment_map_by_id[investment_id]
+                        if investment['status'] == 'active': # Ne pas écraser un statut 'completed'
+                            investment['is_delayed'] = True
+                            investment['status'] = 'delayed'
+                            logging.warning(f"Projet '{sheet_name}' marqué comme 'delayed' en raison de la mention 'prolongation' dans l'échéancier.")
+
+                except Exception as e:
+                    logging.warning(f"Impossible de lire l'échéancier pour le projet '{sheet_name}'. Erreur: {e}")
+            else:
+                logging.warning(f"Aucun projet correspondant trouvé pour l'échéancier '{sheet_name}'. Il sera ignoré.")
+                
+        return schedules
+
+    def _parse_lpb_projects(self, df: pd.DataFrame) -> Tuple[Dict[str, str], Dict[str, Dict]]:
+        """
+        Parse les projets LPB en utilisant l'onglet Projets comme source de vérité pour le capital.
+        """
+        self.investments = []
+        investment_map_by_name = {}
+        investment_map_by_id = {}
+        
+        for _, row in df.iterrows():
+            project_name = safe_get(row, 'Nom du projet')
+            if pd.isna(project_name) or "Nom du projet" in project_name:
+                continue
+
+            invested_amount = clean_amount(safe_get(row, 'Montant investi (€)', 0))
+            capital_repaid = clean_amount(safe_get(row, 'Dont capital (€)', 0))
+            status_from_file = safe_get(row, 'Statut', '').lower()
+
+            status = 'active'
+            if 'remboursée' in status_from_file:
                 status = 'completed'
-            elif 'Finalisée' in statut_raw:
-                status = 'delayed' if is_delayed else 'active'
-            else:
-                status = 'active'
-            
-            # Duration en mois
-            if date_collecte and date_remb_max:
-                start = pd.to_datetime(date_collecte)
-                end = pd.to_datetime(date_remb_max)
-                months = (end.year - start.year) * 12 + (end.month - start.month)
-                if end.day < start.day:
-                    months -= 1
-                duration_months = max(0, months)
-            else:
-                duration_months = None
-            
-            investissement = {
+
+            investment = {
                 'id': str(uuid.uuid4()),
                 'user_id': self.user_id,
                 'platform': 'La Première Brique',
-                'platform_id': f"LPB_{idx}",
                 'investment_type': 'crowdfunding',
                 'asset_class': 'real_estate',
-                
-                'project_name': safe_get(row, 1, ''),
-                'company_name': safe_get(row, 1, ''),
-                
-                'invested_amount': clean_amount(safe_get(row, 3, 0)),
-                'annual_rate': safe_get(row, 4, 0),
-                'duration_months': duration_months,
-                'capital_repaid': clean_amount(safe_get(row, 3, 0)) - clean_amount(safe_get(row, 9, 0)),  # Capital remboursé
-                'remaining_capital': clean_amount(safe_get(row, 9, 0)) if len(row) > 9 else None,  # Capital restant dû
-                
-                'investment_date': date_collecte,      # Pour TRI
-                'signature_date': date_signature,      # Pour suivi admin
-                'expected_end_date': date_remb_max,
-                'actual_end_date': date_remb_effective,
-                
+                'project_name': project_name,
+                'company_name': project_name, 
+                'invested_amount': invested_amount,
+                'annual_rate': clean_amount(safe_get(row, 'Taux annuel total (%)', 0)),
+                'capital_repaid': capital_repaid,
+                'remaining_capital': invested_amount - capital_repaid,
+                'investment_date': standardize_date(safe_get(row, 'Date de collecte (JJ/MM/AAAA)')),
+                'signature_date': standardize_date(safe_get(row, 'Date de signature (JJ/MM/AAAA)')),
+                'expected_end_date': standardize_date(safe_get(row, 'Date de remboursement maximale (JJ/MM/AAAA)')),
+                'actual_end_date': None, # Sera déterminé par les flux réels
                 'status': status,
-                'is_delayed': is_delayed,
-                'is_short_term': duration_months and duration_months < 6,
-                
+                'is_delayed': False, # Sera mis à jour par les échéanciers
                 'created_at': datetime.now().isoformat(),
-                'updated_at': datetime.now().isoformat()
+                'updated_at': datetime.now().isoformat(),
             }
-            
-            investissements.append(investissement)
+            self.investments.append(investment)
+            investment_map_by_name[normalize_text(project_name)] = investment['id']
+            investment_map_by_id[investment['id']] = investment
         
-        return investissements
-    
-    def _parse_lpb_account(self, df: pd.DataFrame) -> List[Dict]:
-        """Parser relevé LPB avec gestion taxes CSG/CRDS + IR"""
-        flux_tresorerie = []
+        return investment_map_by_name, investment_map_by_id
+
+    def _parse_lpb_account(self, df_account: pd.DataFrame, investments_list: List[Dict], lpb_schedules: Dict[str, pd.DataFrame]) -> pd.DataFrame:
+        """
+        Parse le relevé de compte LPB, en utilisant les bons noms de colonnes fournis par l'utilisateur et en enrichissant les remboursements.
+        """
+        logging.info("Début du parsing du relevé de compte LPB.")
         
-        # Pré-processing pour identifier les groupes de taxes
-        df_with_index = df.reset_index()
+        # Convertir la liste d'investissements en DataFrame pour faciliter la recherche
+        investments_df = pd.DataFrame(investments_list)
+        if investments_df.empty:
+            logging.warning("Aucun investissement LPB fourni pour l'enrichissement des flux.")
+            return pd.DataFrame()
+
+        # --- Correction : Utilisation des bons noms de colonnes fournis par l'utilisateur ---
+        logging.debug(f"Colonnes originales du relevé de compte: {df_account.columns.tolist()}")
         
-        for idx, row in df.iterrows():
-            if pd.isna(safe_get(row, 0)) or safe_get(row, 0) == "Nature de la transaction":
+        # Normaliser les noms de colonnes du dataframe (minuscules, sans espaces superflus, gestion de l’apostrophe)
+        df_account.columns = [str(col).strip().lower().replace('’', "'") for col in df_account.columns]
+        
+        column_mapping = {
+            "date d'exécution": "transaction_date",
+            "nature de la transaction": "description",
+            "montant": "gross_amount"
+        }
+        df_account.rename(columns=column_mapping, inplace=True)
+        logging.debug(f"Colonnes après normalisation et renommage: {df_account.columns.tolist()}")
+
+        if 'transaction_date' not in df_account.columns:
+            logging.error("Impossible de trouver la colonne de date ('Date d’exécution') dans le relevé de compte. Arrêt du parsing des flux.")
+            return pd.DataFrame()
+        # --- Fin de la correction ---
+
+        # Conversion des types
+        df_account['transaction_date'] = pd.to_datetime(df_account['transaction_date'], errors='coerce')
+        df_account['gross_amount'] = df_account['gross_amount'].apply(clean_amount)
+        
+        df_account.dropna(subset=['transaction_date', 'gross_amount'], inplace=True)
+        
+        cash_flows_list = []
+        for _, row in df_account.iterrows():
+            flow_type, flow_direction = self._classify_lpb_transaction(row['description'])
+            if not flow_type:
                 continue
-            
-            nature = safe_get(row, 0, '')
-            montant = clean_amount(safe_get(row, 3, 0))
-            date_transaction = standardize_date(safe_get(row, 5))
-            
-            if not date_transaction:
-                continue
-            
-            # Classification et gestion taxes
-            flow_type, flow_direction = self._classify_lpb_transaction(nature)
-            
-            # Gestion spéciale pour remboursements avec taxes
-            tax_amount = 0.0
-            if 'Remboursement mensualité' in nature:
-                # Chercher les 2 lignes précédentes pour taxes
-                tax_amount = self._extract_lpb_taxes(df, idx)
-            
-            # Calcul net
-            if flow_direction == 'in' and tax_amount > 0:
-                net_amount = montant - tax_amount
-                gross_amount = montant
+
+            project_name_match = re.search(r"liée au projet (.*?)(?: -|$)", row['description'])
+            project_name = project_name_match.group(1).strip() if project_name_match else None
+
+            investment_id = None
+            if project_name:
+                normalized_project_name = project_name.strip()
+                investment_series = investments_df[investments_df['project_name'].str.strip() == normalized_project_name]
+                if not investment_series.empty:
+                    investment_id = investment_series.iloc[0]['id']
+
+            capital_amount, interest_amount, tax_amount = 0.0, 0.0, 0.0
+            net_amount = row['gross_amount']
+
+            if flow_type == 'repayment' and project_name and project_name in lpb_schedules:
+                schedule_df = lpb_schedules[project_name]
+                
+                logging.debug(f"LPB Account: Processing repayment for {project_name}. Schedule columns: {schedule_df.columns.tolist()}")
+                logging.debug(f"LPB Account: Current row transaction_date: {row['transaction_date']}")
+                
+                merged = pd.merge_asof(
+                    pd.DataFrame([row]), 
+                    schedule_df.sort_values('datedecheance'),
+                    left_on='transaction_date', 
+                    right_on='datedecheance',
+                    direction='nearest',
+                    tolerance=pd.Timedelta('15 days')
+                )
+                
+                logging.debug(f"LPB Account: Merged result: {merged.to_dict(orient='records')}")
+
+                if not merged.empty and not pd.isna(merged.iloc[0]['datedecheance']):
+                    schedule_row = merged.iloc[0]
+                    logging.debug(f"LPB Account: Found matching schedule row: {schedule_row.to_dict()}")
+                    capital_amount = schedule_row.get('partducapital', 0.0)
+                    interest_amount = schedule_row.get('partdesinterets', 0.0)
+                    gross_amount_schedule = capital_amount + interest_amount
+                    tax_amount = gross_amount_schedule - net_amount
+                    
+                    logging.info(f"Enrichissement pour {project_name} à la date {row['transaction_date']}: Capital={capital_amount}, Intérêts={interest_amount}, Taxe={tax_amount}")
+                else:
+                    interest_amount = net_amount
+                    logging.warning(f"Aucune échéance correspondante trouvée pour le remboursement de {project_name} du {row['transaction_date']}. Le montant net est traité comme intérêt.")
+
             else:
-                net_amount = montant if flow_direction == 'in' else -abs(montant)
-                gross_amount = abs(montant)
+                interest_amount = net_amount if flow_type != 'deposit' else 0
             
-            flux = {
+            # --- Corrections pour la validation Pydantic ---
+            # 1. Extraire seulement le type de flux (string) du tuple
+            flow_type_str = flow_type  # flow_type est déjà une string ici
+            
+            # 2. Assurer que gross_amount est toujours positif
+            final_gross_amount = abs(capital_amount + interest_amount) if flow_type_str == 'repayment' else abs(net_amount)
+            
+            # 3. Assurer que transaction_date est au format YYYY-MM-DD (sans heure)
+            final_transaction_date = standardize_date(row['transaction_date'])
+
+            cash_flow_data = {
                 'id': str(uuid.uuid4()),
-                'investment_id': None,  # À lier plus tard
+                'investment_id': investment_id,
                 'user_id': self.user_id,
                 'platform': 'La Première Brique',
-                
-                'flow_type': flow_type,
+                'flow_type': flow_type_str,
                 'flow_direction': flow_direction,
-                
-                'gross_amount': gross_amount,
+                'gross_amount': final_gross_amount,
                 'net_amount': net_amount,
                 'tax_amount': tax_amount,
+                'capital_amount': capital_amount,
+                'interest_amount': interest_amount,
+                'transaction_date': final_transaction_date,
+                'description': row['description']
+            }
+            cash_flows_list.append(cash_flow_data)
+
+        logging.info(f"Parsing du relevé de compte LPB terminé. {len(cash_flows_list)} flux de trésorerie créés.")
+        return pd.DataFrame(cash_flows_list)
+        """
+        Parse le relevé de compte LPB en utilisant les échéanciers pour une ventilation précise.
+        """
+        cash_flows = []
+        df['Date d’exécution'] = pd.to_datetime(df['Date d’exécution'], dayfirst=True, errors='coerce')
+        df = df.sort_values(by='Date d’exécution').reset_index(drop=True)
+
+        for _, row in df.iterrows():
+            nature = safe_get(row, 'Nature de la transaction', '')
+            if pd.isna(nature): continue
+
+            transaction_date_obj = row['Date d’exécution']
+            if pd.isna(transaction_date_obj): continue
+            transaction_date = transaction_date_obj.strftime('%Y-%m-%d')
+
+            flow_type, flow_direction = self._classify_lpb_transaction(nature)
+            if flow_type == 'fee':
+                continue
+            gross_amount_from_releve = clean_amount(safe_get(row, 'Montant', 0))
+            
+            linked_investment_id = None
+            normalized_nature = normalize_text(nature)
+            for project_name_key, inv_id in investment_map.items():
+                if project_name_key in normalized_nature:
+                    linked_investment_id = inv_id
+                    break
+            
+            # Initialiser les valeurs pour le flux de trésorerie
+            # Le montant brut est le montant lu du relevé
+            gross_amount = gross_amount_from_releve
+            tax_amount = 0
+            capital_amount = 0
+            interest_amount = 0
+            # net_amount_for_cash_flow sera calculé comme gross_amount - tax_amount
+            net_amount_for_cash_flow = gross_amount_from_releve # Par défaut, si pas de taxes
+
+            if flow_type == 'repayment' and linked_investment_id and linked_investment_id in schedules:
+                schedule_df = schedules[linked_investment_id]
+                # Trouver la ligne d'échéancier correspondante par montant brut
+                amount_col = get_column_by_normalized_name(schedule_df, 'montantapayer')
                 
-                'transaction_date': date_transaction,
-                'status': 'completed' if safe_get(row, 4) == 'Réussi' else 'failed',
+                if amount_col:
+                    schedule_df.loc[:, amount_col] = pd.to_numeric(schedule_df[amount_col], errors='coerce').fillna(0)
+                    # Comparer avec le montant brut du relevé
+                    matching_rows = schedule_df[np.isclose(schedule_df[amount_col], gross_amount_from_releve)]
+
+                    if not matching_rows.empty:
+                        date_col = get_column_by_normalized_name(schedule_df, 'datedecheance')
+                        if date_col:
+                            schedule_df.loc[:, date_col] = pd.to_datetime(schedule_df[date_col], errors='coerce')
+                            # Filtrer les lignes sans date valide avant de calculer la différence de temps
+                            valid_dates = matching_rows.dropna(subset=[date_col])
+                            if not valid_dates.empty:
+                                time_diff = (valid_dates[date_col] - transaction_date_obj).abs()
+                                closest_schedule_row = valid_dates.loc[time_diff.idxmin()]
+
+                                # Définir les noms de colonnes avant de les utiliser
+                                capital_col_name = get_column_by_normalized_name(schedule_df, 'partducapital')
+                                interest_col_name = get_column_by_normalized_name(schedule_df, 'partdesinterets')
+                                csg_col_name = get_column_by_normalized_name(schedule_df, 'csgcrds')
+                                ir_col_name = get_column_by_normalized_name(schedule_df, 'ir')
+
+                                capital_amount = clean_amount(safe_get(closest_schedule_row, capital_col_name, 0))
+                                interest_amount = clean_amount(safe_get(closest_schedule_row, interest_col_name, 0))
+                                tax_amount = clean_amount(safe_get(closest_schedule_row, csg_col_name, 0)) + clean_amount(safe_get(closest_schedule_row, ir_col_name, 0))
+                                
+                                # Calculer le montant net selon la définition de l'utilisateur
+                                net_amount_for_cash_flow = gross_amount_from_releve - tax_amount
+                            else:
+                                logging.warning(f"Aucune date d'échéance valide trouvée pour le remboursement de {gross_amount_from_releve} du projet {linked_investment_id}.")
+                        else:
+                            logging.warning(f"Colonne de date d'échéance non trouvée pour le projet {linked_investment_id}.")
+                    else:
+                        logging.warning(f"Aucune ligne d'échéancier correspondante trouvée pour le remboursement de {gross_amount_from_releve} du projet {linked_investment_id} à la date {transaction_date}. Le flux sera enregistré sans ventilation.")
+                else:
+                    logging.error(f"Colonne 'montantapayer' non trouvée dans l'échéancier du projet {linked_investment_id}.")
+
+            elif flow_type == 'interest' and linked_investment_id and linked_investment_id in schedules: # Gérer les bonus "code cadeau" et les intérêts de l'échéancier
+                schedule_df = schedules[linked_investment_id]
+                # Trouver la ligne d'échéancier correspondante par date et montant
+                # Pour les intérêts, le montant brut du relevé doit correspondre à la somme des intérêts et bonus de l'échéancier
                 
-                'description': nature,
-                'payment_method': safe_get(row, 1, ''),
+                # Convertir les colonnes pertinentes en numérique pour toute la DataFrame
+                interest_col_name = get_column_by_normalized_name(schedule_df, 'partdesinterets')
+                bonus_col_name = get_column_by_normalized_name(schedule_df, 'partdubonus')
+                csg_col_name = get_column_by_normalized_name(schedule_df, 'csgcrds')
+                ir_col_name = get_column_by_normalized_name(schedule_df, 'ir')
+
+                for col_name in [interest_col_name, bonus_col_name, csg_col_name, ir_col_name]:
+                    if col_name and col_name in schedule_df.columns:
+                        schedule_df.loc[:, col_name] = pd.to_numeric(schedule_df[col_name], errors='coerce').fillna(0)
+
+                # Filtrer les lignes par date de transaction
+                date_col = get_column_by_normalized_name(schedule_df, 'datedecheance')
+                if date_col:
+                    schedule_df.loc[:, date_col] = pd.to_datetime(schedule_df[date_col], errors='coerce')
+                    matching_rows = schedule_df[schedule_df[date_col].dt.strftime('%Y-%m-%d') == transaction_date]
+
+                    if not matching_rows.empty:
+                        # Trouver la ligne la plus proche si plusieurs correspondances par date
+                        time_diff = (matching_rows[date_col] - transaction_date_obj).abs()
+                        closest_schedule_row = matching_rows.loc[time_diff.idxmin()]
+
+                        # Récupérer les valeurs brutes pour le débogage
+                        raw_interest = safe_get(closest_schedule_row, interest_col_name, 0)
+                        raw_bonus = safe_get(closest_schedule_row, bonus_col_name, 0)
+                        raw_csg = safe_get(closest_schedule_row, csg_col_name, 0)
+                        raw_ir = safe_get(closest_schedule_row, ir_col_name, 0)
+
+                        logging.info(f"LPB: Debug Intérêt - Projet: {linked_investment_id}, Date: {transaction_date}")
+                        logging.info(f"LPB: Valeurs brutes de l'échéancier - Intérêts: {raw_interest}, Bonus: {raw_bonus}, CSG: {raw_csg}, IR: {raw_ir}")
+
+                        interest_amount = clean_amount(raw_interest)
+                        bonus_amount = clean_amount(raw_bonus)
+                        tax_amount = clean_amount(raw_csg) + clean_amount(raw_ir)
+                        
+                        # Ajouter le bonus aux intérêts
+                        interest_amount += bonus_amount
+                        
+                        # Le montant net est le montant brut du relevé moins les taxes de l'échéancier
+                        net_amount_for_cash_flow = gross_amount_from_releve - tax_amount
+                        capital_amount = 0 # Pas de capital pour les flux d'intérêt
+                    else:
+                        logging.info(f"LPB: Aucune ligne d'échéancier correspondante trouvée pour le flux d'intérêt de {gross_amount_from_releve} du projet {linked_investment_id} à la date {transaction_date}. Le flux sera enregistré sans ventilation détaillée.")
+                        interest_amount = gross_amount_from_releve # Fallback
+                        net_amount_for_cash_flow = gross_amount_from_releve
+                        capital_amount = 0
+                else:
+                    logging.info(f"LPB: Colonne de date d'échéance non trouvée pour le projet {linked_investment_id}. Le flux d'intérêt sera enregistré sans ventilation détaillée.")
+                    interest_amount = gross_amount_from_releve # Fallback
+                    net_amount_for_cash_flow = gross_amount_from_releve
+                    capital_amount = 0
+            elif flow_type == 'interest': # Gérer les bonus "code cadeau" non liés à un investissement ou sans échéancier
+                interest_amount = gross_amount_from_releve # Le bonus est considéré comme de l'intérêt pur, sans taxe
+                net_amount_for_cash_flow = gross_amount_from_releve
+                capital_amount = 0 # Pas de capital pour les flux d'intérêt
                 
+            elif flow_type in ['investment', 'withdrawal', 'cancellation']:
+                # Pour ces flux, le montant brut est la valeur absolue du montant du relevé
+                # Et le montant net est le même que le montant brut (pas de taxes impliquées)
+                gross_amount = abs(gross_amount_from_releve)
+                net_amount_for_cash_flow = gross_amount_from_releve # Conserver le signe original pour le montant net
+
+            cash_flow = {
+                'id': str(uuid.uuid4()),
+                'investment_id': linked_investment_id,
+                'user_id': self.user_id,
+                'platform': 'La Première Brique',
+                'flow_type': flow_type,
+                'flow_direction': flow_direction,
+                'gross_amount': round(abs(gross_amount), 2), # Toujours positif
+                'net_amount': round(net_amount_for_cash_flow, 2), # Peut être négatif pour les flux 'out'
+                'tax_amount': round(tax_amount, 2),
+                'capital_amount': round(capital_amount, 2),
+                'interest_amount': round(interest_amount, 2),
+                'transaction_date': transaction_date,
+                'status': 'completed',
+                'description': f"{nature} - {safe_get(row, 'Détails', '')}",
                 'created_at': datetime.now().isoformat()
             }
-            
-            flux_tresorerie.append(flux)
+            cash_flows.append(cash_flow)
         
-        return flux_tresorerie
-    
-    def _extract_lpb_taxes(self, df: pd.DataFrame, current_idx: int) -> float:
-        """Extraire les taxes des 2 lignes précédentes"""
-        tax_amount = 0.0
-        
-        # Vérifier les 2 lignes précédentes
-        for i in range(max(0, current_idx - 2), current_idx):
-            if i < len(df):
-                nature_tax = safe_get(df.iloc[i], 0, '').lower()
-                if any(keyword in nature_tax for keyword in ['csg', 'crds', 'ir', 'prélèvement']):
-                    tax_amount += abs(clean_amount(safe_get(df.iloc[i], 3, 0)))
-        
-        return tax_amount
+        return cash_flows
     
     def _classify_lpb_transaction(self, nature: str) -> Tuple[str, str]:
-        """Classification LPB corrigée"""
+        """Classification LPB corrigée pour gérer les frais"""
         nature_lower = nature.lower()
         
-        if 'crédit du compte' in nature_lower:
-            return 'deposit', 'in'  # Argent frais injecté
+        if any(keyword in nature_lower for keyword in ['csg', 'crds', 'ir', 'prélèvement']):
+            return 'fee', 'out'
+        elif 'crédit du compte' in nature_lower:
+            return 'deposit', 'in'
         elif 'souscription' in nature_lower:
-            return 'investment', 'out'  # Investissement projet
+            return 'investment', 'out'
         elif 'retrait de l\'épargne' in nature_lower:
-            return 'withdrawal', 'out'  # Récupération fonds
+            return 'withdrawal', 'out'
         elif 'rémunération' in nature_lower or 'code cadeau' in nature_lower:
-            return 'interest', 'in'  # Bonus/intérêts
+            return 'interest', 'in'
         elif 'remboursement mensualité' in nature_lower:
-            return 'repayment', 'in'  # Remboursement
+            return 'repayment', 'in'
         elif 'annulation' in nature_lower:
-            return 'cancellation', 'in'  # Annulation
+            return 'cancellation', 'in' # L'argent revient, donc 'in'
         else:
             return 'other', 'in'
 
     # ===== BIENPRÊTER =====
-    def _parse_bienpreter(self, file_path: str) -> Tuple[List[Dict], List[Dict]]:
-        """Parser BienPrêter avec toutes les infos fiscales"""
+    def _parse_bienpreter(self, file_path: str) -> Dict[str, List[Dict]]:
+        """Parser BienPrêter robuste avec post-traitement pour la cohérence des données."""
+        logging.info("Début du parsing pour BienPrêter.")
+        try:
+            projects_df = pd.read_excel(file_path, sheet_name='Projets')
+            account_df = pd.read_excel(file_path, sheet_name='Relevé compte')
+        except Exception as e:
+            logging.error(f"Erreur lors de la lecture des onglets du fichier BienPrêter : {e}")
+            return {"investments": [], "cash_flows": [], "portfolio_positions": [], "liquidity_balances": []}
+
+        investments, investment_map = self._parse_bienpreter_projects(projects_df)
+        cash_flows = self._parse_bienpreter_account(account_df, investment_map)
         
-        projects_df = pd.read_excel(file_path, sheet_name='Projets')
-        account_df = pd.read_excel(file_path, sheet_name='Relevé compte')
+        # Post-traitement pour mettre à jour les investissements avec les données des flux
+        self._update_investments_from_cashflows(investments, cash_flows)
+
+        logging.info(f"Parsing BienPrêter terminé. {len(investments)} investissements et {len(cash_flows)} flux trouvés.")
         
-        investissements = self._parse_bienpreter_projects(projects_df)
-        flux_tresorerie = self._parse_bienpreter_account(account_df, projects_df)
+        return {
+            "investments": investments,
+            "cash_flows": cash_flows,
+            "portfolio_positions": [],
+            "liquidity_balances": []
+        }
+
+    def _parse_bienpreter_projects(self, df: pd.DataFrame) -> Tuple[List[Dict], Dict[str, str]]:
+        """Parse les projets BienPrêter et retourne les investissements et une table de correspondance."""
+        investments = []
+        investment_map = {}
         
-        return investissements, flux_tresorerie
-    
-    def _parse_bienpreter_projects(self, df: pd.DataFrame) -> List[Dict]:
-        """Parser projets BienPrêter"""
-        investissements = []
-        
-        for idx, row in df.iterrows():
-            if pd.isna(safe_get(row, 1)) or safe_get(row, 1) == "Projet":
+        for _, row in df.iterrows():
+            project_name = safe_get(row, 'Projet')
+            if pd.isna(project_name) or "Projet" in project_name:
                 continue
-            
-            date_financement = standardize_date(safe_get(row, 6))
-            if not date_financement:
-                date_financement = "2023-01-01"
-            
-            investissement = {
+
+            platform_id = str(safe_get(row, 'N°Contrat', ''))
+            if not platform_id:
+                logging.warning(f"N°Contrat manquant pour le projet {project_name}, liaison impossible.")
+                continue
+
+            investment = {
                 'id': str(uuid.uuid4()),
                 'user_id': self.user_id,
                 'platform': 'BienPrêter',
-                'platform_id': safe_get(row, 0, ''),
+                'platform_id': platform_id,
                 'investment_type': 'crowdfunding',
                 'asset_class': 'real_estate',
-                
-                'project_name': safe_get(row, 1, ''),
-                'company_name': safe_get(row, 2, ''),
-                
-                'invested_amount': clean_amount(safe_get(row, 3, 0)),
-                'annual_rate': safe_get(row, 4, 0),
-                'duration_months': safe_get(row, 5, 0),
-                'monthly_payment': clean_amount(safe_get(row, 10, 0)) if len(row) > 10 else None,  # Mensualité
-                
-                'investment_date': date_financement,
-                'expected_end_date': standardize_date(safe_get(row, 7)),
-                
-                'status': self._map_bienpreter_status(safe_get(row, 10, '')),
-                
+                'project_name': project_name,
+                'company_name': safe_get(row, 'Entreprise', ''),
+                'invested_amount': clean_amount(safe_get(row, 'Montant', 0)),
+                'annual_rate': clean_amount(safe_get(row, 'Taux', 0)),
+                'duration_months': int(round(clean_amount(safe_get(row, 'Durée de remboursements (mois)', 0)))),
+                'investment_date': standardize_date(safe_get(row, 'Date de financement')),
+                'signature_date': standardize_date(safe_get(row, 'Date de financement')),
+                'expected_end_date': standardize_date(safe_get(row, 'Date de clôture')), # Corrigé
+                'actual_end_date': None, # Sera calculé en post-traitement
+                'status': self._map_bienpreter_status(safe_get(row, 'Statut', '')),
+                'capital_repaid': 0, 
+                'remaining_capital': clean_amount(safe_get(row, 'Montant', 0)),
+                'is_delayed': False,
                 'created_at': datetime.now().isoformat(),
-                'updated_at': datetime.now().isoformat()
+                'updated_at': datetime.now().isoformat(),
             }
-            
-            investissements.append(investissement)
+            investments.append(investment)
+            investment_map[platform_id] = investment['id']
         
-        return investissements
-    
-    def _parse_bienpreter_account(self, df: pd.DataFrame, projects_df: pd.DataFrame) -> List[Dict]:
-        """Parser relevé BienPrêter avec calcul taxes"""
-        flux_tresorerie = []
+        return investments, investment_map
+
+    def _parse_bienpreter_account(self, df: pd.DataFrame, investment_map: Dict[str, str]) -> List[Dict]:
+        """Parse le relevé BienPrêter avec une liaison fiable par N°Contrat."""
+        cash_flows = []
         
-        # Créer un mapping projet_id -> mensualité pour calcul brut
-        project_monthly_map = {}
-        for _, row in projects_df.iterrows():
-            project_id = safe_get(row, 0, '')
-            monthly_payment = clean_amount(safe_get(row, 10, 0)) if len(row) > 10 else 0
-            if project_id and monthly_payment > 0:
-                project_monthly_map[project_id] = monthly_payment
-        
-        for idx, row in df.iterrows():
-            if pd.isna(safe_get(row, 0)) or safe_get(row, 0) == "Opération":
+        for _, row in df.iterrows():
+            operation = safe_get(row, 'Opération', '')
+            if pd.isna(operation) or "Opération" in operation:
                 continue
-            
-            operation = safe_get(row, 0, '')
-            date_transaction = standardize_date(safe_get(row, 3))
-            
+
+            date_transaction = standardize_date(safe_get(row, 'Date'))
             if not date_transaction:
                 continue
-            
-            # Lecture des montants depuis les colonnes appropriées
-            if 'remboursement' in operation.lower():
-                # Remboursement : brut/net/taxes disponibles
-                gross_amount = clean_amount(safe_get(row, 7, 0))  # Intérêts remb
-                tax_amount = clean_amount(safe_get(row, 8, 0))    # Prélèvements
-                net_amount = clean_amount(safe_get(row, 4, 0))    # Montant net
-                
-                flow_type = 'repayment'
-                flow_direction = 'in'
-                
-                # Validation : net_amount = gross_amount - tax_amount
-                if abs(net_amount - (gross_amount - tax_amount)) > 0.01:
-                    print(f"⚠️  Incohérence fiscale BienPrêter ligne {idx}")
-            
-            elif 'bonus' in operation.lower():
-                # Bonus sans taxes
-                net_amount = clean_amount(safe_get(row, 4, 0))
-                gross_amount = net_amount
-                tax_amount = 0.0
-                flow_type = 'interest'
-                flow_direction = 'in'
-            
-            elif 'dépôt' in operation.lower():
-                # Argent frais
-                gross_amount = clean_amount(safe_get(row, 4, 0))
-                net_amount = gross_amount
-                tax_amount = 0.0
-                flow_type = 'deposit'
-                flow_direction = 'in'
-            
-            elif 'offre acceptée' in operation.lower():
-                # Investissement
-                gross_amount = clean_amount(safe_get(row, 4, 0))
-                net_amount = gross_amount
-                tax_amount = 0.0
-                flow_type = 'investment'
+
+            platform_id = str(safe_get(row, 'N°Contrat', ''))
+            linked_investment_id = investment_map.get(platform_id)
+
+            flow_type, flow_direction = self._classify_bienpreter_transaction(operation)
+            net_amount = clean_amount(safe_get(row, 'Montant', 0))
+            gross_amount, tax_amount, capital_amount, interest_amount = 0, 0, 0, 0
+
+            if flow_type == 'repayment':
+                capital_amount = clean_amount(safe_get(row, 'Capital remboursé', 0))
+                interest_amount = clean_amount(safe_get(row, 'Intérêts remboursés', 0))
+                tax_amount = clean_amount(safe_get(row, 'Prélèvements fiscaux et sociaux', 0))
+                gross_amount = capital_amount + interest_amount
+                # Le net_amount est déjà correct dans le fichier
+            elif flow_type == 'investment':
+                gross_amount = abs(net_amount)
                 flow_direction = 'out'
-            
-            else:
-                continue
-            
-            flux = {
+            else: # deposit, interest (bonus)
+                gross_amount = net_amount
+
+            cash_flow = {
                 'id': str(uuid.uuid4()),
+                'investment_id': linked_investment_id,
                 'user_id': self.user_id,
                 'platform': 'BienPrêter',
-                
                 'flow_type': flow_type,
                 'flow_direction': flow_direction,
-                
                 'gross_amount': gross_amount,
                 'net_amount': net_amount,
                 'tax_amount': tax_amount,
-                
+                'capital_amount': capital_amount,
+                'interest_amount': interest_amount,
                 'transaction_date': date_transaction,
                 'status': 'completed',
-                
-                'description': f"{operation} - {safe_get(row, 2, '')}",
-                
+                'description': f"{operation} - {safe_get(row, 'Projet', '')}",
                 'created_at': datetime.now().isoformat()
             }
-            
-            flux_tresorerie.append(flux)
+            cash_flows.append(cash_flow)
         
-        return flux_tresorerie
+        return cash_flows
+
+    def _classify_bienpreter_transaction(self, operation: str) -> Tuple[str, str]:
+        """Classification robuste des opérations BienPrêter."""
+        op_lower = operation.lower()
+        if 'remboursement' in op_lower:
+            return 'repayment', 'in'
+        if 'investissement' in op_lower or 'offre acceptée' in op_lower:
+            return 'investment', 'out'
+        if 'dépôt' in op_lower:
+            return 'deposit', 'in'
+        if 'bonus' in op_lower:
+            return 'interest', 'in'
+        return 'other', 'in'
+
+    def _update_investments_from_cashflows(self, investments: List[Dict], cash_flows: List[Dict]):
+        """Met à jour les investissements (capital remboursé, statut, dates) après avoir traité tous les flux."""
+        investment_map = {inv['id']: inv for inv in investments}
+        
+        # Dictionnaire pour stocker le capital remboursé calculé à partir des flux
+        capital_repaid_from_flows = {inv_id: 0.0 for inv_id in investment_map.keys()}
+        # Dictionnaire pour stocker les dates de remboursement
+        repayment_dates = {inv_id: [] for inv_id in investment_map.keys()}
+
+        # 1. Agréger le capital remboursé et les dates à partir des cash_flows
+        for cf in cash_flows:
+            inv_id = cf.get('investment_id')
+            if inv_id and inv_id in investment_map:
+                if cf.get('flow_type') == 'repayment':
+                    capital_repaid_from_flows[inv_id] += cf.get('capital_amount', 0)
+                    repayment_dates[inv_id].append(cf['transaction_date'])
+
+        # 2. Mettre à jour chaque investissement avec les données agrégées
+        for inv_id, inv in investment_map.items():
+            calculated_repaid = capital_repaid_from_flows[inv_id]
+            
+            # Mettre à jour le capital remboursé dans l'investissement
+            # C'est la source de vérité pour le statut 'completed'
+            inv['capital_repaid'] = calculated_repaid
+            
+            # S'assurer que le capital remboursé ne dépasse pas le montant investi (sécurité)
+            if inv['capital_repaid'] > inv['invested_amount']:
+                logging.warning(f"Le capital remboursé pour {inv.get('project_name', inv_id)} ({inv['capital_repaid']:.2f}€) dépasse le montant investi ({inv['invested_amount']:.2f}€). Ajustement.")
+                inv['capital_repaid'] = inv['invested_amount']
+            
+            inv['remaining_capital'] = inv['invested_amount'] - inv['capital_repaid']
+            
+            # 3. Vérifier si le projet est terminé en se basant sur le capital recalculé
+            # On utilise une petite tolérance pour les erreurs de floating point
+            if inv['invested_amount'] > 0 and inv['remaining_capital'] <= 0.01:
+                inv['status'] = 'completed'
+                if repayment_dates[inv_id]:
+                    # La date de fin réelle est la date du dernier remboursement
+                    inv['actual_end_date'] = max(repayment_dates[inv_id])
+                elif not inv.get('actual_end_date') and inv.get('expected_end_date'):
+                    # Fallback si pas de date de remboursement mais statut est complet
+                    inv['actual_end_date'] = inv['expected_end_date']
+            
+            # 4. Mettre à jour le statut de retard (uniquement si pas déjà 'completed')
+            elif inv['status'] != 'completed' and inv.get('expected_end_date'):
+                try:
+                    expected_end = datetime.strptime(inv['expected_end_date'], '%Y-%m-%d')
+                    if expected_end.date() < datetime.now().date():
+                        inv['is_delayed'] = True
+                        inv['status'] = 'delayed'
+                except (ValueError, TypeError):
+                    pass # Ignorer si la date n'est pas dans le bon format
+            
+            inv['updated_at'] = datetime.now().isoformat()
 
     # ===== HOMUNITY =====
-    def _parse_homunity(self, file_path: str) -> Tuple[List[Dict], List[Dict]]:
-        """Parser Homunity avec distinction dates souscription/investissement"""
+    def _parse_homunity(self, file_path: str) -> Dict[str, List[Dict]]:
+        """Parser Homunity avec liaison par date et calculs financiers précis."""
+        logging.info("Début du parsing pour Homunity avec la logique de liaison par date.")
         
-        projects_df = pd.read_excel(file_path, sheet_name='Projets')
-        account_df = pd.read_excel(file_path, sheet_name='Relevé compte')
+        try:
+            projects_df = pd.read_excel(file_path, sheet_name='Projets')
+            account_df = pd.read_excel(file_path, sheet_name='Relevé compte')
+        except Exception as e:
+            logging.error(f"Erreur lors de la lecture des onglets du fichier Homunity : {e}")
+            return {"investments": [], "cash_flows": [], "portfolio_positions": [], "liquidity_balances": []}
+
+        investments, investment_map, repayment_schedule = self._parse_homunity_projects(projects_df)
+        cash_flows = self._parse_homunity_account(account_df, investment_map, repayment_schedule)
         
-        investissements = self._parse_homunity_projects(projects_df)
-        flux_tresorerie = self._parse_homunity_account(account_df)
+        logging.info(f"Parsing Homunity terminé. {len(investments)} investissements et {len(cash_flows)} flux trouvés.")
         
-        return investissements, flux_tresorerie
-    
-    def _parse_homunity_projects(self, df: pd.DataFrame) -> List[Dict]:
-        """Parser projets Homunity"""
-        investissements = []
+        return {
+            "investments": investments,
+            "cash_flows": cash_flows,
+            "portfolio_positions": [],
+            "liquidity_balances": []
+        }
+
+    def _normalize_homunity_key(self, promoter: str, project: str) -> Tuple[str, str]:
+        """Normalise le couple (promoteur, projet) pour une liaison fiable."""
+        promoter_clean = str(promoter).strip().lower()
+        project_clean = str(project).strip().lower()
+        project_clean = project_clean.replace("investissement sur le projet", "").replace("remboursement de projet", "").strip()
+        return (promoter_clean, project_clean)
+
+    def _parse_homunity_projects(self, df: pd.DataFrame) -> Tuple[List[Dict], Dict[Tuple[str, str], Dict], Dict[Tuple[str, str, str], Dict]]:
+        """Parse les projets en gérant les lignes de remboursement multiples pour un même projet."""
+        investments = []
+        investment_map = {}
+        repayment_schedule = {}
+        current_lookup_key = None
+
+        for _, row in df.iterrows():
+            promoter = safe_get(row, 'Promoteur', '')
+            project_name = safe_get(row, 'Projet', '')
+
+            # Si la ligne définit un nouveau projet, on met à jour le projet courant
+            if promoter and project_name and "Promoteur" not in promoter:
+                current_lookup_key = self._normalize_homunity_key(promoter, project_name)
+                
+                if current_lookup_key not in investment_map:
+                    # Calculate total capital repaid for this project
+                    project_rows = df[(df['Promoteur'].astype(str).str.strip().str.lower() == promoter.lower().strip()) &
+                                      (df['Projet'].astype(str).str.strip().str.lower() == project_name.lower().strip())]
+                    
+                    total_capital_repaid_for_project = 0
+                    for _, p_row in project_rows.iterrows():
+                        remb_val = clean_amount(safe_get(p_row, 'Remb.', 0))
+                        interets_nets_val = clean_amount(safe_get(p_row, 'Intérets Nets', 0))
+                        total_capital_repaid_for_project += (remb_val - interets_nets_val)
+
+                    invested_amount = clean_amount(safe_get(row, 'Invest.', 0))
+                    remaining_capital = invested_amount - total_capital_repaid_for_project
+
+                    status = self._map_homunity_status(safe_get(row, 'Statut', ''))
+                    actual_end_date = None
+
+                    # Check if project is completed
+                    if abs(invested_amount - total_capital_repaid_for_project) < 0.01 and invested_amount > 0:
+                        status = 'completed'
+                        repayment_dates = [standardize_date(safe_get(r, 'Date remb.')) for _, r in project_rows.iterrows() if standardize_date(safe_get(r, 'Date remb.'))]
+                        if repayment_dates:
+                            actual_end_date = max(repayment_dates)
+
+                    investment = {
+                        'id': str(uuid.uuid4()),
+                        'user_id': self.user_id,
+                        'platform': 'Homunity',
+                        'investment_type': 'crowdfunding',
+                        'asset_class': 'real_estate',
+                        'project_name': project_name,
+                        'company_name': promoter,
+                        'invested_amount': invested_amount,
+                        'annual_rate': clean_amount(safe_get(row, 'Taux d’intérêt', 0)),
+                        'signature_date': standardize_date(safe_get(row, 'Date de souscription')),
+                        'investment_date': None,  # Sera mis à jour depuis le relevé
+                        'expected_end_date': standardize_date(safe_get(row, 'Date de remb projet')),
+                        'actual_end_date': actual_end_date,
+                        'status': status,
+                        'capital_repaid': total_capital_repaid_for_project,
+                        'remaining_capital': remaining_capital,
+                        'created_at': datetime.now().isoformat(),
+                        'updated_at': datetime.now().isoformat(),
+                    }
+                    investments.append(investment)
+                    investment_map[current_lookup_key] = investment
+
+            # Si la ligne contient une date de remboursement, on l'ajoute à l'échéancier du projet courant
+            repayment_date = standardize_date(safe_get(row, 'Date remb.'))
+            remb_amount = clean_amount(safe_get(row, 'Remb.', 0))
+            if repayment_date and remb_amount > 0 and current_lookup_key:
+                schedule_key = (*current_lookup_key, repayment_date)
+                repayment_schedule[schedule_key] = {
+                    'remb': remb_amount,
+                    'interets_nets': clean_amount(safe_get(row, 'Intérets Nets', 0)),
+                    'impots': clean_amount(safe_get(row, 'Impots', 0))
+                }
         
-        for idx, row in df.iterrows():
-            if pd.isna(safe_get(row, 0)) or safe_get(row, 0) == "Date de souscription":
+        return investments, investment_map, repayment_schedule
+
+    def _parse_homunity_account(self, df: pd.DataFrame, investment_map: Dict[Tuple[str, str], Dict], repayment_schedule: Dict[Tuple[str, str, str], Dict]) -> List[Dict]:
+        """Parse le relevé, lie les flux à l'échéancier par (Promoteur, Projet, Date) et effectue les calculs précis."""
+        cash_flows = []
+        
+        for _, row in df.iterrows():
+            if pd.isna(safe_get(row, 'Type de mouvement')) or "Type de mouvement" in str(safe_get(row, 'Type de mouvement')):
                 continue
-            
-            date_souscription = standardize_date(safe_get(row, 0))  # signature_date
-            # investment_date sera récupéré du relevé compte
-            
-            investissement = {
-                'id': str(uuid.uuid4()),
-                'user_id': self.user_id,
-                'platform': 'Homunity',
-                'platform_id': f"HOM_{idx}",
-                'investment_type': 'crowdfunding',
-                'asset_class': 'real_estate',
-                
-                'project_name': safe_get(row, 2, ''),
-                'company_name': safe_get(row, 1, ''),
-                
-                'invested_amount': clean_amount(safe_get(row, 3, 0)),
-                'annual_rate': clean_amount(safe_get(row, 5, 0)),
-                
-                'signature_date': date_souscription,    # Date souscription
-                'investment_date': None,                 # À récupérer du relevé
-                'expected_end_date': standardize_date(safe_get(row, 4)),
-                
-                'status': self._map_homunity_status(safe_get(row, 6, '')),
-                
-                'created_at': datetime.now().isoformat(),
-                'updated_at': datetime.now().isoformat()
-            }
-            
-            investissements.append(investissement)
-        
-        return investissements
-    
-    def _parse_homunity_account(self, df: pd.DataFrame) -> List[Dict]:
-        """Parser relevé Homunity avec calcul brut = net + impôts (17,2%)"""
-        flux_tresorerie = []
-        
-        for idx, row in df.iterrows():
-            if pd.isna(safe_get(row, 0)) or safe_get(row, 0) == "Type de mouvement":
+
+            transaction_date = standardize_date(safe_get(row, 'Date'))
+            if not transaction_date:
                 continue
+
+            move_type = safe_get(row, 'Type de mouvement', '').lower()
+            message = safe_get(row, 'Message', '')
+            promoter = safe_get(row, 'Nom du promoteur', '')
+            net_amount_from_releve = clean_amount(safe_get(row, 'Montant', 0))
+
+            flow_type, linked_investment_id = 'other', None
+            flow_direction = 'in' if net_amount_from_releve > 0 else 'out'
+            gross_amount, net_amount, tax_amount, capital_amount, interest_amount = 0, 0, 0, 0, 0
             
-            type_mouvement = safe_get(row, 0, '')
-            date_transaction = standardize_date(safe_get(row, 1))
-            message = safe_get(row, 4, '')
-            
-            if not date_transaction:
-                continue
-            
-            # Parsing montant et direction
-            montant_str = safe_get(row, 3, '')
-            direction = 'in' if '+' in str(montant_str) else 'out'
-            montant_abs = clean_amount(str(montant_str).replace('+', '').replace('-', '').strip())
-            
-            # Classification
-            if 'approvisionnement' in type_mouvement.lower():
-                flow_type = 'deposit'
-                gross_amount = montant_abs
-                net_amount = -montant_abs  # Sortie argent frais
-                tax_amount = 0.0
-            
-            elif 'transfert' in type_mouvement.lower():
-                # Analyser le message pour distinguer investissement vs remboursement
-                if any(keyword in message.lower() for keyword in ['investissement', 'souscription']):
+            lookup_key = self._normalize_homunity_key(promoter, message)
+            investment = investment_map.get(lookup_key)
+
+            if 'transfert' in move_type:
+                net_amount = abs(net_amount_from_releve)
+                if investment:
+                    linked_investment_id = investment['id']
+
+                if 'investissement' in message.lower():
                     flow_type = 'investment'
-                    gross_amount = montant_abs
-                    net_amount = -montant_abs  # Sortie
-                    tax_amount = 0.0
-                else:
-                    # Remboursement avec calcul fiscal
+                    flow_direction = 'out'
+                    gross_amount = net_amount
+                    if investment and not investment.get('investment_date'):
+                        investment['investment_date'] = transaction_date
+                        investment['signature_date'] = transaction_date
+
+                elif 'remboursement' in message.lower():
                     flow_type = 'repayment'
-                    # Note : Vous avez mentionné colonnes "Intérêt net" et "impots"
-                    # À adapter selon la structure exacte de votre fichier
-                    net_amount = montant_abs
-                    tax_amount = 0.0  # À calculer si colonnes disponibles
-                    gross_amount = net_amount + tax_amount
+                    flow_direction = 'in'
+                    schedule_key = (*lookup_key, transaction_date)
+                    schedule_details = repayment_schedule.get(schedule_key)
+
+                    if schedule_details:
+                        remb_from_schedule = schedule_details.get('remb', 0)
+                        interets_nets = schedule_details.get('interets_nets', 0)
+                        impots = schedule_details.get('impots', 0)
+
+                        tax_amount = impots
+                        interest_amount = interets_nets + impots
+                        capital_amount = remb_from_schedule - interets_nets
+                        gross_amount = remb_from_schedule + impots
+                        
+                        if abs(net_amount - remb_from_schedule) > 0.01:
+                            logging.warning(f"Incohérence de montant pour {schedule_key}: Relevé={net_amount} vs Echéancier={remb_from_schedule}")
+                    else:
+                        logging.warning(f"Aucun détail d'échéance trouvé pour la clé {schedule_key}. Le flux sera enregistré sans ventilation.")
+                        gross_amount = net_amount
+
+            elif 'retrait' in move_type:
+                flow_type = 'withdrawal'
+                flow_direction = 'out'
+                net_amount = abs(net_amount_from_releve)
+                gross_amount = net_amount
+            
+            elif 'approvisionnement' in move_type:
+                flow_type = 'deposit'
+                flow_direction = 'in'
+                net_amount = abs(net_amount_from_releve)
+                gross_amount = net_amount
             
             else:
-                flow_type = 'other'
-                gross_amount = montant_abs
-                net_amount = montant_abs if direction == 'in' else -montant_abs
-                tax_amount = 0.0
-            
-            flux = {
+                continue
+
+            cash_flow = {
                 'id': str(uuid.uuid4()),
+                'investment_id': linked_investment_id,
                 'user_id': self.user_id,
                 'platform': 'Homunity',
-                
                 'flow_type': flow_type,
-                'flow_direction': direction,
-                
+                'flow_direction': flow_direction,
                 'gross_amount': gross_amount,
                 'net_amount': net_amount,
                 'tax_amount': tax_amount,
-                
-                'transaction_date': date_transaction,
-                'status': 'completed' if safe_get(row, 2) == 'Succès' else 'failed',
-                
+                'capital_amount': capital_amount,
+                'interest_amount': interest_amount,
+                'transaction_date': transaction_date,
+                'status': 'completed' if safe_get(row, 'Statut', '').lower() == 'succès' else 'pending',
                 'description': message,
-                
                 'created_at': datetime.now().isoformat()
             }
-            
-            flux_tresorerie.append(flux)
-        
-        return flux_tresorerie
+            cash_flows.append(cash_flow)
+
+        return cash_flows
 
     # ===== PRETUP =====
-    def _parse_pretup(self, file_path: str) -> Tuple[List[Dict], List[Dict]]:
-        """Parser PretUp avec gestion complète échéances"""
+    def _parse_pretup(self, file_path: str) -> Dict[str, List[Dict]]:
+        """
+        Parser PretUp entièrement revu pour une robustesse et une précision maximales.
+        Lit tous les onglets de données en une seule fois pour garantir la cohérence.
+        """
+        logging.info("Début du parsing PretUp avec la nouvelle méthode robuste.")
         
-        # Parser les différents onglets de projets
-        investissements = []
-        investissements.extend(self._parse_pretup_sheet(file_path, 'Projet Sains - Offres', 'active'))
-        investissements.extend(self._parse_pretup_sheet(file_path, 'Procédures - Offres', 'in_procedure'))
-        investissements.extend(self._parse_pretup_sheet(file_path, 'Perdu - Offres', 'defaulted'))
-        
-        # Parser relevé avec calcul taxes (CSG+CRDS + PF)
-        flux_tresorerie = self._parse_pretup_account(file_path)
-        
-        return investissements, flux_tresorerie
-    
-    def _parse_pretup_sheet(self, file_path: str, sheet_name: str, status: str) -> List[Dict]:
-        """Parser un onglet de projets PretUp"""
         try:
-            df = pd.read_excel(file_path, sheet_name=sheet_name)
-        except:
-            return []
-        
-        investissements = []
-        
-        for idx, row in df.iterrows():
-            if pd.isna(safe_get(row, 0)) or safe_get(row, 0) in ["Nom du Projet", "TOTAUX :"]:
-                continue
+            # 1. Charger toutes les données pertinentes en une seule fois
+            all_data = self._load_all_pretup_sheets(file_path)
             
-            # Montants offre et capital restant
-            montant_offre = clean_amount(safe_get(row, 3, 0))
-            capital_restant = clean_amount(safe_get(row, 4, 0))
+            # 2. Extraire les informations de base sur les projets
+            investments = self._extract_pretup_projects(all_data)
             
-            investissement = {
+            # 3. Enrichir les projets avec les dates et statuts depuis les échéanciers et le relevé
+            self._enrich_pretup_projects(investments, all_data)
+            
+            # 4. Parser le relevé de compte pour les flux de trésorerie
+            cash_flows = self._parse_pretup_account(all_data['releve'], investments)
+            
+            # 5. Extraire le solde de liquidités
+            liquidity_balance = self._extract_pretup_liquidity(all_data['releve'])
+
+            logging.info(f"Parsing PretUp terminé avec succès. {len(investments)} investissements et {len(cash_flows)} flux trouvés.")
+            
+            return {
+                "investments": investments,
+                "cash_flows": cash_flows,
+                "portfolio_positions": [],
+                "liquidity_balances": [liquidity_balance] if liquidity_balance else []
+            }
+
+        except Exception as e:
+            logging.exception("Erreur critique lors du parsing de PretUp.")
+            return {"investments": [], "cash_flows": [], "portfolio_positions": [], "liquidity_balances": []}
+
+    def _load_all_pretup_sheets(self, file_path: str) -> Dict[str, pd.DataFrame]:
+        """
+        Charge tous les onglets nécessaires du fichier PretUp de manière robuste.
+        Tente de trouver une correspondance même avec de légères variations de nom.
+        """
+        all_data = {}
+        try:
+            xls = pd.ExcelFile(file_path)
+            actual_sheet_names = xls.sheet_names
+            logging.info(f"Onglets détectés dans le fichier : {actual_sheet_names}")
+        except Exception as e:
+            logging.error(f"Impossible de lire les noms d'onglets du fichier Excel : {e}")
+            # Fallback au cas où la lecture des noms d'onglets échoue
+            for key in PRETUP_SHEET_NAMES:
+                all_data[key] = pd.DataFrame()
+            return all_data
+
+        # Normalise les noms pour la correspondance (minuscules, sans espaces superflus)
+        normalized_actual_names = {name.strip().lower(): name for name in actual_sheet_names}
+
+        for key, expected_name in PRETUP_SHEET_NAMES.items():
+            normalized_expected = expected_name.strip().lower()
+            
+            # Tente de trouver une correspondance exacte (après normalisation)
+            found_name = normalized_actual_names.get(normalized_expected)
+
+            if found_name:
+                try:
+                    all_data[key] = pd.read_excel(xls, sheet_name=found_name)
+                    logging.info(f"Onglet '{found_name}' (attendu: '{expected_name}') chargé avec succès.")
+                except Exception as e:
+                    logging.warning(f"L'onglet '{found_name}' a été trouvé mais n'a pas pu être chargé. Erreur: {e}. Il sera ignoré.")
+                    all_data[key] = pd.DataFrame()
+            else:
+                logging.warning(f"L'onglet attendu '{expected_name}' n'a pas été trouvé dans le fichier. Il sera ignoré.")
+                all_data[key] = pd.DataFrame()
+                
+        return all_data
+
+    def _extract_pretup_projects(self, all_data: Dict[str, pd.DataFrame]) -> List[Dict]:
+        """Extrait et normalise les projets depuis chaque onglet d'offres en utilisant les en-têtes de colonnes fournis."""
+        investments_data = []
+
+        # Fonction interne pour traiter une ligne et éviter la répétition de code
+        def process_row(row, status, capital_col_name):
+            project_name = safe_get(row, 'Nom du Projet')
+            if pd.isna(project_name) or "TOTAUX" in str(project_name):
+                return None
+
+            invested_amount = clean_amount(safe_get(row, 'Montant Offre', 0))
+            remaining_capital = clean_amount(safe_get(row, capital_col_name, 0))
+            capital_repaid = invested_amount - remaining_capital
+
+            return {
+                'platform_id': str(safe_get(row, 'Numéro Offre', '')),
+                'project_name': project_name,
+                'company_name': safe_get(row, 'Entreprise'),
+                'invested_amount': invested_amount,
+                'remaining_capital': remaining_capital,
+                'capital_repaid': capital_repaid,
+                'status': status
+            }
+
+        # Traitement des différents onglets d'offres
+        tabs_to_process = {
+            'offres_sains': ('active', 'Capital Restant dû sain'),
+            'offres_procedures': ('in_procedure', 'Capital Restant dû'),
+            'offres_perdus': ('defaulted', 'Capital Restant dû')
+        }
+
+        for tab_key, (status, capital_col) in tabs_to_process.items():
+            df = all_data.get(tab_key, pd.DataFrame())
+            if not df.empty:
+                for _, row in df.iterrows():
+                    data = process_row(row, status, capital_col)
+                    if data:
+                        investments_data.append(data)
+
+        # Création finale des objets investissements
+        investments = []
+        for data in investments_data:
+            investment = {
                 'id': str(uuid.uuid4()),
                 'user_id': self.user_id,
                 'platform': 'PretUp',
-                'platform_id': str(safe_get(row, 2, '')),
                 'investment_type': 'crowdfunding',
-                'asset_class': 'real_estate',
-                
-                'project_name': safe_get(row, 0, ''),
-                'company_name': safe_get(row, 1, ''),
-                
-                'invested_amount': montant_offre,
-                'remaining_capital': capital_restant,
-                'capital_repaid': montant_offre - capital_restant,
-                
-                'status': status,
-                'investment_date': "2022-08-01",  # À affiner avec relevé
-                
+                'asset_class': 'fixed_income',
+                'investment_date': None,
+                'signature_date': None,
+                'expected_end_date': None,
+                'actual_end_date': None,
                 'created_at': datetime.now().isoformat(),
-                'updated_at': datetime.now().isoformat()
+                'updated_at': datetime.now().isoformat(),
+                **data
             }
+            investments.append(investment)
             
-            investissements.append(investissement)
-        
-        return investissements
+        return investments
+
+    def _enrich_pretup_projects(self, investments: List[Dict], all_data: Dict[str, pd.DataFrame]):
+        """Enrichit les projets avec les dates de début et de fin, et gère les statuts 'completed' et 'delayed'."""
+        investment_map = {inv['platform_id']: inv for inv in investments}
+
+        # 1. Extraire les dates depuis les échéanciers
+        all_echeances_df = pd.concat([
+            all_data.get('echeances_sains', pd.DataFrame()),
+            all_data.get('echeances_procedures', pd.DataFrame()),
+            all_data.get('echeances_perdus', pd.DataFrame())
+        ], ignore_index=True)
+
+        if not all_echeances_df.empty:
+            all_echeances_df.columns = [str(c).strip() for c in all_echeances_df.columns]
+            all_echeances_df['Date Encaissement'] = pd.to_datetime(all_echeances_df['Date Encaissement'], dayfirst=True, errors='coerce')
+            all_echeances_df = all_echeances_df.sort_values(by=['Numéro Offre', 'Date Encaissement'])
+            
+            schedule_dates = all_echeances_df.groupby('Numéro Offre')['Date Encaissement'].agg(['min', 'max']).to_dict('index')
+
+            for platform_id, dates in schedule_dates.items():
+                str_platform_id = str(platform_id)
+                if str_platform_id in investment_map:
+                    inv = investment_map[str_platform_id]
+                    inv['signature_date'] = dates['min'].strftime('%Y-%m-%d') if pd.notna(dates['min']) else None
+                    inv['expected_end_date'] = dates['max'].strftime('%Y-%m-%d') if pd.notna(dates['max']) else None
+
+        # 2. Affiner le statut final pour les projets qui ne sont pas déjà en défaut ou en procédure
+        for inv in investments:
+            # Ne pas modifier les statuts déjà fixés comme 'in_procedure' ou 'defaulted'
+            if inv['status'] in ['in_procedure', 'defaulted']:
+                continue
+
+            # Si le capital restant est nul, le projet est complété
+            if inv.get('remaining_capital', 0) <= 0.01:
+                inv['status'] = 'completed'
+                if not inv.get('actual_end_date') and inv.get('expected_end_date'):
+                    inv['actual_end_date'] = inv['expected_end_date']
+            
+            # Si le projet est toujours actif mais que la date de fin est passée, il est en retard
+            elif inv['status'] == 'active' and inv.get('expected_end_date'):
+                try:
+                    expected_end = datetime.strptime(inv['expected_end_date'], '%Y-%m-%d')
+                    if expected_end.date() < datetime.now().date():
+                        inv['status'] = 'delayed'
+                except (ValueError, TypeError):
+                    pass
+
+
     
-    def _parse_pretup_account(self, file_path: str) -> List[Dict]:
-        """Parser relevé PretUp avec gestion taxes complète"""
-        try:
-            df = pd.read_excel(file_path, sheet_name='Relevé compte')
-        except:
+
+    def _parse_pretup_account(self, df: pd.DataFrame, investments: List[Dict]) -> List[Dict]:
+        """Parse le relevé de compte PretUp pour créer les flux et lier aux investissements de manière robuste."""
+        if df.empty:
             return []
-        
-        flux_tresorerie = []
-        
-        for idx, row in df.iterrows():
-            if pd.isna(safe_get(row, 0)) or safe_get(row, 0) == "Date":
+
+        cash_flows = []
+        investment_map_by_id = {inv['platform_id']: inv for inv in investments}
+
+        for _, row in df.iterrows():
+            date_str = safe_get(row, 'Date')
+            if pd.isna(date_str) or "Date" in str(date_str):
                 continue
-            
-            # Parser date PretUp
-            date_transaction = self._parse_pretup_date(safe_get(row, 0, ''))
-            if not date_transaction:
+
+            transaction_date = self._parse_pretup_date(date_str)
+            if not transaction_date:
                 continue
+
+            type_transaction_raw = safe_get(row, 'Type', '')
+            type_transaction = normalize_text(type_transaction_raw)
+            logging.debug(f"PretUp: Traitement ligne. Type brut: '{type_transaction_raw}', Type normalisé: '{type_transaction}'")
+
+            status = safe_get(row, 'Statut', '')
+            description = safe_get(row, 'Libellé', '')
+            normalized_description = normalize_text(description)
             
-            type_transaction = safe_get(row, 1, '')
-            statut = safe_get(row, 6, '')
-            
-            # Ignorer les transactions non abouties
-            if 'Non abouti' in statut:
+            if 'non abouti' in normalize_text(status):
+                logging.info(f"PretUp: Ligne ignorée car statut 'Non abouti': '{status}'")
                 continue
+
+            debit = clean_amount(safe_get(row, 'Débit', 0))
+            credit = clean_amount(safe_get(row, 'Crédit', 0))
             
-            # Parsing montants
-            debit = clean_amount(safe_get(row, 4, 0))
-            credit = clean_amount(safe_get(row, 5, 0))
+            flow_type, flow_direction, gross_amount, net_amount, tax_amount = 'other', 'in', 0, 0, 0
             
-            # Classification et calcul fiscal
-            if 'Echéance' in type_transaction:
-                # Échéance avec taxes flat tax 30%
-                gross_amount = clean_amount(safe_get(row, 7, 0))  # Montant échéance
-                net_amount = clean_amount(safe_get(row, 13, 0))   # Intérêts net
+            # --- Logique de liaison flexible ---
+            linked_investment_id = None
+            linked_investment = None
+
+            # 1. Essayer de lier via l'ID de l'offre (le plus fiable)
+            platform_id_match = re.search(r'Offre n°(\d+)', description)
+            if platform_id_match:
+                platform_id = platform_id_match.group(1)
+                linked_investment = investment_map_by_id.get(platform_id)
+
+            # 2. Si échec, chercher par inclusion du nom de l'entreprise et du projet
+            if not linked_investment:
+                for inv in investments:
+                    norm_company = normalize_text(inv['company_name'])
+                    norm_project = normalize_text(inv['project_name'])
+                    
+                    # Vérifier que les deux sont présents et non vides
+                    if norm_company and norm_project and norm_company in normalized_description and norm_project in normalized_description:
+                        linked_investment = inv
+                        break # On a trouvé une correspondance
+
+            if linked_investment:
+                linked_investment_id = linked_investment['id']
+
+            # --- Classification et calcul des montants ---
+            if 'echance' in type_transaction:
+                flow_type, flow_direction = 'repayment', 'in'
                 
-                # Taxes = CSG/CRDS + PF
-                csg_crds = clean_amount(safe_get(row, 11, 0))
-                pf = clean_amount(safe_get(row, 12, 0))
-                tax_amount = csg_crds + pf
+                gross_amount = clean_amount(safe_get(row, 'Montant échéance', 0))
+                capital_amount = clean_amount(safe_get(row, 'Part de Capital', 0))
+                interest_amount = clean_amount(safe_get(row, 'Part Intérêts Bruts', 0))
+                tax_amount = clean_amount(safe_get(row, 'Retenue à la source (Cotisations sociales)', 0)) + \
+                             clean_amount(safe_get(row, 'Retenue à la source (Prélèvement forfaitaire)', 0))
+                net_amount = clean_amount(safe_get(row, 'Intérêts nets', 0)) + capital_amount
                 
-                flow_type = 'repayment'
-                flow_direction = 'in'
-                final_amount = net_amount
-            
-            elif 'Remboursement anticipé' in type_transaction:
-                # Remboursement sans taxes
+            elif 'remboursement anticip' in type_transaction:
+                flow_type, flow_direction = 'repayment', 'in'
                 gross_amount = credit
                 net_amount = credit
+                interest_amount = 0.0
                 tax_amount = 0.0
-                flow_type = 'repayment'
-                flow_direction = 'in'
-                final_amount = net_amount
-            
-            elif 'Alimentation' in type_transaction:
-                # Argent frais
+                # Mettre à jour la date de fin réelle et le statut de l'investissement
+                if linked_investment:
+                    linked_investment['actual_end_date'] = transaction_date
+                    linked_investment['status'] = 'completed'
+                    logging.info(f"Projet {linked_investment['project_name']}: Remboursement anticipé détecté. actual_end_date = {transaction_date}, statut = completed.")
+                
+            elif 'alimentation' in type_transaction:
+                flow_type, flow_direction = 'deposit', 'in'
                 gross_amount = credit
-                net_amount = -credit  # Sortie
-                tax_amount = 0.0
-                flow_type = 'deposit'
-                flow_direction = 'in'
-                final_amount = net_amount
-            
-            elif 'Offre' in type_transaction:
-                # Investissement
+                net_amount = credit
+                
+            elif 'offre' in type_transaction:
+                flow_type, flow_direction = 'investment', 'out'
                 gross_amount = debit
-                net_amount = -debit  # Sortie
-                tax_amount = 0.0
-                flow_type = 'investment'
-                flow_direction = 'out'
-                final_amount = net_amount
-            
+                net_amount = -debit
+                capital_amount = 0.0  # Doit être vide pour un investissement
+                interest_amount = 0.0 # Doit être vide pour un investissement
+                tax_amount = 0.0      # Doit être vide pour un investissement
+                if linked_investment and linked_investment.get('investment_date') is None:
+                    linked_investment['investment_date'] = transaction_date
+                    logging.info(f"Date d'investissement mise à jour pour {linked_investment['project_name']} -> {transaction_date}")
             else:
                 continue
-            
-            flux = {
+
+            cash_flow = {
                 'id': str(uuid.uuid4()),
+                'investment_id': linked_investment_id,
                 'user_id': self.user_id,
                 'platform': 'PretUp',
-                
                 'flow_type': flow_type,
                 'flow_direction': flow_direction,
-                
-                'gross_amount': gross_amount,
-                'net_amount': final_amount,
+                'gross_amount': abs(gross_amount),
+                'net_amount': net_amount,
                 'tax_amount': tax_amount,
-                
-                'capital_amount': clean_amount(safe_get(row, 9, 0)),
-                'interest_amount': clean_amount(safe_get(row, 13, 0)),
-                
-                'transaction_date': date_transaction,
+                'capital_amount': capital_amount,
+                'interest_amount': interest_amount,
+                'transaction_date': transaction_date,
                 'status': 'completed',
-                
-                'description': safe_get(row, 3, ''),
-                
+                'description': description,
                 'created_at': datetime.now().isoformat()
             }
+            cash_flows.append(cash_flow)
+                
+        return cash_flows
+
+    def _extract_pretup_liquidity(self, df: pd.DataFrame) -> Optional[Dict]:
+        """Extrait le solde de liquidités le plus récent du relevé de compte."""
+        if df.empty:
+            return None
             
-            flux_tresorerie.append(flux)
-        
-        return flux_tresorerie
+        for _, row in df.iloc[::-1].iterrows():
+            date_str = safe_get(row, 'Date')
+            if pd.isna(date_str):
+                continue
+                
+            transaction_date = self._parse_pretup_date(date_str)
+            if not transaction_date:
+                continue
+
+            balance = safe_get(row, 'Solde')
+            if pd.notna(balance):
+                return {
+                    'id': str(uuid.uuid4()),
+                    'user_id': self.user_id,
+                    'platform': 'PretUp',
+                    'balance_date': transaction_date,
+                    'amount': clean_amount(balance)
+                }
+        return None
 
     # ===== ASSURANCE VIE =====
-    def _parse_assurance_vie(self, file_path: str) -> Tuple[List[Dict], List[Dict]]:
+    def _parse_assurance_vie(self, file_path: str) -> Dict[str, List[Dict]]:
         """Parser Assurance Vie ultra-robuste contre les erreurs de type"""
         
         try:
             df = pd.read_excel(file_path, sheet_name='Relevé compte')
         except Exception as e:
-            print(f"❌ Impossible de lire l'assurance vie: {e}")
-            
-            # Essayer d'autres noms d'onglets possibles
+            logging.warning(f"Impossible de lire l'onglet 'Relevé compte' pour l'assurance vie : {e}, tentative avec le premier onglet.")
             try:
                 df = pd.read_excel(file_path, sheet_name=0)  # Premier onglet
-                print("✅ Utilisation du premier onglet comme fallback")
-            except:
-                print("❌ Impossible de lire le fichier d'assurance vie")
-                return [], []
+                logging.info("Lecture du premier onglet réussie.")
+            except Exception as e_fallback:
+                logging.error(f"Impossible de lire le fichier d'assurance vie {file_path}. Erreur : {e_fallback}", exc_info=True)
+                return {
+                    "investments": [],
+                    "cash_flows": [],
+                    "portfolio_positions": [],
+                    "liquidity_balances": []
+                }
         
         flux_tresorerie = []
-        
-        print(f"📊 Lecture assurance vie: {len(df)} lignes trouvées")
+        logging.info(f"Lecture du fichier d'assurance vie : {len(df)} lignes trouvées")
         
         for idx, row in df.iterrows():
             try:
@@ -676,19 +1266,16 @@ class UnifiedPortfolioParser:
                 type_operation_raw = safe_get(row, 1, '')
                 type_operation = str(type_operation_raw).lower() if type_operation_raw is not None else ''
                 
-                # Debug pour comprendre le contenu
-                if idx < 3:  # Afficher les 3 premières lignes pour debug
-                    print(f"  Ligne {idx}: Date={date_raw}, Type={type_operation_raw} -> '{type_operation}'")
+                logging.debug(f"Ligne {idx}: Date={date_raw}, Type={type_operation_raw} -> '{type_operation}'")
                 
                 date_transaction = standardize_date(date_raw)
                 montant = clean_amount(safe_get(row, 2, 0))
-                
                 if not date_transaction:
-                    print(f"  ⚠️  Ligne {idx}: Date invalide '{date_raw}'")
+                    logging.warning(f"Ligne {idx}: Date invalide '{date_raw}', ligne ignorée.")
                     continue
                     
                 if montant == 0:
-                    print(f"  ⚠️  Ligne {idx}: Montant nul")
+                    logging.info(f"Montant nul, ligne ignorée.")
                     continue
                 
                 # Classification avec gestion des cas numériques
@@ -711,7 +1298,7 @@ class UnifiedPortfolioParser:
                 elif any(keyword in type_operation for keyword in ['versement', 'depot', 'apport']):
                     flow_type = 'deposit'
                     flow_direction = 'in'
-                    net_amount = -abs(montant)
+                    net_amount = abs(montant)
                     
                 elif type_operation.isdigit():
                     # Cas où c'est juste un code numérique
@@ -735,7 +1322,7 @@ class UnifiedPortfolioParser:
                     'flow_direction': flow_direction,
                     
                     'gross_amount': abs(montant),
-                    'net_amount': net_amount,
+                    'net_amount': montant, # Le montant a déjà le bon signe
                     'tax_amount': 0.0,
                     
                     'transaction_date': date_transaction,
@@ -748,123 +1335,77 @@ class UnifiedPortfolioParser:
                 
                 flux_tresorerie.append(flux)
                 
-            except Exception as e:
-                print(f"  ❌ Erreur ligne {idx}: {e}")
+            except Exception:
+                logging.exception(f"Erreur inattendue lors du traitement de la ligne {idx} du fichier d'assurance vie.")
                 continue
         
-        print(f"✅ Assurance Vie parsed: {len(flux_tresorerie)} flux extraits")
+        logging.info(f"Parsing de l'assurance vie terminé : {len(flux_tresorerie)} flux extraits.")
         
-        return [], flux_tresorerie
+        return {
+            "investments": [],
+            "cash_flows": flux_tresorerie,
+            "portfolio_positions": [],
+            "liquidity_balances": []
+        }
 
     # ===== PEA =====
-    def _parse_pea(self, releve_path: str = None, evaluation_path: str = None) -> Tuple[List[Dict], List[Dict]]:
-        """Parser PEA avec gestion multi-fichiers et portfolio_positions"""
-        
-        investments = []
+    def _parse_pea(self, releve_paths: Optional[List[str]] = None, evaluation_paths: Optional[List[str]] = None) -> Dict[str, List[Dict]]:
+        """
+        [CORRIGÉ] Parser PEA avec gestion multi-fichiers et portfolio_positions.
+        Accepte des listes de chemins de fichiers pour un contrôle externe.
+        """
+        investments: List[Dict] = []
         cash_flows = []
         all_portfolio_positions = []
-        
-        # Parser relevé (transactions → cash_flows)
-        if releve_path and os.path.exists(releve_path):
-            print("📄 Parsing relevé PEA vers cash_flows...")
-            cash_flows = self._parse_pea_releve(releve_path)
-        
-        # NOUVEAU : Parser TOUS les fichiers d'évaluation PEA
-        evaluation_files = self._find_all_pea_evaluation_files()
-        
-        for eval_file in evaluation_files:
-            print(f"📊 Parsing évaluation PEA: {eval_file}")
-            positions = self._parse_pea_evaluation_single_file(eval_file)
-            all_portfolio_positions.extend(positions)
-        
-        # Si un seul fichier spécifié, l'utiliser aussi
-        if evaluation_path and os.path.exists(evaluation_path) and evaluation_path not in evaluation_files:
-            print(f"📊 Parsing évaluation PEA spécifiée: {evaluation_path}")
-            positions = self._parse_pea_evaluation_single_file(evaluation_path)
-            all_portfolio_positions.extend(positions)
-        
+
+        # Parser relevés (transactions → cash_flows)
+        if releve_paths:
+            for releve_path in releve_paths:
+                if os.path.exists(releve_path):
+                    logging.info(f"Début du parsing du relevé PEA : {releve_path}")
+                    cash_flows.extend(self._parse_pea_releve(releve_path))
+                else:
+                    logging.warning(f"Fichier de relevé PEA non trouvé : {releve_path}")
+
+        # Parser fichiers d'évaluation PEA
+        if evaluation_paths:
+            for eval_file in evaluation_paths:
+                if os.path.exists(eval_file):
+                    logging.info(f"Début du parsing de l'évaluation PEA : {eval_file}")
+                    positions = self._parse_pea_evaluation(eval_file)
+                    all_portfolio_positions.extend(positions)
+                else:
+                    logging.warning(f"Fichier d'évaluation PEA non trouvé : {eval_file}")
+
         # Stocker toutes les positions pour insertion séparée
         self.pea_portfolio_positions = all_portfolio_positions
-        
-        print(f"✅ Total positions PEA: {len(all_portfolio_positions)} sur {len(evaluation_files)} fichiers")
-        
-        return investments, cash_flows
+        self.pea_liquidity_balance = None # Initialiser la liquidité PEA
+        self.pretup_liquidity_balance = None # Initialiser la liquidité PretUp
 
-    def _find_all_pea_evaluation_files(self) -> List[str]:
-        """ Trouver tous les fichiers d'évaluation PEA """
-        evaluation_files = []
-        
-        # Chercher dans le répertoire courant et data/raw/pea/
-        search_dirs = ['.', 'data/raw/pea']
-        
-        for search_dir in search_dirs:
-            if not os.path.exists(search_dir):
-                continue
-                
-            for file in os.listdir(search_dir):
-                file_lower = file.lower()
-                file_path = os.path.join(search_dir, file)
-                
-                # Critères pour fichiers d'évaluation PEA
-                if (file_lower.endswith('.pdf') and 
-                    'pea' in file_lower and
-                    any(keyword in file_lower for keyword in ['evaluation', 'portefeuille', 'positions', 'janvier', 'février','mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'])):
-                    
-                    evaluation_files.append(file_path)
-                    print(f"  📄 Fichier évaluation trouvé: {file}")
-        
-        return evaluation_files
+        return {
+            "investments": investments,
+            "cash_flows": cash_flows,
+            "portfolio_positions": all_portfolio_positions,
+            "liquidity_balances": [self.pea_liquidity_balance] if self.pea_liquidity_balance else []
+        }
 
-    def _parse_pea_evaluation_single_file(self, pdf_path: str) -> List[Dict]:
-        """
-        NOUVEAU : Parser un seul fichier d'évaluation avec extraction de date
-        """
-        positions = []
-        
-        # Extraire date de valorisation du nom de fichier ou contenu
-        valuation_date = self._extract_valuation_date(pdf_path)
-        
-        print(f"📊 Parsing {pdf_path} - Date: {valuation_date}")
-        
-        with pdfplumber.open(pdf_path) as pdf:
-            for page_num, page in enumerate(pdf.pages):
-                print(f"  📖 Page {page_num + 1}...")
-                
-                tables = page.extract_tables()
-                
-                if tables:
-                    for table_idx, table in enumerate(tables):
-                        if table and len(table) > 1:
-                            # Vérifier si c'est un tableau de positions
-                            has_isin = any(re.search(r'[A-Z]{2}[A-Z0-9]{10}', str(cell)) 
-                                        for row in table[:3] for cell in row if cell)
-                            
-                            if has_isin:
-                                print(f"    ✅ Tableau de positions détecté")
-                                extracted_positions = self._parse_pea_positions_with_date(table, valuation_date)
-                                positions.extend(extracted_positions)
-        
-        print(f"✅ Fichier {os.path.basename(pdf_path)}: {len(positions)} positions")
-        return positions
+    
 
-    def _extract_valuation_date(self, file_path: str = None, text: str = None) -> str:
-        """
-        Extraire date de valorisation depuis nom fichier ou contenu
-        """
+    def _extract_valuation_date(self, file_path: Optional[str] = None, text: Optional[str] = None) -> Optional[str]:
+        """Extraire date de valorisation depuis nom fichier ou contenu"""
         
-        print(f"🔍 extract_valuation_date appelée:")
-        print(f"   file_path: {file_path}")
-        print(f"   text fourni: {'Oui' if text else 'Non'}")
+        logging.debug(f"Tentative d'extraction de la date de valorisation depuis le fichier : {file_path}")
         
         # Priorité 1 : Nom du fichier
         if file_path:
             filename = os.path.basename(file_path).lower()
-            print(f"🔍 Nom fichier: {filename}")
+            logging.debug(f"Nom du fichier pour l'extraction de la date : {filename}")
             
             # Patterns pour différents formats
             patterns = [
                 r'(?:evaluation|portefeuille)_(\w+)_(\d{4})',
                 r'positions_(\w+)_(\d{4})',
+                r'pea_(\d{4})(\d{2})', # Nouveau pattern pour YYYYMM
                 r'(\d{4})[_-](\d{2})[_-]',
                 r'(\d{4})[_-](\w+)[_-]',
                 r'pea_(\d{4})_(\w+)',
@@ -875,10 +1416,29 @@ class UnifiedPortfolioParser:
             for pattern_idx, pattern in enumerate(patterns):
                 match = re.search(pattern, filename)
                 if match:
-                    print(f"   ✅ Pattern {pattern_idx} match: {match.groups()}")
+                    logging.debug(f"Pattern de date trouvé #{pattern_idx}: {match.groups()}")
                     
                     try:
                         group1, group2 = match.groups()
+                        
+                        # Cas YYYYMM (ex: pea_202312)
+                        if pattern_idx == 2: # Index du nouveau pattern r'pea_(\d{4})(\d{2})'
+                            annee = int(group1)
+                            mois_num = int(group2)
+                            if 1 <= mois_num <= 12:
+                                if mois_num == 2:
+                                    last_day = 29 if annee % 4 == 0 else 28
+                                elif mois_num in [4, 6, 9, 11]:
+                                    last_day = 30
+                                else:
+                                    last_day = 31
+                                date_obj = datetime(annee, mois_num, last_day)
+                                date_result = date_obj.strftime('%Y-%m-%d')
+                                logging.info(f"Date de valorisation extraite du nom de fichier (YYYYMM) : {date_result}")
+                                return date_result
+                            else:
+                                logging.warning(f"Mois invalide dans le nom de fichier (YYYYMM): {mois_num}")
+                                continue
                         
                         # Cas mois_année
                         if group2.isdigit() and len(group2) == 4:
@@ -913,16 +1473,16 @@ class UnifiedPortfolioParser:
                                 
                                 date_obj = datetime(annee, mois_num, last_day)
                                 date_result = date_obj.strftime('%Y-%m-%d')
-                                print(f"   ✅ Date extraite: {date_result}")
+                                logging.info(f"Date de valorisation extraite du nom de fichier : {date_result}")
                                 return date_result
                     
-                    except Exception as e:
-                        print(f"   ❌ Erreur pattern {pattern_idx}: {e}")
+                    except Exception:
+                        logging.warning(f"Erreur lors de l'application du pattern de date #{pattern_idx}", exc_info=True)
                         continue
         
         # Priorité 2 : Contenu du fichier
         if text:
-            print(f"🔍 Recherche dans le contenu...")
+            logging.debug("Recherche de la date de valorisation dans le contenu du fichier.")
             date_patterns = [
                 r'Le (\d{2}/\d{2}/\d{4})',
                 r'le (\d{2}/\d{2}/\d{4})',
@@ -937,25 +1497,25 @@ class UnifiedPortfolioParser:
                     try:
                         date_obj = datetime.strptime(date_str, '%d/%m/%Y')
                         date_result = date_obj.strftime('%Y-%m-%d')
-                        print(f"   ✅ Date extraite du contenu: {date_result}")
+                        logging.info(f"Date de valorisation extraite du contenu du fichier : {date_result}")
                         return date_result
                     except:
                         continue
         
         # Fallback
-        print("   ⚠️  Aucune date trouvée → fallback date actuelle")
+        logging.warning("Aucune date de valorisation n'a pu être extraite, utilisation de la date actuelle.")
         return datetime.now().strftime('%Y-%m-%d')
         
-    def _parse_multiligne_synchronized(self, multiline_row: List) -> List[Dict]:
+    def _parse_multiligne_synchronized(self, multiline_row: List, pdf_path: str) -> List[Dict]:
         """ Parser multi-lignes vers portfolio_positions """
         positions = []
         
         try:
             # Extraire la date UNE FOIS avec debug
-            valuation_date = self.extract_valuation_date(
-                file_path=getattr(self, 'current_file_path', None)
+            valuation_date = self._extract_valuation_date(
+                file_path=pdf_path
             )
-            print(f"📅 Date pour toutes positions: {valuation_date}")
+            logging.info(f"Date de valorisation pour toutes les positions : {valuation_date}")
             
             # Diviser les colonnes
             designations = [d.strip() for d in str(multiline_row[0]).split('\n') if d.strip()]
@@ -964,13 +1524,30 @@ class UnifiedPortfolioParser:
             values = [v.strip() for v in str(multiline_row[3]).split('\n') if v.strip()]
             percentages = [p.strip() for p in str(multiline_row[4]).split('\n') if p.strip()]
             
-            min_length = min(len(designations), len(quantities), len(prices), len(values))
+            logging.debug(f"Lengths: designations={len(designations)}, quantities={len(quantities)}, prices={len(prices)}, values={len(values)}, percentages={len(percentages)}")
             
-            for i in range(min_length):
+            # Correction : Utiliser la longueur de la colonne des désignations comme référence
+            # et accéder aux autres colonnes de manière sécurisée.
+            for i in range(len(designations)):
                 designation = designations[i]
+                logging.debug(f"Processing designation: '{designation}' (index {i})")
+                
+                # Valeurs numériques (accès sécurisé)
+                quantity_raw = quantities[i] if i < len(quantities) else '0'
+                price_raw = prices[i] if i < len(prices) else '0'
+                value_raw = values[i] if i < len(values) else '0'
+                percentage_raw = percentages[i] if i < len(percentages) else '0'
+                
+                logging.debug(f"Raw values: Qty='{quantity_raw}', Price='{price_raw}', Value='{value_raw}', Pct='{percentage_raw}'")
+                
+                # Valeurs numériques
+                quantity = clean_amount(quantity_raw)
+                current_price = clean_amount(price_raw)
+                market_value = clean_amount(value_raw)
+                percentage = clean_amount(percentage_raw)
                 designation_upper = designation.upper()
                 
-                print(f"    🔍 Test ligne {i}: '{designation}'")
+                logging.debug(f"Test de la ligne {i}: '{designation}'")
                 
                 # Vérifier ISIN d'abord
                 isin_match = re.search(r'([A-Z]{2}[A-Z0-9]{10})', designation)
@@ -978,7 +1555,7 @@ class UnifiedPortfolioParser:
                 if isin_match:
                     # Si ISIN trouvé, c'est une vraie position
                     isin = isin_match.group(1)
-                    print(f"    ✅ ISIN trouvé: {isin} → Position valide")
+                    logging.debug(f"ISIN trouvé: {isin} → Position valide")
                     
                     # ✅ PAS de filtrage de section si ISIN présent
                     # TOTALENERGIES SE avec ISIN = position valide
@@ -990,10 +1567,10 @@ class UnifiedPortfolioParser:
                         'ACTIONS FRANCAISES', 'VALEUR EUROPE', 'DIVERS',
                         'SOUS-TOTAL', 'CUMUL'
                     ]):
-                        print(f"    ⚠️  Filtrée (section sans ISIN): {designation}")
+                        logging.info(f"Ligne filtrée (section sans ISIN): {designation}")
                         continue
                     else:
-                        print(f"    ⚠️  Filtrée (pas d'ISIN): {designation}")
+                        logging.warning(f"Ligne filtrée (pas d'ISIN): {designation}")
                         continue
                 
                 # À ce stade : on a un ISIN valide
@@ -1011,7 +1588,7 @@ class UnifiedPortfolioParser:
                 
                 # Validation
                 if quantity <= 0 and market_value <= 0:
-                    print(f"    ⚠️  Position {i} ignorée: quantité et valorisation nulles")
+                    logging.warning(f"Position {i} ignorée: quantité et valorisation nulles")
                     continue
                 
                 # Position avec date correcte
@@ -1026,134 +1603,26 @@ class UnifiedPortfolioParser:
                     'current_price': current_price,
                     'market_value': market_value,
                     'portfolio_percentage': percentage,
-                    'valuation_date': valuation_date,  # ✅ Date correcte
+                    'valuation_date': valuation_date,
                     'created_at': datetime.now().isoformat(),
                     'updated_at': datetime.now().isoformat()
                 }
                 
                 positions.append(position)
-                print(f"    ✅ Position: {isin} - {asset_name[:30]}... | {market_value}€ | {valuation_date}")
+                logging.debug(f"Position ajoutée: {isin} - {asset_name[:30]}... | {market_value}€ | {valuation_date}")
         
-        except Exception as e:
-            print(f"❌ Erreur parsing positions: {e}")
-            import traceback
-            traceback.print_exc()
+        except Exception:
+            logging.exception("Erreur critique lors du parsing des positions multi-lignes.")
         
         return positions
 
-
-    def _is_total_line(self, line: str) -> bool:
-        """
-        CORRIGÉ : Détecter les lignes de total plus précisément
-        """
-        line_clean = line.strip()
-        
-        # Si la ligne contient un ISIN, ce n'est pas un total
-        if re.search(r'[A-Z]{2}[A-Z0-9]{10}', line_clean):
-            return False
-        
-        # Ligne avec seulement des chiffres, espaces, virgules, points (totaux)
-        if re.match(r'^[\d\s,\.]+$', line_clean) and len(line_clean) > 5:
-            return True
-        
-        # Ligne contenant explicitement "TOTAL"
-        if 'TOTAL' in line_clean.upper():
-            return True
-        
-        return False
-
-    def _is_empty_or_section_value(self, value: str) -> bool:
-        """
-        NOUVEAU : Détecter si une valeur correspond à une section ou ligne vide
-        """
-        if not value or value.strip() == '':
-            return True
-        
-        # Valeurs typiques des sections (pourcentages de section)
-        if re.match(r'^\d{1,2}[,\.]\d{2}$', value.strip()):
-            # Peut être un pourcentage de section (ex: "55.40")
-            return False  # On garde car peut être valide
-        
-        # Lignes avec seulement des chiffres séparés par espaces (totaux)
-        if re.match(r'^[\d\s,\.]+$', value.strip()) and ' ' in value:
-            return True
-        
-        return False
-
-    def _parse_normal_pea_data_with_date(self, data_rows: List[List], valuation_date: str) -> List[Dict]:
-        """Parser données PEA normales avec date"""
-        positions = []
-        
-        print("📄 Parsing données normales avec date...")
-        
-        for row_idx, row in enumerate(data_rows):
-            if not row or not any(cell for cell in row):
-                continue
-            
-            try:
-                designation = str(row[0]) if len(row) > 0 else ''
-                
-                # Ignorer sections et totaux
-                if (self._is_section_header(designation) or 
-                    self._is_total_line(designation)):
-                    continue
-                
-                # Extraire ISIN
-                isin_match = re.search(r'[A-Z]{2}[A-Z0-9]{10}', designation)
-                isin = isin_match.group(0) if isin_match else None
-                
-                if not isin:
-                    continue
-                
-                # Nettoyer désignation
-                designation = self._clean_pea_designation(designation)
-                asset_name = designation.replace(isin, '').strip()
-                asset_name = re.sub(r'^\d+\s*', '', asset_name).strip()
-                
-                # Valeurs numériques
-                quantity = self._clean_french_amount(row[1]) if len(row) > 1 else 0
-                price = self._clean_french_amount(row[2]) if len(row) > 2 else 0
-                market_value = self._clean_french_amount(row[3]) if len(row) > 3 else 0
-                percentage = self._clean_french_amount(row[4]) if len(row) > 4 else 0
-                
-                # Validation
-                if quantity <= 0 and market_value <= 0:
-                    continue
-                
-                position = {
-                    'id': str(uuid.uuid4()),
-                    'user_id': self.user_id,
-                    'platform': 'PEA',
-                    
-                    'isin': isin,
-                    'asset_name': asset_name[:250],
-                    'quantity': quantity,
-                    'current_price': price,
-                    'market_value': market_value,
-                    'portfolio_percentage': percentage,
-                    
-                    'asset_class': self._classify_pea_asset(asset_name),
-                    'valuation_date': valuation_date,
-                    
-                    'created_at': datetime.now().isoformat()
-                }
-                
-                positions.append(position)
-                print(f"  ✅ Position {row_idx}: {isin} - {asset_name[:30]}...")
-                
-            except Exception as e:
-                print(f"  ❌ Erreur ligne {row_idx}: {e}")
-                continue
-        
-        return positions
+    
 
     def _parse_pea_releve(self, pdf_path: str) -> List[Dict]:
         """ Parser relevé PEA """
         flux_tresorerie = []
+        logging.info(f"Parsing du relevé PEA : {pdf_path}")
         
-        print(f"📄 Parsing relevé: {pdf_path}")
-        
-        # ✅ Stocker le chemin
         self.current_file_path = pdf_path
         
         with pdfplumber.open(pdf_path) as pdf:
@@ -1167,7 +1636,6 @@ class UnifiedPortfolioParser:
                 for line in lines:
                     line = line.strip()
                     
-                    # Pattern date au début
                     date_match = re.match(r'^(\d{2}/\d{2}/\d{4})\s+(.+)', line)
                     
                     if date_match:
@@ -1192,12 +1660,20 @@ class UnifiedPortfolioParser:
                             
                             flux_tresorerie.append(transaction_data)
         
-        print(f"✅ Relevé parsé: {len(flux_tresorerie)} transactions")
+        logging.info(f"Parsing du relevé PEA terminé : {len(flux_tresorerie)} transactions trouvées.")
         return flux_tresorerie
 
     def get_pea_portfolio_positions(self) -> List[Dict]:
         """Récupérer les positions de portefeuille PEA pour insertion séparée"""
         return getattr(self, 'pea_portfolio_positions', [])
+    
+    def get_pea_liquidity_balance(self) -> Optional[Dict]:
+        """Récupérer le solde de liquidités PEA pour insertion séparée"""
+        return getattr(self, 'pea_liquidity_balance', None)
+    
+    def get_pretup_liquidity_balance(self) -> Optional[Dict]:
+        """Récupérer le solde de liquidités PretUp pour insertion séparée"""
+        return getattr(self, 'pretup_liquidity_balance', None)
     
     def _parse_pea_transaction_line(self, line: str) -> Optional[Dict]:
         """ Extraction montants PEA """
@@ -1227,23 +1703,23 @@ class UnifiedPortfolioParser:
             flow_type = 'other'
             flow_direction = 'in'
         
-        print(f"    🔍 Ligne: {line}")
-        
+        logging.debug(f"Ligne de transaction PEA : {line}")
+    
         # Nettoyer et diviser
         cleaned = line.replace('\u00A0', ' ').replace('\t', ' ')
         words = cleaned.split()
         
-        print(f"    📦 Derniers mots: {words[-6:]}")
+        logging.debug(f"Derniers mots de la ligne : {words[-6:]}")
         
         transaction_amount = 0.0
-        
+
         # ✅ ÉTAPE 1 : Montants avec espaces - CRITÈRES STRICTS
         for i in range(len(words) - 1, 0, -1):
             if i >= 1:
                 word1 = words[i-1]  # Premier mot
                 word2 = words[i]    # Deuxième mot
                 
-                print(f"    🔍 Test combinaison: '{word1}' + '{word2}'")
+                logging.debug(f"Test de la combinaison de mots : '{word1}' + '{word2}'")
                 
                 # Critères TRÈS stricts pour éviter cours+montant
                 # Conditions pour une combinaison valide de milliers :
@@ -1265,23 +1741,23 @@ class UnifiedPortfolioParser:
                         # Validation : montant raisonnable
                         if 100 <= amount <= 999999:  # Au moins 100€ pour les milliers
                             transaction_amount = amount
-                            print(f"    ✅ TROUVÉ (milliers): {amount} de '{word1}' + '{word2}'")
+                            logging.debug(f"Montant (milliers) trouvé : {amount} à partir de '{word1}' + '{word2}'")
                             break
                         else:
-                            print(f"    ⚠️  Montant hors plage: {amount}")
+                            logging.warning(f"Montant hors plage : {amount}")
                             
-                    except Exception as e:
-                        print(f"    ❌ Erreur combinaison: {e}")
+                    except Exception:
+                        logging.error(f"Erreur lors de la combinaison des mots : '{word1}' et '{word2}'", exc_info=True)
                 else:
-                    print(f"    ❌ Critères non respectés pour combinaison")
+                    logging.debug("Critères non respectés pour la combinaison de mots.")
         
         # ✅ ÉTAPE 2 : Montants simples avec virgule (priorité élevée)
         if transaction_amount == 0:
-            print(f"    🔍 Recherche montants simples...")
+            logging.debug("Recherche de montants simples...")
             
             for word in reversed(words[-4:]):  # Les 4 derniers mots
-                if (',' in word and 
-                    not word.startswith(',') and 
+                if (',' in word and \
+                    not word.startswith(',') and \
                     not word.endswith(',') and
                     len(word) >= 3):
                     
@@ -1295,14 +1771,14 @@ class UnifiedPortfolioParser:
                             # Validation plus permissive pour les montants simples
                             if 0.01 <= amount <= 999999:
                                 transaction_amount = amount
-                                print(f"    ✅ TROUVÉ (virgule): {amount} de '{word}'")
+                                logging.debug(f"Montant (virgule) trouvé : {amount} à partir de '{word}'")
                                 break
-                    except Exception as e:
-                        print(f"    ❌ Erreur montant simple: {e}")
+                    except Exception:
+                        logging.warning(f"Erreur lors du parsing du montant simple : '{word}'", exc_info=True)
         
         # ✅ ÉTAPE 3 : Entiers (très restrictif)
         if transaction_amount == 0:
-            print(f"    🔍 Recherche entiers (restrictif)...")
+            logging.debug("Recherche d'entiers (restrictif)...")
             
             for word in reversed(words[-2:]):  # Seulement les 2 derniers
                 if word.isdigit():
@@ -1311,14 +1787,14 @@ class UnifiedPortfolioParser:
                         # Très restrictif pour éviter les cours
                         if 100 <= amount <= 999999:  # Au moins 100€
                             transaction_amount = amount
-                            print(f"    ✅ TROUVÉ (entier): {amount}")
+                            logging.debug(f"Montant (entier) trouvé : {amount}")
                             break
                     except:
                         pass
         
         # ✅ ÉTAPE 4 : Fallback clean_amount (dernier recours)
         if transaction_amount == 0:
-            print(f"    ⚠️  Fallback clean_amount...")
+            logging.debug("Utilisation de la méthode de secours clean_amount...")
             
             # Tester seulement les dernières phrases courtes
             for length in [2, 1]:
@@ -1328,90 +1804,62 @@ class UnifiedPortfolioParser:
                         amount = clean_amount(phrase)
                         if amount > 0:
                             transaction_amount = amount
-                            print(f"    ✅ Fallback: {amount} de '{phrase}'")
+                            logging.debug(f"Montant (secours) trouvé : {amount} à partir de '{phrase}'")
                             break
                     except:
                         continue
         
         if transaction_amount <= 0:
-            print(f"    ❌ ÉCHEC: {line}")
+            logging.warning(f"Échec de l'extraction du montant pour la ligne : {line}")
             return None
         
+        # Calculer les frais de transaction
+        fees = 0.0
+        # Tentative d'extraction de la quantité et du prix pour le calcul des frais
+        try:
+            # Cette logique peut être fragile, à encapsuler dans un try-except
+            qte_match = re.search(r'Qté\s*:\s*([\d,\.]+)', line)
+            cours_match = re.search(r'Cours\s*:\s*([\d,\.]+)', line)
+            if qte_match and cours_match:
+                quantity = clean_amount(qte_match.group(1))
+                unit_price = clean_amount(cours_match.group(1))
+                if quantity > 0 and unit_price > 0:
+                    theoretical_amount = quantity * unit_price
+                    # Les frais sont la différence entre le montant total et la valeur théorique
+                    calculated_fees = abs(transaction_amount - theoretical_amount)
+                    if calculated_fees < (transaction_amount * 0.1): # Plausibilité : frais < 10% du montant
+                        fees = calculated_fees
+                        logging.info(f"Frais de transaction calculés : {fees:.2f}€")
+        except Exception:
+            logging.warning(f"Impossible de calculer les frais pour la ligne : {line}")
+
         # Description nettoyée
         description = line.split('Qté :')[0].strip() if 'Qté :' in line else line.strip()
         
-        # Montants finaux
-        if flow_direction == 'out':
-            net_amount = -transaction_amount
-            gross_amount = transaction_amount
-        else:
-            net_amount = transaction_amount
-            gross_amount = transaction_amount
-        
-        print(f"    ✅ SUCCÈS: {flow_type} | {transaction_amount}€")
+        # Logique de calcul BRUT/NET basée sur la direction du flux
+        if flow_direction == 'out': # Achat, Frais
+            # Le montant total débité est le NET. Le BRUT est la valeur de l'actif.
+            # net_amount = gross_amount + tax_amount
+            net_amount = -transaction_amount # Négatif car sortie
+            gross_amount = transaction_amount - fees
+        else: # Vente, Dividende
+            # Le montant total crédité est le NET. Le BRUT est la valeur avant déduction des frais/taxes.
+            # net_amount = gross_amount - tax_amount
+            net_amount = transaction_amount # Positif car entrée
+            gross_amount = transaction_amount + fees
+
+        logging.info(f"Transaction PEA extraite : {flow_type} | Brut: {gross_amount:.2f}€, Net: {net_amount:.2f}€, Taxe: {fees:.2f}€")
         
         return {
             'flow_type': flow_type,
             'flow_direction': flow_direction,
             'gross_amount': gross_amount,
             'net_amount': net_amount,
-            'tax_amount': 0.0,
+            'tax_amount': fees,
             'description': description
         }
 
-    def _extract_pea_financial_data(self, line: str, flow_type: str) -> Tuple[float, float, float, float]:
-        """
-        CORRIGÉ : Extraction intelligente des données financières PEA
-        Gestion des montants avec espaces et format français
-        """
-        quantity = 0.0
-        unit_price = 0.0
-        transaction_amount = 0.0
-        fees = 0.0
-        
-        try:
-            # 1. Extraire quantité si présente
-            qty_match = re.search(r'Qté\s*:\s*([\d\s,\.]+)', line)
-            if qty_match:
-                quantity = self._clean_french_amount(qty_match.group(1))
-            
-            # 2. Extraire cours si présent
-            cours_match = re.search(r'Cours\s*:\s*([\d\s,\.]+)', line)
-            if cours_match:
-                unit_price = self._clean_french_amount(cours_match.group(1))
-            
-            # 3. Extraction du montant selon le type d'opération
-            if flow_type in ['purchase', 'sale']:
-                # Achat/Vente : chercher le montant final (pas le cours)
-                transaction_amount = self._extract_pea_transaction_amount_french(line, flow_type)
-                
-                # Calculer les frais si on a quantité × cours
-                if quantity > 0 and unit_price > 0:
-                    theoretical_amount = quantity * unit_price
-                    if transaction_amount > theoretical_amount:
-                        fees = transaction_amount - theoretical_amount
-                        print(f"    💰 Frais détectés: {fees:.2f}€")
-            
-            elif flow_type == 'dividend':
-                # Dividende : prendre le montant final
-                transaction_amount = self._extract_last_amount_french(line)
-            
-            elif flow_type == 'deposit':
-                # Dépôt : montant simple
-                transaction_amount = self._extract_last_amount_french(line)
-            
-            elif flow_type == 'fee':
-                # Frais/taxes : montant simple
-                transaction_amount = self._extract_last_amount_french(line)
-            
-            else:
-                # Autres : prendre le dernier montant
-                transaction_amount = self._extract_last_amount_french(line)
-        
-        except Exception as e:
-            print(f"⚠️  Erreur extraction données financières: {e}")
-        
-        return quantity, unit_price, transaction_amount, fees
+    
 
     def _clean_french_amount(self, amount_str: str) -> float:
         """ Nettoyer montant français avec gestion des espaces """
@@ -1439,127 +1887,15 @@ class UnifiedPortfolioParser:
             # Convertir en float
             return float(cleaned) if cleaned else 0.0
             
-        except Exception as e:
-            print(f"⚠️  Erreur nettoyage montant '{amount_str}': {e}")
+        except Exception:
+            logging.warning(f"Erreur lors du nettoyage du montant '{amount_str}'", exc_info=True)
             return 0.0
 
-    def _extract_last_amount_french(self, line: str) -> float:
-        """
-        NOUVEAU : Extraire le dernier montant d'une ligne en format français
-        """
-        try:
-            # Chercher tous les patterns de montants français
-            # Patterns : "1 088,41", "143,40", "1088.41", etc.
-            patterns = [
-                r'(\d{1,3}(?:\s\d{3})*),(\d{2})',  # 1 088,41
-                r'(\d+),(\d{2})',                   # 143,40
-                r'(\d+)\.(\d{2})',                  # 1088.41
-                r'(\d+)'                            # 1088
-            ]
-            
-            all_amounts = []
-            
-            for pattern in patterns:
-                matches = re.findall(pattern, line)
-                for match in matches:
-                    if isinstance(match, tuple):
-                        if len(match) == 2:
-                            # Format avec décimales
-                            integer_part = match[0].replace(' ', '')
-                            decimal_part = match[1]
-                            amount_str = f"{integer_part}.{decimal_part}"
-                        else:
-                            # Entier simple
-                            amount_str = match[0].replace(' ', '')
-                    else:
-                        # Match simple
-                        amount_str = match.replace(' ', '')
-                    
-                    try:
-                        amount = float(amount_str)
-                        if amount > 0:
-                            all_amounts.append(amount)
-                    except:
-                        continue
-            
-            # Retourner le plus gros montant (souvent le montant de transaction)
-            return max(all_amounts) if all_amounts else 0.0
-            
-        except Exception as e:
-            print(f"⚠️  Erreur extraction dernier montant: {e}")
-            return 0.0
+    
 
-    def _extract_pea_transaction_amount_french(self, line: str, flow_type: str) -> float:
-        """
-        NOUVEAU : Extraire montant transaction PEA en format français
-        Gestion spéciale pour purchase/deposit vs dividend/fee
-        """
-        try:
-            # Supprimer les parties "Cours :" et "Qté :" pour éviter confusion
-            line_cleaned = line
-            
-            # Supprimer partie cours
-            cours_match = re.search(r'Cours\s*:\s*[\d\s,\.]+', line)
-            if cours_match:
-                line_cleaned = line_cleaned.replace(cours_match.group(0), '')
-            
-            # Supprimer partie quantité  
-            qty_match = re.search(r'Qté\s*:\s*[\d\s,\.]+', line_cleaned)
-            if qty_match:
-                line_cleaned = line_cleaned.replace(qty_match.group(0), '')
-            
-            # Extraction selon type de transaction
-            if flow_type in ['purchase', 'sale']:
-                # Pour achat/vente : chercher le montant le plus important (transaction totale)
-                return self._extract_largest_amount_french(line_cleaned)
-            
-            elif flow_type in ['dividend', 'fee', 'deposit']:
-                # Pour dividende/frais/dépôt : prendre le dernier montant
-                return self._extract_last_amount_french(line_cleaned)
-            
-            else:
-                # Autres : dernier montant
-                return self._extract_last_amount_french(line_cleaned)
-        
-        except Exception as e:
-            print(f"⚠️  Erreur extraction montant transaction: {e}")
-            return 0.0
+    
 
-    def _extract_largest_amount_french(self, line: str) -> float:
-        """
-        NOUVEAU : Extraire le plus gros montant d'une ligne (pour transactions)
-        """
-        try:
-            # Chercher tous les montants français possibles
-            patterns = [
-                r'(\d{1,3}(?:\s\d{3})*),(\d{2})',  # 1 088,41
-                r'(\d+),(\d{2})',                   # 143,40  
-                r'(\d+)\.(\d{2})',                  # 1088.41
-            ]
-            
-            all_amounts = []
-            
-            for pattern in patterns:
-                matches = re.findall(pattern, line)
-                for match in matches:
-                    if len(match) == 2:
-                        integer_part = match[0].replace(' ', '')
-                        decimal_part = match[1]
-                        amount_str = f"{integer_part}.{decimal_part}"
-                        
-                        try:
-                            amount = float(amount_str)
-                            if amount > 0:
-                                all_amounts.append(amount)
-                        except:
-                            continue
-            
-            # Retourner le plus gros montant (montant de la transaction)
-            return max(all_amounts) if all_amounts else 0.0
-            
-        except Exception as e:
-            print(f"⚠️  Erreur extraction plus gros montant: {e}")
-            return 0.0
+    
 
     def _extract_pea_description(self, line: str) -> str:
         """Extraire description nettoyée"""
@@ -1568,7 +1904,7 @@ class UnifiedPortfolioParser:
         cleaned = re.sub(r'Cours\s*:\s*[\d,\.\s]+', '', cleaned)
         
         # Enlever les montants en fin
-        cleaned = re.sub(r'[\d\s,\.]+$', '', cleaned)
+        cleaned = re.sub(r'[\d\s,\.]+$\\', '', cleaned)
         
         # Nettoyer espaces
         cleaned = re.sub(r'\s+', ' ', cleaned).strip()
@@ -1579,42 +1915,80 @@ class UnifiedPortfolioParser:
         """Debug complet de la date + stockage correct"""
         positions = []
         
-        print(f"📄 Parsing évaluation: {pdf_path}")
-        
-        self.current_file_path = pdf_path
-        print(f"🔗 current_file_path stocké: {self.current_file_path}")
+        logging.info(f"Parsing de l'évaluation PEA : {pdf_path}")
         
         # Test direct extraction date
-        test_date = self.extract_valuation_date(file_path=pdf_path)
-        print(f"🧪 Test direct extraction date: {test_date}")
+        test_date = self._extract_valuation_date(file_path=pdf_path)
+        logging.debug(f"Date de valorisation extraite pour le test : {test_date}")
         
         with pdfplumber.open(pdf_path) as pdf:
             for page_num, page in enumerate(pdf.pages):
-                print(f"  📖 Page {page_num + 1}...")
+                logging.debug(f"Parsing de la page {page_num + 1}...")
                 
+                text = page.extract_text() # Définir text ici
+                if not text:
+                    continue
+
                 tables = page.extract_tables()
                 
                 if tables:
                     for table_idx, table in enumerate(tables):
                         if table and len(table) > 1:
                             # Vérifier si c'est un tableau de positions
-                            has_isin = any(re.search(r'[A-Z]{2}\d{10}', str(cell)) 
+                            has_isin = any(re.search(r'[A-Z]{2}\d{10}', str(cell)) \
                                         for row in table[:3] for cell in row if cell)
                             
                             if has_isin:
-                                print(f"    ✅ Tableau de positions détecté")
+                                logging.info(f"Tableau de positions détecté sur la page {page_num + 1}")
                                 
                                 # ✅ Vérifier que current_file_path est encore là
-                                print(f"    🔗 Avant parsing, current_file_path: {getattr(self, 'current_file_path', 'NON DÉFINI')}")
+                                logging.debug(f"Avant parsing, chemin du fichier courant : {pdf_path}")
                                 
-                                extracted_positions = self._parse_pea_positions_to_portfolio(table)
+                                extracted_positions = self._parse_pea_positions_to_portfolio(table, pdf_path)
                                 positions.extend(extracted_positions)
-        
-        print(f"✅ PEA évaluation parsée: {len(positions)} positions portfolio")
+
+                # Extraire la liquidité de la page actuelle
+                liquidity_amount = None
+                
+                # Trouver la position des mots-clés
+                liquidites_idx = text.upper().find('LIQUIDITES')
+                solde_especes_idx = text.upper().find('SOLDE ESPECES')
+
+                search_start_idx = -1
+                if liquidites_idx != -1 and (solde_especes_idx == -1 or liquidites_idx < solde_especes_idx):
+                    search_start_idx = liquidites_idx + len('LIQUIDITES')
+                elif solde_especes_idx != -1:
+                    search_start_idx = solde_especes_idx + len('SOLDE ESPECES')
+
+                if search_start_idx != -1:
+                    # Rechercher un montant après le mot-clé
+                    # Chercher un motif comme "1 234,56" ou "123.45"
+                    amount_pattern = r'([\d\s,\.]+)(?:\s*EUR)?' # EUR est optionnel
+                    
+                    # Rechercher dans le texte *après* le mot-clé
+                    amount_match = re.search(amount_pattern, text[search_start_idx:])
+                    if amount_match:
+                        raw_amount_str = amount_match.group(1)
+                        logging.debug(f"PEA Liquidity: Raw amount string extracted: '{raw_amount_str}'")
+                        liquidity_amount = clean_amount(raw_amount_str)
+                        logging.info(f"Liquidité PEA trouvée près du mot-clé: {liquidity_amount} EUR")
+
+                if liquidity_amount is not None:
+                    self.pea_liquidity_balance = {
+                        'user_id': self.user_id,
+                        'platform': 'PEA',
+                        'balance_date': test_date,
+                        'amount': liquidity_amount
+                    }
+                    logging.info(f"Liquidité PEA extraite : {liquidity_amount} EUR à la date {test_date}")
+                else:
+                    logging.warning("Aucune liquidité PEA trouvée dans le PDF d'évaluation.")
+
+        logging.info(f"Parsing de l'évaluation PEA terminé : {len(positions)} positions trouvées.")
         return positions
 
-    def _parse_pea_positions_to_portfolio(self, table: List[List]) -> List[Dict]:
-        """Parser positions PEA - APPEL CORRIGÉ"""
+    def _parse_pea_positions_to_portfolio(self, table: List[List], pdf_path: str) -> List[Dict]:
+        """Parser positions PEA"""
         positions = []
         
         if not table or len(table) < 2:
@@ -1627,48 +2001,52 @@ class UnifiedPortfolioParser:
             has_multiline = any('\n' in str(cell) for cell in first_row if cell)
             
             if has_multiline:
-                print("🔧 Données multi-lignes détectées")
-                positions = self._parse_multiligne_synchronized(first_row)
+                logging.info("Données multi-lignes détectées, utilisation du parser synchronisé.")
+                positions = self._parse_multiligne_synchronized(first_row, pdf_path)
             else:
-                print("📄 Données normales")
+                logging.info("Données normales détectées, utilisation du parser normal.")
                 positions = self._parse_normal_to_portfolio(data_rows)
         
         return positions
 
     def _is_section_header(self, designation: str) -> bool:
         """
-        Détecter si une ligne est un en-tête de section
+        Détecter si une ligne est un en-tête de section ou un total.
         RÈGLE CLEF : Si ça contient un ISIN, ce n'est PAS une section !
         """
+        logging.debug(f"_is_section_header: Input designation: '{designation}'")
+        designation_clean = designation.strip().upper()
+        logging.debug(f"_is_section_header: Cleaned designation: '{designation_clean}'")
+        
         # RÈGLE 1 : Si la ligne contient un ISIN, ce n'est PAS une section
-        if re.search(r'[A-Z]{2}[A-Z0-9]{10}', designation):
+        isin_match = re.search(r'[A-Z]{2}[A-Z0-9]{10}', designation_clean)
+        if isin_match:
+            logging.debug(f"_is_section_header: ISIN found ({isin_match.group(0)}), returning False.")
             return False
         
-        # RÈGLE 2 : Sections exactes uniquement (pas de contains)
+        # RÈGLE 2 : Sections exactes ou très spécifiques
         sections_exact = [
             'ACTIONS FRANCAISES',
             'VALEUR EUROPE', 
             'ACTIONS ETRANGERES',
-            'Divers',
+            'DIVERS',
             'LIQUIDITES',
             'OBLIGATIONS',
-            'TOTAL PORTEFEUILLE',
             'SOLDE ESPECES'
         ]
         
-        designation_clean = designation.strip().upper()
-        
-        # RÈGLE 3 : Match exact ou ligne qui commence par le nom de section
         for section in sections_exact:
-            if (designation_clean == section or 
-                designation_clean.startswith(section + ' ') or
-                designation_clean.endswith(' ' + section)):
+            if designation_clean == section or designation_clean.startswith(section + ' '):
+                logging.debug(f"_is_section_header: Matched exact section '{section}', returning True.")
                 return True
         
-        # RÈGLE 4 : Lignes avec seulement des montants (totaux de section)
-        if re.match(r'^[\d\s,\.]+$', designation_clean) and len(designation_clean) > 5:
+        # RÈGLE 3 : Lignes de totalisation (sans ISIN)
+        total_keywords = ['TOTAL PORTEFEUILLE', 'SOUS-TOTAL', 'CUMUL', 'TOTAL']
+        if any(keyword in designation_clean for keyword in total_keywords):
+            logging.debug(f"_is_section_header: Matched total keyword, returning True.")
             return True
         
+        logging.debug(f"_is_section_header: No match, returning False.")
         return False
 
     def _clean_pea_designation(self, designation: str) -> str:
@@ -1718,10 +2096,13 @@ class UnifiedPortfolioParser:
     
     def _map_bienpreter_status(self, status: str) -> str:
         """Mapper statut BienPrêter"""
-        if 'en cours' in status.lower():
+        status_lower = status.lower()
+        if 'en cours' in status_lower:
             return 'active'
-        elif 'terminé' in status.lower() or 'remboursé' in status.lower():
+        elif 'terminé' in status_lower or 'remboursé' in status_lower or 'clôturé' in status_lower:
             return 'completed'
+        elif 'retard' in status_lower:
+            return 'delayed'
         else:
             return 'active'
     

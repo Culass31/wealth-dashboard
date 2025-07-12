@@ -19,6 +19,10 @@ Placez vos fichiers PDF de Bourse Direct dans ce dossier :
 - `evaluation_portefeuille_avril_2025.pdf`
 - `compte_pea_30042025.pdf`
 
+## Note sur la Stabilité du Code
+
+**IMPORTANT** : Lors de toute refactorisation ou ajout de nouvelles fonctionnalités, une attention particulière doit être portée à ne pas casser les fonctionnalités existantes qui fonctionnent correctement. La non-régression est un principe clé de ce projet.
+
 ## Chargement
 
 ```bash

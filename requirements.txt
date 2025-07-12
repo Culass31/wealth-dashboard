@@ -19,6 +19,7 @@ xlrd>=2.0.0                       # Support Excel legacy (.xls)
 pdfplumber>=0.9.0                 # Extraction PDF (PEA)
 PyPDF2>=3.0.0                     # Parser PDF alternatif
 pdfminer.six>=20221105             # Parser PDF avancé
+unidecode>=1.3.6                  # Pour la normalisation des caractères (accents, etc.)
 
 # ===== CALCULS FINANCIERS =====
 scipy>=1.11.0                     # Optimisation (TRI/XIRR)

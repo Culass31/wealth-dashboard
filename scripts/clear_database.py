@@ -1,3 +1,4 @@
+
 """
 Script pour vider la base de données de façon sécurisée
 Usage: python clear_database.py
@@ -5,32 +6,41 @@ Usage: python clear_database.py
 
 import sys
 import os
-sys.path.append(os.path.dirname(__file__))
+import logging
+
+# Configuration du logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Ajouter de la racine du project au chemin Python
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 from backend.models.database import DatabaseManager
 
 def main():
-    print("🗑️ SCRIPT DE NETTOYAGE BASE DE DONNÉES")
-    print("=" * 50)
+    logging.info("🗑️ SCRIPT DE NETTOYAGE BASE DE DONNÉES")
+    logging.info("=" * 50)
     
     try:
         db = DatabaseManager()
         
         # Test de connexion
         if not db.test_connection():
-            print("❌ Impossible de se connecter à la base de données")
+            logging.error("❌ Impossible de se connecter à la base de données")
             return
         
         # Menu interactif
         while True:
-            print("\n📋 MENU OPTIONS:")
-            print("1. 📊 Voir les statistiques de la BDD")
-            print("2. 🗑️ Supprimer TOUTES les données")
-            print("3. 👤 Supprimer un utilisateur spécifique")
-            print("4. 📄 Vider une table spécifique")
-            print("5. 🚪 Quitter")
+            logging.info("\n📋 MENU OPTIONS:")
+            logging.info("1. 📊 Voir les statistiques de la BDD")
+            logging.info("2. 🗑️ Supprimer TOUTES les données")
+            logging.info("3. 👤 Supprimer un utilisateur spécifique")
+            logging.info("4. 📄 Vider une table spécifique")
+            logging.info("5.  plateforme")
+            logging.info("6. 🚪 Quitter")
             
-            choice = input("\n🔢 Votre choix (1-5): ").strip()
+            choice = input("\n🔢 Votre choix (1-6): ").strip()
             
             if choice == "1":
                 # Statistiques
@@ -42,22 +52,22 @@ def main():
                 total = stats.get('total_records', 0)
                 
                 if total == 0:
-                    print("✅ La base de données est déjà vide !")
+                    logging.info("✅ La base de données est déjà vide !")
                     continue
                 
-                print(f"\n⚠️ ATTENTION : {total} enregistrements vont être supprimés !")
+                logging.warning(f"\n⚠️ ATTENTION : {total} enregistrements vont être supprimés !")
                 confirm = input("❓ Tapez 'SUPPRIMER' pour confirmer: ")
                 
                 if confirm == 'SUPPRIMER':
-                    print("\n🚀 Suppression en cours...")
+                    logging.info("\n🚀 Suppression en cours...")
                     success = db.clear_all_data(confirm=True)
                     
                     if success:
-                        print("🎉 Suppression terminée !")
+                        logging.info("🎉 Suppression terminée !")
                     else:
-                        print("❌ Échec de la suppression")
+                        logging.error("❌ Échec de la suppression")
                 else:
-                    print("🛑 Suppression annulée")
+                    logging.info("🛑 Suppression annulée")
             
             elif choice == "3":
                 # Supprimer un utilisateur
@@ -67,9 +77,9 @@ def main():
                     if confirm.lower() == 'oui':
                         success = db.clear_user_data(user_id)
                         if success:
-                            print(f"✅ Utilisateur {user_id} supprimé")
+                            logging.info(f"✅ Utilisateur {user_id} supprimé")
                         else:
-                            print(f"❌ Échec suppression {user_id}")
+                            logging.error(f"❌ Échec suppression {user_id}")
             
             elif choice == "4":
                 # Vider une table
@@ -79,21 +89,34 @@ def main():
                     if confirm.lower() == 'oui':
                         success = db.truncate_table(table, confirm=True)
                         if success:
-                            print(f"✅ Table {table} vidée")
+                            logging.info(f"✅ Table {table} vidée")
                         else:
-                            print(f"❌ Échec vidage {table}")
+                            logging.error(f"❌ Échec vidage {table}")
             
             elif choice == "5":
-                print("👋 Au revoir !")
+                # Supprimer par plateforme
+                user_id = input("👤 ID utilisateur pour lequel supprimer la plateforme: ").strip()
+                platform_name = input("📛 Nom de la plateforme à supprimer: ").strip()
+                if user_id and platform_name:
+                    confirm = input(f"❓ Supprimer la plateforme '{platform_name}' pour l'utilisateur {user_id} ? (oui/non): ")
+                    if confirm.lower() == 'oui':
+                        success = db.clear_platform_data(user_id, platform_name)
+                        if success:
+                            logging.info(f"✅ Données de la plateforme '{platform_name}' supprimées")
+                        else:
+                            logging.error(f"❌ Échec de la suppression pour la plateforme '{platform_name}'")
+            
+            elif choice == "6":
+                logging.info("👋 Au revoir !")
                 break
             
             else:
-                print("❌ Choix invalide")
+                logging.warning("❌ Choix invalide")
     
     except KeyboardInterrupt:
-        print("\n🛑 Interruption utilisateur")
+        logging.info("\n🛑 Interruption utilisateur")
     except Exception as e:
-        print(f"❌ Erreur: {e}")
+        logging.error(f"❌ Erreur: {e}")
 
 if __name__ == "__main__":
     main()

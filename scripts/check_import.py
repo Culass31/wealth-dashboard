@@ -5,55 +5,64 @@ Script rapide pour diagnostiquer le problème d'import clean_string_operation
 
 import sys
 import os
+import logging
+
+# Configuration du logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Ajouter de la racine du project au chemin Python
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 def quick_diagnosis():
     """Diagnostic rapide du problème"""
     
-    print("🔍 DIAGNOSTIC RAPIDE IMPORT PROBLEM")
-    print("=" * 45)
+    logging.info("🔍 DIAGNOSTIC RAPIDE IMPORT PROBLEM")
+    logging.info("=" * 45)
     
     # Test 1 : Import direct
-    print("1. Test import direct...")
+    logging.info("1. Test import direct...")
     try:
         sys.path.append(os.path.dirname(__file__))
         from backend.utils.file_helpers import clean_string_operation
-        print("   ✅ Import réussi!")
+        logging.info("   ✅ Import réussi!")
         
         # Test fonction
         result = clean_string_operation(123)
-        print(f"   ✅ Test fonction: clean_string_operation(123) = '{result}'")
+        logging.info(f"   ✅ Test fonction: clean_string_operation(123) = '{result}'")
         
     except ImportError as e:
-        print(f"   ❌ Erreur import: {e}")
+        logging.error(f"   ❌ Erreur import: {e}")
         
         # Vérifier si file_helpers existe
-        file_path = "backend/utils/file_helpers.py"
+        file_path = os.path.join(project_root, "backend", "utils", "file_helpers.py")
         if os.path.exists(file_path):
-            print(f"   📁 Fichier {file_path} existe")
+            logging.info(f"   📁 Fichier {file_path} existe")
             
             # Vérifier le contenu
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
                 
             if 'def clean_string_operation(' in content:
-                print("   ✅ Fonction clean_string_operation trouvée dans le fichier")
+                logging.info("   ✅ Fonction clean_string_operation trouvée dans le fichier")
             else:
-                print("   ❌ Fonction clean_string_operation MANQUE dans le fichier")
+                logging.error("   ❌ Fonction clean_string_operation MANQUE dans le fichier")
                 return "FUNCTION_MISSING"
         else:
-            print(f"   ❌ Fichier {file_path} introuvable")
+            logging.error(f"   ❌ Fichier {file_path} introuvable")
             return "FILE_MISSING"
         
         return "IMPORT_ERROR"
     
     except Exception as e:
-        print(f"   ❌ Autre erreur: {e}")
+        logging.error(f"   ❌ Autre erreur: {e}")
         return "OTHER_ERROR"
     
     # Test 2 : Vérifier l'import dans unified_parser
-    print("\n2. Vérification import dans unified_parser...")
+    logging.info("\n2. Vérification import dans unified_parser...")
     try:
-        parser_path = "backend/data/unified_parser.py"
+        parser_path = os.path.join(project_root, "backend", "data", "unified_parser.py")
         if os.path.exists(parser_path):
             with open(parser_path, 'r', encoding='utf-8') as f:
                 content = f.read()
@@ -62,36 +71,36 @@ def quick_diagnosis():
             lines = content.split('\n')
             import_lines = [line for line in lines if 'from backend.utils.file_helpers import' in line]
             
-            print(f"   📋 Lignes d'import trouvées:")
+            logging.info(f"   📋 Lignes d'import trouvées:")
             for line in import_lines:
-                print(f"      {line.strip()}")
+                logging.info(f"      {line.strip()}")
                 
                 if 'clean_string_operation' in line:
-                    print("      ✅ clean_string_operation est importée")
+                    logging.info("      ✅ clean_string_operation est importée")
                     return "OK"
             
-            print("   ❌ clean_string_operation N'EST PAS dans l'import")
+            logging.error("   ❌ clean_string_operation N'EST PAS dans l'import")
             return "MISSING_IN_IMPORT"
         else:
-            print(f"   ❌ Fichier {parser_path} introuvable")
+            logging.error(f"   ❌ Fichier {parser_path} introuvable")
             return "PARSER_FILE_MISSING"
             
     except Exception as e:
-        print(f"   ❌ Erreur vérification: {e}")
+        logging.error(f"   ❌ Erreur vérification: {e}")
         return "CHECK_ERROR"
 
 def provide_solution(problem_type):
     """Fournir la solution selon le problème détecté"""
     
-    print(f"\n🔧 SOLUTION POUR: {problem_type}")
-    print("=" * 45)
+    logging.info(f"\n🔧 SOLUTION POUR: {problem_type}")
+    logging.info("=" * 45)
     
     if problem_type == "FUNCTION_MISSING":
-        print("La fonction clean_string_operation manque dans file_helpers.py")
-        print("\n➤ Ajoutez cette fonction à la fin de backend/utils/file_helpers.py:")
-        print("""
+        logging.info("La fonction clean_string_operation manque dans file_helpers.py")
+        logging.info("\n➤ Ajoutez cette fonction à la fin de backend/utils/file_helpers.py:")
+        logging.info("""
 def clean_string_operation(value: Any, default: str = '') -> str:
-    \"\"\"Nettoyer une valeur pour l'utiliser comme string d'opération\"\"\"
+    """Nettoyer une valeur pour l'utiliser comme string d'opération"""
     if value is None or pd.isna(value):
         return default
     
@@ -114,25 +123,25 @@ def clean_string_operation(value: Any, default: str = '') -> str:
         """)
     
     elif problem_type == "MISSING_IN_IMPORT":
-        print("La fonction existe mais n'est pas importée.")
-        print("\n➤ Dans backend/data/unified_parser.py, modifiez la ligne d'import:")
-        print("\n# ACTUEL:")
-        print("from backend.utils.file_helpers import standardize_date, clean_amount, safe_get")
-        print("\n# MODIFIER EN:")
-        print("from backend.utils.file_helpers import standardize_date, clean_amount, safe_get, clean_string_operation")
+        logging.info("La fonction existe mais n'est pas importée.")
+        logging.info("\n➤ Dans backend/data/unified_parser.py, modifiez la ligne d'import:")
+        logging.info("\n# ACTUEL:")
+        logging.info("from backend.utils.file_helpers import standardize_date, clean_amount, safe_get")
+        logging.info("\n# MODIFIER EN:")
+        logging.info("from backend.utils.file_helpers import standardize_date, clean_amount, safe_get, clean_string_operation")
     
     elif problem_type == "OK":
-        print("L'import semble correct. Le problème est ailleurs.")
-        print("\n➤ Solutions alternatives:")
-        print("1. Redémarrer votre environnement Python")
-        print("2. Ou remplacer par une solution simple:")
-        print("   type_operation = str(type_operation_raw).lower() if type_operation_raw is not None else ''")
+        logging.info("L'import semble correct. Le problème est ailleurs.")
+        logging.info("\n➤ Solutions alternatives:")
+        logging.info("1. Redémarrer votre environnement Python")
+        logging.info("2. Ou remplacer par une solution simple:")
+        logging.info("   type_operation = str(type_operation_raw).lower() if type_operation_raw is not None else ''")
     
     else:
-        print("Problème non identifié.")
-        print("\n➤ Solution de secours:")
-        print("Remplacez dans _parse_assurance_vie:")
-        print("   type_operation = str(type_operation_raw).lower() if type_operation_raw is not None else ''")
+        logging.info("Problème non identifié.")
+        logging.info("\n➤ Solution de secours:")
+        logging.info("Remplacez dans _parse_assurance_vie:")
+        logging.info("   type_operation = str(type_operation_raw).lower() if type_operation_raw is not None else ''")
 
 def main():
     """Script principal"""
@@ -140,19 +149,19 @@ def main():
         problem_type = quick_diagnosis()
         provide_solution(problem_type)
         
-        print(f"\n🎯 ÉTAPES SUIVANTES:")
-        print(f"1. Appliquer la solution proposée")
-        print(f"2. Relancer: python load_sample_data.py")
-        print(f"3. Si problème persiste, utiliser la solution de secours")
+        logging.info(f"\n🎯 ÉTAPES SUIVANTES:")
+        logging.info(f"1. Appliquer la solution proposée")
+        logging.info(f"2. Relancer: python load_sample_data.py")
+        logging.info(f"3. Si problème persiste, utiliser la solution de secours")
         
     except Exception as e:
-        print(f"❌ Erreur diagnostic: {e}")
-        print("\n🆘 SOLUTION DE SECOURS:")
-        print("Dans backend/data/unified_parser.py, méthode _parse_assurance_vie:")
-        print("Remplacer:")
-        print("   type_operation = clean_string_operation(type_operation_raw).lower()")
-        print("Par:")
-        print("   type_operation = str(type_operation_raw).lower() if type_operation_raw is not None else ''")
+        logging.error(f"❌ Erreur diagnostic: {e}")
+        logging.info("\n🆘 SOLUTION DE SECOURS:")
+        logging.info("Dans backend/data/unified_parser.py, méthode _parse_assurance_vie:")
+        logging.info("Remplacer:")
+        logging.info("   type_operation = clean_string_operation(type_operation_raw).lower()")
+        logging.info("Par:")
+        logging.info("   type_operation = str(type_operation_raw).lower() if type_operation_raw is not None else ''")
 
 if __name__ == "__main__":
     main()
