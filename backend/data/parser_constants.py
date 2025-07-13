@@ -15,7 +15,7 @@ PRETUP_SHEET_NAMES = {
     'offres_sains': 'Projet Sains - Offres',
     'offres_procedures': 'Procédures - Offres',
     'offres_perdus': 'Perdu - Offres',
-    'echeances_sains': 'Projets Sains - Echéances',  # Corrigé avec un 's' à Projets
+    'echeances_sains': 'Projets Sains - Echéances',
     'echeances_procedures': 'Procédures - Echéances',
     'echeances_perdus': 'Perdu - Echéances',
     'releve': 'Relevé compte'
@@ -44,11 +44,11 @@ PLATFORM_MAPPING = {
 
 # LPB
 LPB_PATTERNS = {
-    'fee': [r'csg', r'crds', r'ir', r'prélèvement'],
+    'tax': [r'csg', r'crds', r'ir', r'prélèvement'],
     'deposit': [r'crédit du compte'],
     'investment': [r'souscription'],
     'withdrawal': [r'retrait de l\'épargne'],
-    'interest': [r'rémunération', r'code cadeau'],
+    'bonus': [r'rémunération', r'code cadeau'],
     'repayment': [r'remboursement mensualité'],
     'cancellation': [r'annulation']
 }

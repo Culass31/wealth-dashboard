@@ -1,4 +1,3 @@
-
 """
 Script pour charger vos données réelles
 """
@@ -18,11 +17,9 @@ if project_root not in sys.path:
 
 from backend.data.data_loader import DataLoader
 
+from scripts.config import Config
 
-
-
-
-def load_user_data_auto(user_id: str = "29dec51d-0772-4e3a-8e8f-1fece8fefe0e", data_folder: str = "data/raw", platforms: Optional[List[str]] = None):
+def load_user_data_auto(user_id: str = Config.DEFAULT_USER_ID, data_folder: str = "data/raw", platforms: Optional[List[str]] = None):
     """ Script automatique pour charger vos données, avec filtre optionnel par plateforme """
     
     logging.info("🚀 CHARGEMENT AUTOMATIQUE DONNÉES PATRIMOINE")   
@@ -65,10 +62,7 @@ def load_user_data_auto(user_id: str = "29dec51d-0772-4e3a-8e8f-1fece8fefe0e", d
     return success
 
 
-
-
-
-def clean_and_reload_data(user_id: str = "29dec51d-0772-4e3a-8e8f-1fece8fefe0e", platforms: Optional[List[str]] = None):
+def clean_and_reload_data(user_id: str = Config.DEFAULT_USER_ID, platforms: Optional[List[str]] = None):
     """Nettoyer et recharger les données, avec filtre optionnel par plateforme."""
     logging.info(f"Nettoyage et rechargement pour l'utilisateur : {user_id}")
     
@@ -101,7 +95,7 @@ def clean_and_reload_data(user_id: str = "29dec51d-0772-4e3a-8e8f-1fece8fefe0e",
         logging.error(f"❌ Erreur lors du nettoyage/rechargement : {e}", exc_info=True)
         return False
 
-def check_database_status(user_id: str = "29dec51d-0772-4e3a-8e8f-1fece8fefe0e"):
+def check_database_status(user_id: str = Config.DEFAULT_USER_ID):
     """Vérifier le statut des données en base"""
     logging.info(f"🔍 Vérification du statut de la base de données pour : {user_id}")
     
@@ -162,7 +156,7 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="Charger les données patrimoniales.")
     parser.add_argument("command", nargs='?', default="load", help="La commande à exécuter (load, clean, check). Défaut: load")
-    parser.add_argument("--user_id", default="29dec51d-0772-4e3a-8e8f-1fece8fefe0e", help="L'ID de l'utilisateur.")
+    parser.add_argument("--user_id", default=Config.DEFAULT_USER_ID, help="L'ID de l'utilisateur.")
     parser.add_argument("--platforms", nargs='+', help="Liste des plateformes à charger (ex: lpb pretup).")
 
     args = parser.parse_args()

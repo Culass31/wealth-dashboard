@@ -43,7 +43,7 @@ class InvestmentInDB(InvestmentBase):
 class CashFlowBase(BaseModel):
     user_id: UUID4
     platform: Literal['La Première Brique', 'PretUp', 'BienPrêter', 'Homunity', 'PEA', 'Assurance_Vie']
-    flow_type: Literal['deposit', 'withdrawal', 'investment', 'repayment', 'interest', 'dividend', 'fee', 'sale', 'purchase', 'adjustment', 'other']
+    flow_type: Literal['deposit', 'withdrawal', 'investment', 'repayment', 'interest', 'dividend', 'fee', 'sale', 'purchase', 'adjustment', 'other', 'tax', 'bonus']
     flow_direction: Literal['in', 'out']
     gross_amount: DecimalStr = Field(ge=0)
     transaction_date: date

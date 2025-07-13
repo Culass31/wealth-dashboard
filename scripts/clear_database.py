@@ -1,4 +1,3 @@
-
 """
 Script pour vider la base de données de façon sécurisée
 Usage: python clear_database.py

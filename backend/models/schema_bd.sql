@@ -1,5 +1,5 @@
--- ===== SCHÉMA BASE DE DONNÉES CORRIGÉ - PATRIMOINE EXPERT =====
--- Ajout colonne platform dans cash_flows + nouvelles colonnes expert
+DROP TABLE IF EXISTS investments, cash_flows, portfolio_positions, expert_metrics_cache, financial_goals, user_preferences, liquidity_balances CASCADE;
+-- ===== SCHÉMA BASE DE DONNÉES - PATRIMOINE EXPERT =====
 
 -- 1. TABLE INVESTMENTS
 CREATE TABLE IF NOT EXISTS investments (
@@ -13,8 +13,8 @@ CREATE TABLE IF NOT EXISTS investments (
     -- Informations projet/actif
     project_name VARCHAR(255),
     company_name VARCHAR(255),
-    isin VARCHAR(12),               -- Pour PEA/AV (code ISIN)
-    
+    isin VARCHAR(12),       -- Code ISIN pour PEA/AV
+
     -- Données financières
     invested_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
     annual_rate DECIMAL(5,2),       -- Taux annuel
@@ -22,7 +22,8 @@ CREATE TABLE IF NOT EXISTS investments (
     capital_repaid DECIMAL(15,2),  -- Capital remboursé
     remaining_capital DECIMAL(15,2), -- Capital restant dû
     monthly_payment DECIMAL(10,2),  -- Mensualité (pour calculs fiscaux)
-    
+    pru DECIMAL(15,2),            -- PRU (Prix de Revient Unitaire)
+
     -- Dates critiques pour TRI
     investment_date DATE,           -- Date réelle d'investissement (pour TRI)
     signature_date DATE,            -- Date signature/souscription
@@ -44,10 +45,10 @@ CREATE TABLE IF NOT EXISTS cash_flows (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     investment_id UUID REFERENCES investments(id), -- Clé étrangère (peut être NULL)
     user_id UUID NOT NULL,
-    platform VARCHAR(50) NOT NULL,  -- 🔥 AJOUTÉ: Traçabilité par plateforme
+    platform VARCHAR(50) NOT NULL,  -- Traçabilité par plateforme
     
     -- Classification du flux
-    flow_type VARCHAR(50) NOT NULL,      -- deposit, investment, repayment, interest, dividend, fee, sale, other
+    flow_type VARCHAR(50) NOT NULL,      -- deposit, investment, repayment, interest, dividend, tax, sale, other
     flow_direction VARCHAR(10) NOT NULL, -- in, out
     
     -- Montants avec gestion fiscale expert
@@ -191,7 +192,7 @@ ALTER TABLE cash_flows ADD CONSTRAINT chk_flow_direction
     CHECK (flow_direction IN ('in', 'out'));
 
 ALTER TABLE cash_flows ADD CONSTRAINT chk_flow_type 
-    CHECK (flow_type IN ('deposit', 'withdrawal', 'investment', 'repayment', 'interest', 'dividend', 'fee', 'sale', 'purchase', 'adjustment', 'other'));
+    CHECK (flow_type IN ('deposit', 'withdrawal', 'investment', 'repayment', 'interest', 'dividend', 'sale', 'purchase', 'adjustment', 'other', 'tax', 'bonus'));
 
 ALTER TABLE investments ADD CONSTRAINT chk_investment_status 
     CHECK (status IN ('active', 'completed', 'delayed', 'defaulted', 'in_procedure'));

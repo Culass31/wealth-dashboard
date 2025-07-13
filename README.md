@@ -48,10 +48,11 @@ pip install -r requirements.txt
 ```
 
 ### 2. **Configuration Base de Données**
-Créez un fichier `.env` :
+Créez un fichier `.env` à la racine de votre projet avec les informations suivantes :
 ```env
 SUPABASE_URL=your_supabase_url
 SUPABASE_KEY=your_supabase_key
+DEFAULT_USER_ID=your_user_id # Votre ID utilisateur par défaut
 ```
 
 ### 3. **Structure des Fichiers**
@@ -73,11 +74,9 @@ data/raw/
 # Lancement du dashboard Streamlit
 streamlit run frontend/dashboard.py
 
-# Note: L'ID utilisateur est actuellement codé en dur dans frontend/dashboard.py.
-# Pour une utilisation multi-utilisateurs, une authentification serait nécessaire.
-
 # Chargement des données (optionnel, si vous n'avez pas encore chargé vos données)
-python scripts/load_sample_data.py load
+# Utilisez --user_id si votre ID utilisateur est différent de celui par défaut dans .env
+python scripts/load_sample_data.py load [--user_id your_user_id] [--platforms platform1 platform2 ...]
 ```
 
 ## 📂 Structure du Projet
@@ -239,7 +238,8 @@ Le projet utilise une base de données PostgreSQL pour stocker les informations 
     *   `v_platform_summary`: Résumé des investissements par utilisateur et par plateforme (nombre d'investissements, montants investis, statuts, durée moyenne, etc.).
     *   `v_monthly_flows`: Agrégation des flux de trésorerie par mois, utilisateur, plateforme et direction du flux.
     *   `v_concentration_analysis`: Analyse de la concentration des investissements par émetteur (company_name), calculant la part en pourcentage de chaque émetteur dans le portefeuille.
-*   **Script de Migration (`DO $...$`)**: Un bloc `DO $...$` est inclus pour gérer la migration de la colonne `platform` dans la table `cash_flows`. Il vérifie si la colonne existe, l'ajoute si nécessaire, puis tente de la peupler en se basant sur `investment_id` ou la description du flux. C'est une approche robuste pour les mises à jour de schéma.
+*   **Script de Schéma (`schema_bd.sql`)**: Le fichier `backend/models/schema_bd.sql` contient le schéma complet de la base de données. Il est conçu pour créer ou mettre à jour les tables sans supprimer le schéma `public` existant, préservant ainsi les configurations comme les politiques RLS.
+*   **Politiques RLS (Row Level Security)**: Des politiques RLS sont mises en place pour assurer l'isolation des données par utilisateur. Elles doivent être configurées manuellement dans votre tableau de bord Supabase pour chaque table (`investments`, `cash_flows`, `portfolio_positions`, etc.) afin de permettre aux utilisateurs de lire et écrire uniquement leurs propres données.
 *   **Données de Test (`generate_test_data`)**: Une fonction `generate_test_data` est fournie pour insérer des données d'exemple. C'est extrêmement utile pour le développement, les tests et la démonstration de l'application.
 
 ## ⚙️ Composants Clés

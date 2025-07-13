@@ -68,7 +68,9 @@ class DataLoader:
             logging.exception(f"❌ Erreur chargement {platform_name}: {e}")
             return False
 
-    def load_pea_data(self, releve_path: str = None, evaluation_path: str = None, user_id: str = "29dec51d-0772-4e3a-8e8f-1fece8fefe0e") -> bool:
+    from scripts.config import Config
+
+def load_pea_data(self, releve_path: str = None, evaluation_path: str = None, user_id: str = Config.DEFAULT_USER_ID) -> bool:
         """ Charger PEA avec portfolio_positions """
         logging.info(f"Chargement PEA pour utilisateur: {user_id}")
         
@@ -481,7 +483,7 @@ class DataLoader:
             logging.error(f"Erreur résumé plateformes: {e}")
             return {}
 
-def load_user_data_auto(user_id: str = "29dec51d-0772-4e3a-8e8f-1fece8fefe0e", data_folder: str = "data/raw"):
+def load_user_data_auto(user_id: str = Config.DEFAULT_USER_ID, data_folder: str = "data/raw"):
     """ Script automatique pour charger toutes vos données """
     
     print("🚀 CHARGEMENT AUTOMATIQUE DONNÉES PATRIMOINE")   
@@ -520,7 +522,7 @@ def load_user_data_auto(user_id: str = "29dec51d-0772-4e3a-8e8f-1fece8fefe0e", d
 
 if __name__ == "__main__":
     import sys
-    user_id = sys.argv[1] if len(sys.argv) > 1 else "29dec51d-0772-4e3a-8e8f-1fece8fefe0e"
+    user_id = sys.argv[1] if len(sys.argv) > 1 else Config.DEFAULT_USER_ID
     data_folder = sys.argv[2] if len(sys.argv) > 2 else "data/raw"
     
     load_user_data_auto(user_id, data_folder)
