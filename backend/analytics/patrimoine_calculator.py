@@ -4,8 +4,9 @@ import pandas as pd
 from typing import Dict, List, Tuple, Any
 from datetime import datetime
 from scipy.optimize import fsolve
-import yfinance as yf
+
 import warnings
+import yfinance as yf
 
 warnings.filterwarnings('ignore', category=FutureWarning)
 
@@ -39,6 +40,10 @@ class PatrimoineCalculator:
         logging.info(f"Chargement des données pour l'utilisateur {self.user_id}...")
         self.investments_df = self.db.get_user_investments(self.user_id)
         self.cash_flows_df = self.db.get_user_cash_flows(self.user_id)
+        # Assurer que la colonne 'transaction_date' est de type datetime et gérer les erreurs
+        if not self.cash_flows_df.empty and 'transaction_date' in self.cash_flows_df.columns:
+            self.cash_flows_df['transaction_date'] = pd.to_datetime(self.cash_flows_df['transaction_date'], errors='coerce')
+            self.cash_flows_df.dropna(subset=['transaction_date'], inplace=True) # Supprimer les lignes avec dates invalides
         self.positions_df = self.db.get_portfolio_positions(self.user_id)
         self.liquidity_df = self.db.get_liquidity_balances(self.user_id)
         logging.info("Données chargées.")
@@ -46,6 +51,37 @@ class PatrimoineCalculator:
         logging.debug(f"Cash Flows DF head:\n{self.cash_flows_df.head()}")
         logging.debug(f"Positions DF head:\n{self.positions_df.head()}")
         logging.debug(f"Liquidity DF head:\n{self.liquidity_df.head()}")
+
+    def _get_benchmark_data(self, start_date: datetime, end_date: datetime, ticker: str = "IWDA.AS") -> pd.Series:
+        """
+        Récupère les données historiques d'un benchmark (ex: ETF World) via yfinance.
+        Retourne une série Pandas avec DatetimeIndex.
+        """
+        logging.info(f"Récupération des données benchmark pour {ticker} de {start_date.strftime('%Y-%m-%d')} à {end_date.strftime('%Y-%m-%d')}")
+        try:
+            # Utiliser .tz_localize(None) pour supprimer les informations de fuseau horaire si présentes
+            # Cela aide à éviter les problèmes de comparaison avec des DatetimeIndex sans fuseau horaire
+            data = yf.download(ticker, start=start_date, end=end_date, progress=False)
+            if data.empty:
+                logging.warning(f"Aucune donnée trouvée pour le ticker {ticker} entre {start_date} et {end_date}.")
+                return pd.Series(dtype=float)
+            
+            # Utiliser la colonne 'Adj Close' pour les prix ajustés
+            benchmark_series = data['Adj Close'].dropna()
+            
+            # S'assurer que l'index est un DatetimeIndex sans informations de fuseau horaire
+            if benchmark_series.index.tz is not None:
+                benchmark_series.index = benchmark_series.index.tz_localize(None)
+            
+            # Normaliser la série pour qu'elle commence à 100 au début de la période
+            if not benchmark_series.empty:
+                benchmark_series = (benchmark_series / benchmark_series.iloc[0]) * 100
+            
+            logging.info(f"Données benchmark récupérées pour {ticker}. Premières dates: {benchmark_series.index.min()}, Dernières dates: {benchmark_series.index.max()}")
+            return benchmark_series
+        except Exception as e:
+            logging.error(f"Erreur lors de la récupération des données benchmark pour {ticker}: {e}")
+            return pd.Series(dtype=float)
 
     def _xirr(self, cash_flows: List[Tuple[datetime, float]]) -> float:
         logging.debug(f"_xirr appelé avec {len(cash_flows)} flux: {cash_flows}")
@@ -265,8 +301,9 @@ class PatrimoineCalculator:
                 "weighted_average_duration": liquidity_duration_metrics["weighted_average_duration"],
                 "duration_distribution": liquidity_duration_metrics["duration_distribution"],
                 "reinvestment_rate": self.get_reinvestment_rate(flows_p),
-                "maturity_indicator": self.calculate_maturity_indicator(details[p])
-            },
+            }
+            # Calculer maturity_indicator après que details[p] soit entièrement défini
+            details[p]["maturity_indicator"] = self.calculate_maturity_indicator(details[p])
         
         return details
 
@@ -294,17 +331,37 @@ class PatrimoineCalculator:
 
     def get_periodic_performance(self) -> Dict[str, pd.DataFrame]:
         logging.info("Calcul de la performance périodique...")
-        if self.cash_flows_df.empty: return {"monthly": pd.DataFrame(), "annual": pd.DataFrame()}
+        if self.cash_flows_df.empty: 
+            return {"monthly": pd.DataFrame(columns=['Period', 'net_gain'], index=pd.DatetimeIndex([])), 
+                    "annual": pd.DataFrame(columns=['Period', 'net_gain'], index=pd.DatetimeIndex([]))}
+        
         df = self.cash_flows_df.copy()
-        df['transaction_date'] = pd.to_datetime(df['transaction_date'])
+        
+        # Assurer que la colonne 'transaction_date' est de type datetime et gérer les erreurs
+        df['transaction_date'] = pd.to_datetime(df['transaction_date'], errors='coerce')
+        df.dropna(subset=['transaction_date'], inplace=True) # Supprimer les lignes avec dates invalides
+
+        if df.empty: 
+            return {"monthly": pd.DataFrame(columns=['Period', 'net_gain'], index=pd.DatetimeIndex([])), 
+                    "annual": pd.DataFrame(columns=['Period', 'net_gain'], index=pd.DatetimeIndex([]))}
+
         df['net_gain'] = df['interest_amount'].fillna(0) - df['tax_amount'].fillna(0)
         fee_flows = df['flow_type'] == 'fee'
         df.loc[fee_flows, 'net_gain'] = -df.loc[fee_flows, 'gross_amount'].fillna(0)
-        monthly_perf = df.set_index('transaction_date').resample('M')['net_gain'].sum().reset_index()
-        monthly_perf['Period'] = monthly_perf['transaction_date'].dt.strftime('%Y-%m')
-        annual_perf = df.set_index('transaction_date').resample('Y')['net_gain'].sum().reset_index()
-        annual_perf['Period'] = annual_perf['transaction_date'].dt.strftime('%Y')
-        return {"monthly": monthly_perf[['Period', 'net_gain']], "annual": annual_perf[['Period', 'net_gain']]}
+        
+        monthly_perf = df.set_index('transaction_date').resample('M')['net_gain'].sum()
+        monthly_perf = monthly_perf.to_frame(name='net_gain') # Convertir Series en DataFrame
+        monthly_perf['Period'] = monthly_perf.index.strftime('%Y-%m') # Ajouter la colonne Period pour l'affichage
+
+        annual_perf = df.set_index('transaction_date').resample('Y')['net_gain'].sum()
+        annual_perf = annual_perf.to_frame(name='net_gain') # Convertir Series en DataFrame
+        annual_perf['Period'] = annual_perf.index.strftime('%Y') # Ajouter la colonne Period pour l'affichage
+
+        # S'assurer que l'index est DatetimeIndex avant de retourner
+        monthly_perf.index = pd.to_datetime(monthly_perf.index)
+        annual_perf.index = pd.to_datetime(annual_perf.index)
+        
+        return {"monthly": monthly_perf, "annual": annual_perf}
 
     def get_charts_data(self) -> Dict[str, Any]:
         logging.info("Préparation des données pour les graphiques...")
@@ -313,100 +370,73 @@ class PatrimoineCalculator:
         total_liquidity = 0
         if not self.liquidity_df.empty and 'balance_date' in self.liquidity_df.columns: total_liquidity = self.liquidity_df.sort_values('balance_date').drop_duplicates('platform', keep='last')['amount'].sum()
         repartition = {"Bourse (PEA/AV)": pea_av_value, "Crowdfunding": total_encours_cf, "Liquidités": total_liquidity}
-        apports_cumules = pd.Series(dtype=float)
-        if not self.cash_flows_df.empty:
-            apports_df = self.cash_flows_df[self.cash_flows_df['flow_type'] == 'deposit'].copy()
+
+        # Assurer que cash_flows_df a une colonne 'transaction_date' de type datetime
+        df_cash_flows_processed = self.cash_flows_df.copy()
+        if not df_cash_flows_processed.empty and 'transaction_date' in df_cash_flows_processed.columns:
+            df_cash_flows_processed['transaction_date'] = pd.to_datetime(df_cash_flows_processed['transaction_date'], errors='coerce')
+            df_cash_flows_processed.dropna(subset=['transaction_date'], inplace=True) # Supprimer les lignes avec dates invalides
+
+        apports_cumules = pd.Series(dtype=float, index=pd.DatetimeIndex([]))
+        if not df_cash_flows_processed.empty:
+            apports_df = df_cash_flows_processed[df_cash_flows_processed['flow_type'] == 'deposit'].copy()
             if not apports_df.empty:
                 apports_cumules = apports_df.set_index('transaction_date')['gross_amount'].resample('D').sum().cumsum().ffill()
-                # Ensure apports_cumules index is DatetimeIndex
+                # Ensure apports_cumules index is DatetimeIndex (already done by resample, but explicit for safety)
                 apports_cumules.index = pd.to_datetime(apports_cumules.index)
         
-        # --- CORRECTION MAJEURE : Calcul du patrimoine total pour le graphique d'évolution ---
-        patrimoine_total_evolution = pd.Series(dtype=float)
-        if not self.cash_flows_df.empty:
-            # Calculer le patrimoine total à chaque date de transaction
-            # C'est une simplification, l'idéal serait d'avoir des valorisations quotidiennes
-            # Pour l'instant, on cumule les flux nets pour estimer l'évolution du patrimoine
-            df_temp = self.cash_flows_df.copy()
-            df_temp['transaction_date'] = pd.to_datetime(df_temp['transaction_date'])
+        # --- Calcul du patrimoine total pour le graphique d'évolution ---
+        patrimoine_total_evolution = pd.Series(dtype=float, index=pd.DatetimeIndex([]))
+        if not df_cash_flows_processed.empty:
+            df_temp = df_cash_flows_processed.copy()
             df_temp['signed_net_amount'] = df_temp.apply(
                 lambda row: row['net_amount'] if row['flow_direction'] == 'in' else -row['net_amount'], axis=1
             )
             patrimoine_total_evolution = df_temp.set_index('transaction_date')['signed_net_amount'].resample('D').sum().cumsum().ffill()
+            # S'assurer explicitement que l'index est un DatetimeIndex ici
+            patrimoine_total_evolution.index = pd.to_datetime(patrimoine_total_evolution.index)
+
             # Ajouter la valeur actuelle du patrimoine à la dernière date
             if not patrimoine_total_evolution.empty:
                 # Utilise pd.Timestamp pour la cohérence avec l'index
                 patrimoine_total_evolution.loc[pd.Timestamp(datetime.now().date())] = self.get_global_kpis()['patrimoine_total'] 
                 patrimoine_total_evolution = patrimoine_total_evolution.resample('D').ffill()
 
-        benchmark_data = pd.Series(dtype=float)
-        if not apports_cumules.empty:
-            start, end, ticker = apports_cumules.index.min(), datetime.now(), "EWLD.PA"
-            logging.info(f"Téléchargement du benchmark {ticker} de {start} à {end}")
-            try:
-                prices = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=True)['Close'].squeeze() # auto_adjust=True
-                # S'assurer que l'index des prix est un DatetimeIndex
-                prices.index = pd.to_datetime(prices.index)
-                logging.debug(f"Prices after yf.download for {ticker}:\n{prices.head()}") # Nouveau log
-                if prices.empty: raise ValueError("Aucune donnée de prix retournée par yfinance.")
-                
-                # --- CORRECTION MAJEURE : Normalisation du benchmark par rapport aux apports réels ---
-                # Créer une série d'investissements dans le benchmark aux dates des apports réels
-                # Utiliser apports_cumules et le réindexer aux dates des prix du benchmark
-                invested_on_benchmark = apports_cumules.reindex(prices.index).ffill().fillna(0)
-                logging.debug(f"""Invested on benchmark (head):
-{str(invested_on_benchmark.head())}""") # Nouveau log
-                
-                # Calculer la valeur du portefeuille benchmark
-                shares_bought = invested_on_benchmark / prices
-                logging.debug(f"Shares bought (head):\n{shares_bought.head()}") # Nouveau log
-                total_shares = shares_bought.cumsum()
-                logging.debug(f"Total shares (head):\n{total_shares.head()}") # Nouveau log
-                benchmark_data = (total_shares * prices).ffill()
-                logging.debug(f"Benchmark data before normalization (head):\n{benchmark_data.head()}") # Nouveau log
-                # Normaliser pour que le point de départ corresponde au premier apport
-                if not apports_cumules.empty and not benchmark_data.empty:
-                    # Trouver les dates où les deux séries ont des données
-                    # Et où les apports cumulés sont positifs
-
-                    # Conversion défensive en DatetimeIndex juste avant l'intersection
-                    if not isinstance(apports_cumules.index, pd.DatetimeIndex):
-                        apports_cumules.index = pd.to_datetime(apports_cumules.index)
-                        print(f"DEBUG (backend): Converti apports_cumules.index en DatetimeIndex avant intersection. Nouveau type: {type(apports_cumules.index)}") # DEBUG
-                    if not isinstance(benchmark_data.index, pd.DatetimeIndex):
-                        benchmark_data.index = pd.to_datetime(benchmark_data.index)
-                        print(f"DEBUG (backend): Converti benchmark_data.index en DatetimeIndex avant intersection. Nouveau type: {type(benchmark_data.index)}") # DEBUG
-
-                    print(f"DEBUG (backend): Type of apports_cumules.index before intersection: {type(apports_cumules.index)}") # DEBUG
-                    print(f"DEBUG (backend): Type of benchmark_data.index before intersection: {type(benchmark_data.index)}") # DEBUG
-                    valid_dates_for_normalization = apports_cumules.index.intersection(benchmark_data.index)
-                    valid_dates_for_normalization = valid_dates_for_normalization[apports_cumules.loc[valid_dates_for_normalization] > 0]
-                    print(f"DEBUG (backend): valid_dates_for_normalization: {valid_dates_for_normalization}") # DEBUG
-
-                    if not valid_dates_for_normalization.empty:
-                        first_normalization_date = valid_dates_for_normalization.min()
-                        print(f"DEBUG (backend): first_normalization_date: {first_normalization_date}") # DEBUG
-                        normalization_factor = benchmark_data.loc[first_normalization_date]
-                        print(f"DEBUG (backend): normalization_factor: {normalization_factor}") # DEBUG
-                        first_deposit_value_at_norm_date = apports_cumules.loc[first_normalization_date]
-
-                        if normalization_factor != 0:
-                            benchmark_data = (benchmark_data / normalization_factor) * first_deposit_value_at_norm_date
-                        else:
-                            logging.warning("Facteur de normalisation du benchmark est zéro, impossible de normaliser.")
-                            benchmark_data = pd.Series(dtype=float) # Vider le benchmark si normalisation impossible
+        # --- Récupération et alignement des données benchmark ---
+        benchmark_data = pd.Series(dtype=float, index=pd.DatetimeIndex([]))
+        if not patrimoine_total_evolution.empty: # Récupérer le benchmark seulement si des données de portefeuille existent
+            start_date = patrimoine_total_evolution.index.min()
+            end_date = patrimoine_total_evolution.index.max()
+            benchmark_data = self._get_benchmark_data(start_date, end_date)
+            
+            # Aligner l'index du benchmark avec celui du patrimoine total
+            if not benchmark_data.empty and isinstance(benchmark_data.index, pd.DatetimeIndex):
+                # Re-échantillonner le benchmark pour avoir les mêmes dates que patrimoine_total_evolution
+                # Utiliser interpolate(method='linear') pour remplir les jours manquants
+                benchmark_data = benchmark_data.reindex(patrimoine_total_evolution.index).interpolate(method='linear')
+                # Normaliser le benchmark pour qu'il commence au même point que le patrimoine total
+                # au début de la période commune
+                common_start_date = max(patrimoine_total_evolution.index.min(), benchmark_data.index.min())
+                if common_start_date in patrimoine_total_evolution.index and common_start_date in benchmark_data.index:
+                    patrimoine_start_value = patrimoine_total_evolution.loc[common_start_date]
+                    benchmark_start_value = benchmark_data.loc[common_start_date]
+                    if benchmark_start_value != 0:
+                        benchmark_data = (benchmark_data / benchmark_start_value) * patrimoine_start_value
                     else:
-                        logging.warning("Aucune date de dépôt valide trouvée dans la plage du benchmark pour la normalisation.")
-                        benchmark_data = pd.Series(dtype=float) # Vider le benchmark si pas de point de normalisation
+                        logging.warning("Valeur de départ du benchmark est zéro, impossible de normaliser.")
+                        benchmark_data = pd.Series(dtype=float, index=patrimoine_total_evolution.index)
                 else:
-                    logging.warning("Apports cumulés ou données du benchmark vides, impossible de normaliser.")
-                    benchmark_data = pd.Series(dtype=float) # Vider le benchmark si pas de dates communes
+                    logging.warning("Dates de début communes non trouvées pour la normalisation du benchmark.")
+                    benchmark_data = pd.Series(dtype=float, index=patrimoine_total_evolution.index)
+            else:
+                logging.warning("Données benchmark vides ou index non DatetimeIndex, impossible de normaliser.")
+                benchmark_data = pd.Series(dtype=float, index=patrimoine_total_evolution.index)
 
-                logging.info("Données du benchmark calculées avec succès.") # Nouveau log
-                logging.debug(f"Benchmark data head:\n{benchmark_data.head()}") # Nouveau log
-            except Exception as e:
-                logging.warning(f"Impossible de calculer le benchmark {ticker}: {e}")
-        
+        # Assurer que tous les index sont des DatetimeIndex avant de retourner
+        apports_cumules.index = pd.to_datetime(apports_cumules.index, errors='coerce')
+        patrimoine_total_evolution.index = pd.to_datetime(patrimoine_total_evolution.index, errors='coerce')
+        benchmark_data.index = pd.to_datetime(benchmark_data.index, errors='coerce')
+
         return {"repartition_data": repartition, 
                 "evolution_data": {"apports_cumules": apports_cumules,
                                    "patrimoine_total_evolution": patrimoine_total_evolution,

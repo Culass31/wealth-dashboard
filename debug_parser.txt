@@ -1,279 +1,214 @@
-2025-07-13 16:47:24,450 - INFO - Nettoyage et rechargement pour l'utilisateur : e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9
-2025-07-13 16:47:26,924 - INFO - Connexion Ó Supabase rÚussie.
-2025-07-13 16:47:26,924 - INFO - \U0001f5d1\ufe0f Suppression des donnÚes existantes...
-2025-07-13 16:47:26,924 - INFO - DÚbut de la suppression des donnÚes pour la plateforme 'La PremiÞre Brique'...
-2025-07-13 16:47:26,925 - INFO - Suppression des donnÚes de la table 'cash_flows' pour la plateforme 'La PremiÞre Brique'...
-2025-07-13 16:47:28,344 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/cash_flows?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9&platform=eq.La+Premi%C3%A8re+Brique "HTTP/2 200 OK"
-2025-07-13 16:47:28,378 - INFO - -> 119 enregistrements supprimÚs de 'cash_flows'.
-2025-07-13 16:47:28,378 - INFO - Suppression des donnÚes de la table 'expert_metrics_cache' pour la plateforme 'La PremiÞre Brique'...
-2025-07-13 16:47:28,450 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/expert_metrics_cache?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9&platform=eq.La+Premi%C3%A8re+Brique "HTTP/2 200 OK"
-2025-07-13 16:47:28,451 - INFO - -> Aucune donnÚe Ó supprimer dans 'expert_metrics_cache' pour cette plateforme.
-2025-07-13 16:47:28,451 - INFO - Suppression des donnÚes de la table 'liquidity_balances' pour la plateforme 'La PremiÞre Brique'...
-2025-07-13 16:47:28,526 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/liquidity_balances?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9&platform=eq.La+Premi%C3%A8re+Brique "HTTP/2 200 OK"
-2025-07-13 16:47:28,527 - INFO - -> Aucune donnÚe Ó supprimer dans 'liquidity_balances' pour cette plateforme.
-2025-07-13 16:47:28,527 - INFO - Suppression des donnÚes de la table 'portfolio_positions' pour la plateforme 'La PremiÞre Brique'...
-2025-07-13 16:47:28,626 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/portfolio_positions?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9&platform=eq.La+Premi%C3%A8re+Brique "HTTP/2 200 OK"
-2025-07-13 16:47:28,627 - INFO - -> Aucune donnÚe Ó supprimer dans 'portfolio_positions' pour cette plateforme.
-2025-07-13 16:47:28,627 - INFO - Suppression des donnÚes de la table 'investments' pour la plateforme 'La PremiÞre Brique'...
-2025-07-13 16:47:28,694 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/investments?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9&platform=eq.La+Premi%C3%A8re+Brique "HTTP/2 200 OK"
-2025-07-13 16:47:28,730 - INFO - -> 37 enregistrements supprimÚs de 'investments'.
-2025-07-13 16:47:28,730 - INFO - \u2705 Suppression des donnÚes pour la plateforme 'La PremiÞre Brique' terminÚe.
-2025-07-13 16:47:28,730 - INFO - Rechargement des donnÚes...
-2025-07-13 16:47:28,730 - INFO - \U0001f680 CHARGEMENT AUTOMATIQUE DONN╔ES PATRIMOINE
-2025-07-13 16:47:28,730 - INFO - ==================================================
-2025-07-13 16:47:29,738 - INFO - Connexion Ó Supabase rÚussie.
-2025-07-13 16:47:29,738 - INFO - Validation des fichiers dans data/raw
-2025-07-13 16:47:29,739 - INFO - Validation filtrÚe pour les plateformes : lpb
-2025-07-13 16:47:31,156 - INFO - Fichier valide: LA PREMI╚RE BRIQUE: Portefeuille LPB.xlsx
-2025-07-13 16:47:31,156 - INFO - VALIDATION: 1/1 fichiers valides
-2025-07-13 16:47:31,156 - INFO - \U0001f4e5 DÚbut chargement pour utilisateur: e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9
-2025-07-13 16:47:31,156 - INFO - \U0001f4c2 Chargement complet pour utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 depuis data/raw
-2025-07-13 16:47:31,156 - INFO - Filtre appliquÚ pour les plateformes : lpb
-2025-07-13 16:47:31,156 - INFO - Chargement LA PREMI╚RE BRIQUE pour utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9
-2025-07-13 16:47:31,157 - INFO - Parsing La PremiÞre Brique...
-2025-07-13 16:47:31,157 - INFO - DÚbut du parsing pour la plateforme LA PREMI╚RE BRIQUE avec le fichier : data/raw\Portefeuille LPB.xlsx
-2025-07-13 16:47:31,157 - INFO - DÚbut du parsing pour La PremiÞre Brique avec la logique finale V4.
-2025-07-13 16:47:32,938 - INFO - Parsing LPB terminÚ. 37 investissements et 167 flux trouvÚs.
-2025-07-13 16:47:32,939 - INFO - \U0001f4ca DonnÚes parsÚes: 37 investissements, 167 flux
-2025-07-13 16:47:34,758 - INFO - HTTP Request: POST https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/investments?columns=%22id%22%2C%22remaining_capital%22%2C%22company_name%22%2C%22expected_end_date%22%2C%22annual_rate%22%2C%22investment_type%22%2C%22user_id%22%2C%22capital_repaid%22%2C%22status%22%2C%22is_short_term%22%2C%22platform%22%2C%22invested_amount%22%2C%22signature_date%22%2C%22investment_date%22%2C%22project_name%22%2C%22platform_id%22%2C%22actual_end_date%22%2C%22asset_class%22%2C%22isin%22%2C%22monthly_payment%22%2C%22duration_months%22%2C%22is_delayed%22 "HTTP/2 201 Created"
-2025-07-13 16:47:34,763 - INFO - 37 investissements insÚrÚs avec succÞs.
-2025-07-13 16:47:35,033 - INFO - HTTP Request: POST https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/cash_flows?columns=%22tax_amount%22%2C%22id%22%2C%22description%22%2C%22transaction_date%22%2C%22flow_type%22%2C%22flow_direction%22%2C%22net_amount%22%2C%22gross_amount%22%2C%22status%22%2C%22investment_id%22%2C%22interest_amount%22%2C%22platform%22%2C%22payment_method%22%2C%22capital_amount%22%2C%22user_id%22 "HTTP/2 201 Created"
-2025-07-13 16:47:35,036 - INFO - 167 flux de trÚsorerie insÚrÚs avec succÞs.
-2025-07-13 16:47:35,036 - INFO - \u2705 LA PREMI╚RE BRIQUE chargÚ avec succÞs
-2025-07-13 16:47:35,037 - INFO - \U0001f4cb R╔SUM╔ CHARGEMENT: 1 source(s) de donnÚes chargÚe(s) avec succÞs.
-2025-07-13 16:47:35,037 - INFO - \U0001f389 CHARGEMENT TERMIN╔ AVEC SUCC╚S!
-2025-07-13 16:47:35,133 - INFO - HTTP Request: GET https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/investments?select=%2A&user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 "HTTP/2 200 OK"
-2025-07-13 16:47:35,136 - INFO - RÚcupÚration de 73 investissements pour l'utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9.
-2025-07-13 16:47:35,226 - INFO - HTTP Request: GET https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/cash_flows?select=%2A&user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 "HTTP/2 200 OK"
-2025-07-13 16:47:35,264 - INFO - RÚcupÚration de 406 flux de trÚsorerie pour l'utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9.
-2025-07-13 16:47:35,292 - INFO - \U0001f4ca R╔SUM╔ FINAL:
-2025-07-13 16:47:35,292 - INFO -   \U0001f4b0 Capital total: 30,242 Ç
-2025-07-13 16:47:35,293 - INFO -   \U0001f4c8 Positions totales: 73
-2025-07-13 16:47:35,293 - INFO -   \U0001f3e2 Plateformes: 4
-2025-07-13 16:47:35,355 - INFO - HTTP Request: GET https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/investments?select=%2A&user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 "HTTP/2 200 OK"
-2025-07-13 16:47:35,357 - INFO - RÚcupÚration de 73 investissements pour l'utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9.
-2025-07-13 16:47:35,360 - INFO - 
-\U0001f4ca DÚtails des investissements LPB (status, capital_repaid, actual_end_date):
-2025-07-13 16:47:35,361 - INFO -   Projet: L'Isoir
-2025-07-13 16:47:35,361 - INFO -     Statut: active
-2025-07-13 16:47:35,361 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,361 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 16:47:35,361 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,361 - INFO -     Date de fin prÚvue: 2026-01-29
-2025-07-13 16:47:35,361 - INFO -   Projet: Le Quattuor
-2025-07-13 16:47:35,362 - INFO -     Statut: active
-2025-07-13 16:47:35,362 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,362 - INFO -     Capital remboursÚ: 115.78Ç
-2025-07-13 16:47:35,362 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,362 - INFO -     Date de fin prÚvue: 2026-05-15
-2025-07-13 16:47:35,362 - INFO -   Projet: Le Canard
-2025-07-13 16:47:35,362 - INFO -     Statut: active
-2025-07-13 16:47:35,362 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,362 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 16:47:35,362 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,363 - INFO -     Date de fin prÚvue: 2026-03-05
-2025-07-13 16:47:35,363 - INFO -   Projet: L'Envol
-2025-07-13 16:47:35,363 - INFO -     Statut: active
-2025-07-13 16:47:35,363 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,363 - INFO -     Capital remboursÚ: 125.08Ç
-2025-07-13 16:47:35,363 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,363 - INFO -     Date de fin prÚvue: 2026-05-14
-2025-07-13 16:47:35,363 - INFO -   Projet: La Plumeria 
-2025-07-13 16:47:35,364 - INFO -     Statut: active
-2025-07-13 16:47:35,364 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,364 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 16:47:35,364 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,364 - INFO -     Date de fin prÚvue: 2026-02-15
-2025-07-13 16:47:35,364 - INFO -   Projet: Le HÚrisson
-2025-07-13 16:47:35,364 - INFO -     Statut: completed
-2025-07-13 16:47:35,364 - INFO -     Montant investi: 900.00Ç
-2025-07-13 16:47:35,364 - INFO -     Capital remboursÚ: 900.00Ç
-2025-07-13 16:47:35,364 - INFO -     Date de fin rÚelle: 2024-01-31
-2025-07-13 16:47:35,364 - INFO -     Date de fin prÚvue: 2024-07-29
-2025-07-13 16:47:35,365 - INFO -   Projet: Le Windsor
-2025-07-13 16:47:35,365 - INFO -     Statut: completed
-2025-07-13 16:47:35,365 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,365 - INFO -     Capital remboursÚ: 500.00Ç
-2025-07-13 16:47:35,365 - INFO -     Date de fin rÚelle: 2023-09-12
-2025-07-13 16:47:35,365 - INFO -     Date de fin prÚvue: 2024-01-11
-2025-07-13 16:47:35,365 - INFO -   Projet: L'Ange
-2025-07-13 16:47:35,365 - INFO -     Statut: active
-2025-07-13 16:47:35,365 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,366 - INFO -     Capital remboursÚ: 453.50Ç
-2025-07-13 16:47:35,366 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,366 - INFO -     Date de fin prÚvue: 2025-07-30
-2025-07-13 16:47:35,366 - INFO -   Projet: Le Raisin
-2025-07-13 16:47:35,366 - INFO -     Statut: completed
-2025-07-13 16:47:35,366 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,366 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 16:47:35,366 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,366 - INFO -     Date de fin prÚvue: 2024-09-30
-2025-07-13 16:47:35,367 - INFO -   Projet: Le Gaillard 
-2025-07-13 16:47:35,367 - INFO -     Statut: active
-2025-07-13 16:47:35,367 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,367 - INFO -     Capital remboursÚ: 290.88Ç
-2025-07-13 16:47:35,367 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,367 - INFO -     Date de fin prÚvue: 2026-05-15
-2025-07-13 16:47:35,367 - INFO -   Projet: Le Pommier 
-2025-07-13 16:47:35,367 - INFO -     Statut: completed
-2025-07-13 16:47:35,367 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,367 - INFO -     Capital remboursÚ: 500.00Ç
-2025-07-13 16:47:35,367 - INFO -     Date de fin rÚelle: 2024-09-16
-2025-07-13 16:47:35,367 - INFO -     Date de fin prÚvue: 2024-11-16
-2025-07-13 16:47:35,368 - INFO -   Projet: La Voile 
-2025-07-13 16:47:35,368 - INFO -     Statut: completed
-2025-07-13 16:47:35,368 - INFO -     Montant investi: 512.00Ç
-2025-07-13 16:47:35,368 - INFO -     Capital remboursÚ: 512.00Ç
-2025-07-13 16:47:35,368 - INFO -     Date de fin rÚelle: 2024-01-26
-2025-07-13 16:47:35,368 - INFO -     Date de fin prÚvue: 2025-01-29
-2025-07-13 16:47:35,368 - INFO -   Projet: L'Iliade
-2025-07-13 16:47:35,368 - INFO -     Statut: completed
-2025-07-13 16:47:35,368 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,369 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 16:47:35,369 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,369 - INFO -     Date de fin prÚvue: 2024-11-02
-2025-07-13 16:47:35,369 - INFO -   Projet: La Mangue 
-2025-07-13 16:47:35,369 - INFO -     Statut: active
-2025-07-13 16:47:35,369 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,369 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 16:47:35,369 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,369 - INFO -     Date de fin prÚvue: 2025-07-20
-2025-07-13 16:47:35,369 - INFO -   Projet: L'OmÚga 
-2025-07-13 16:47:35,370 - INFO -     Statut: active
-2025-07-13 16:47:35,370 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,370 - INFO -     Capital remboursÚ: 315.88Ç
-2025-07-13 16:47:35,370 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,370 - INFO -     Date de fin prÚvue: 2026-06-15
-2025-07-13 16:47:35,370 - INFO -   Projet: Le Magenta
-2025-07-13 16:47:35,370 - INFO -     Statut: active
-2025-07-13 16:47:35,370 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,370 - INFO -     Capital remboursÚ: 420.15Ç
-2025-07-13 16:47:35,370 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,370 - INFO -     Date de fin prÚvue: 2025-10-22
-2025-07-13 16:47:35,371 - INFO -   Projet: L'Europe
-2025-07-13 16:47:35,371 - INFO -     Statut: active
-2025-07-13 16:47:35,371 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,371 - INFO -     Capital remboursÚ: 166.90Ç
-2025-07-13 16:47:35,371 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,371 - INFO -     Date de fin prÚvue: 2026-01-24
-2025-07-13 16:47:35,371 - INFO -   Projet: L'Olive 
-2025-07-13 16:47:35,371 - INFO -     Statut: active
-2025-07-13 16:47:35,371 - INFO -     Montant investi: 3.00Ç
-2025-07-13 16:47:35,372 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 16:47:35,372 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,372 - INFO -     Date de fin prÚvue: 2026-03-05
-2025-07-13 16:47:35,372 - INFO -   Projet: Le Cayenne
-2025-07-13 16:47:35,372 - INFO -     Statut: completed
-2025-07-13 16:47:35,372 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,372 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 16:47:35,372 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,372 - INFO -     Date de fin prÚvue: 2025-07-19
-2025-07-13 16:47:35,372 - INFO -   Projet: L'Aiguille
-2025-07-13 16:47:35,372 - INFO -     Statut: active
-2025-07-13 16:47:35,373 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,373 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 16:47:35,373 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,373 - INFO -     Date de fin prÚvue: 2025-10-05
-2025-07-13 16:47:35,373 - INFO -   Projet: Le Coach
-2025-07-13 16:47:35,373 - INFO -     Statut: active
-2025-07-13 16:47:35,373 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,373 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 16:47:35,373 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,373 - INFO -     Date de fin prÚvue: 2027-05-06
-2025-07-13 16:47:35,373 - INFO -   Projet: Le Vitton
-2025-07-13 16:47:35,374 - INFO -     Statut: completed
-2025-07-13 16:47:35,374 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,374 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 16:47:35,374 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,374 - INFO -     Date de fin prÚvue: 2025-07-13
-2025-07-13 16:47:35,374 - INFO -   Projet: Le Zola
-2025-07-13 16:47:35,374 - INFO -     Statut: completed
-2025-07-13 16:47:35,374 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,374 - INFO -     Capital remboursÚ: 500.00Ç
-2025-07-13 16:47:35,374 - INFO -     Date de fin rÚelle: 2025-02-14
-2025-07-13 16:47:35,374 - INFO -     Date de fin prÚvue: 2025-12-17
-2025-07-13 16:47:35,374 - INFO -   Projet: Les Nuages 
-2025-07-13 16:47:35,375 - INFO -     Statut: active
-2025-07-13 16:47:35,375 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,375 - INFO -     Capital remboursÚ: 67.09Ç
-2025-07-13 16:47:35,375 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,375 - INFO -     Date de fin prÚvue: 2025-10-18
-2025-07-13 16:47:35,376 - INFO -   Projet: Le Cuivre
-2025-07-13 16:47:35,376 - INFO -     Statut: active
-2025-07-13 16:47:35,376 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,376 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 16:47:35,377 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,378 - INFO -     Date de fin prÚvue: 2026-06-02
-2025-07-13 16:47:35,378 - INFO -   Projet: Le CÞdre
-2025-07-13 16:47:35,378 - INFO -     Statut: active
-2025-07-13 16:47:35,378 - INFO -     Montant investi: 505.00Ç
-2025-07-13 16:47:35,378 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 16:47:35,379 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,379 - INFO -     Date de fin prÚvue: 2026-08-15
-2025-07-13 16:47:35,379 - INFO -   Projet: Le Leclerc
-2025-07-13 16:47:35,379 - INFO -     Statut: active
-2025-07-13 16:47:35,379 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,379 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 16:47:35,379 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,379 - INFO -     Date de fin prÚvue: 2026-03-10
-2025-07-13 16:47:35,380 - INFO -   Projet: Le SoufflÚ
-2025-07-13 16:47:35,380 - INFO -     Statut: active
-2025-07-13 16:47:35,380 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,380 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 16:47:35,380 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,380 - INFO -     Date de fin prÚvue: 2025-10-28
-2025-07-13 16:47:35,380 - INFO -   Projet: La Berge
-2025-07-13 16:47:35,381 - INFO -     Statut: active
-2025-07-13 16:47:35,381 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,381 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 16:47:35,381 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,381 - INFO -     Date de fin prÚvue: 2026-11-15
-2025-07-13 16:47:35,381 - INFO -   Projet: Le Cygne
-2025-07-13 16:47:35,381 - INFO -     Statut: active
-2025-07-13 16:47:35,381 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,382 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 16:47:35,382 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,382 - INFO -     Date de fin prÚvue: 2026-06-26
-2025-07-13 16:47:35,382 - INFO -   Projet: Le Corsaire
-2025-07-13 16:47:35,382 - INFO -     Statut: active
-2025-07-13 16:47:35,382 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,382 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 16:47:35,382 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,382 - INFO -     Date de fin prÚvue: 2026-09-17
-2025-07-13 16:47:35,383 - INFO -   Projet: LÆOlympique
-2025-07-13 16:47:35,383 - INFO -     Statut: active
-2025-07-13 16:47:35,383 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,383 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 16:47:35,383 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,383 - INFO -     Date de fin prÚvue: 2026-08-07
-2025-07-13 16:47:35,383 - INFO -   Projet: Le Arnold
-2025-07-13 16:47:35,384 - INFO -     Statut: active
-2025-07-13 16:47:35,384 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,384 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 16:47:35,384 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,384 - INFO -     Date de fin prÚvue: 2027-02-28
-2025-07-13 16:47:35,384 - INFO -   Projet: Le Virtuose 
-2025-07-13 16:47:35,384 - INFO -     Statut: active
-2025-07-13 16:47:35,384 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,384 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 16:47:35,384 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,384 - INFO -     Date de fin prÚvue: 2027-09-14
-2025-07-13 16:47:35,385 - INFO -   Projet: La Papalia
-2025-07-13 16:47:35,385 - INFO -     Statut: active
-2025-07-13 16:47:35,385 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,385 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 16:47:35,385 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,385 - INFO -     Date de fin prÚvue: 2027-04-30
-2025-07-13 16:47:35,385 - INFO -   Projet: LÆHumoriste
-2025-07-13 16:47:35,385 - INFO -     Statut: active
-2025-07-13 16:47:35,385 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,385 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 16:47:35,385 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,386 - INFO -     Date de fin prÚvue: 2027-03-02
-2025-07-13 16:47:35,386 - INFO -   Projet: Le Brillant
-2025-07-13 16:47:35,386 - INFO -     Statut: active
-2025-07-13 16:47:35,386 - INFO -     Montant investi: 500.00Ç
-2025-07-13 16:47:35,386 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 16:47:35,386 - INFO -     Date de fin rÚelle: None
-2025-07-13 16:47:35,386 - INFO -     Date de fin prÚvue: 2027-01-03
-2025-07-13 16:47:35,386 - INFO - \U0001f389 Rechargement terminÚ avec succÞs !
+2025-07-14 01:15:14,455 - INFO - Nettoyage et rechargement pour l'utilisateur : e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9
+2025-07-14 01:15:16,767 - INFO - Connexion Ó Supabase rÚussie.
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode characters in position 33-34: character maps to <undefined>
+Call stack:
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 175, in <module>
+    clean_and_reload_data(args.user_id, platforms=args.platforms)
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 82, in clean_and_reload_data
+    logging.info("\U0001f5d1\ufe0f Suppression des donnÚes existantes...")
+Message: '\U0001f5d1\ufe0f Suppression des donnÚes existantes...'
+Arguments: ()
+2025-07-14 01:15:16,778 - INFO - DÚbut de la suppression des donnÚes pour la plateforme 'PretUp'...
+2025-07-14 01:15:16,778 - INFO - Suppression des donnÚes de la table 'cash_flows' pour la plateforme 'PretUp'...
+2025-07-14 01:15:19,080 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/cash_flows?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9&platform=eq.PretUp "HTTP/2 200 OK"
+2025-07-14 01:15:19,089 - INFO - -> Aucune donnÚe Ó supprimer dans 'cash_flows' pour cette plateforme.
+2025-07-14 01:15:19,089 - INFO - Suppression des donnÚes de la table 'expert_metrics_cache' pour la plateforme 'PretUp'...
+2025-07-14 01:15:19,188 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/expert_metrics_cache?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9&platform=eq.PretUp "HTTP/2 200 OK"
+2025-07-14 01:15:19,189 - INFO - -> Aucune donnÚe Ó supprimer dans 'expert_metrics_cache' pour cette plateforme.
+2025-07-14 01:15:19,189 - INFO - Suppression des donnÚes de la table 'liquidity_balances' pour la plateforme 'PretUp'...
+2025-07-14 01:15:19,283 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/liquidity_balances?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9&platform=eq.PretUp "HTTP/2 200 OK"
+2025-07-14 01:15:19,284 - INFO - -> Aucune donnÚe Ó supprimer dans 'liquidity_balances' pour cette plateforme.
+2025-07-14 01:15:19,284 - INFO - Suppression des donnÚes de la table 'portfolio_positions' pour la plateforme 'PretUp'...
+2025-07-14 01:15:19,379 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/portfolio_positions?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9&platform=eq.PretUp "HTTP/2 200 OK"
+2025-07-14 01:15:19,380 - INFO - -> Aucune donnÚe Ó supprimer dans 'portfolio_positions' pour cette plateforme.
+2025-07-14 01:15:19,380 - INFO - Suppression des donnÚes de la table 'investments' pour la plateforme 'PretUp'...
+2025-07-14 01:15:19,448 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/investments?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9&platform=eq.PretUp "HTTP/2 200 OK"
+2025-07-14 01:15:19,449 - INFO - -> Aucune donnÚe Ó supprimer dans 'investments' pour cette plateforme.
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2705' in position 33: character maps to <undefined>
+Call stack:
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 175, in <module>
+    clean_and_reload_data(args.user_id, platforms=args.platforms)
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 86, in clean_and_reload_data
+    db.clear_platform_data(user_id, platform)
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\backend\models\database.py", line 415, in clear_platform_data
+    logging.info(f"\u2705 Suppression des donnÚes pour la plateforme '{platform_name}' terminÚe.")
+Message: "\u2705 Suppression des donnÚes pour la plateforme 'PretUp' terminÚe."
+Arguments: ()
+2025-07-14 01:15:19,454 - INFO - Rechargement des donnÚes...
+--- Logging error ---
+2025-07-14 01:15:19,456 - INFO - ==================================================
+Traceback (most recent call last):
+  File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\U0001f680' in position 33: character maps to <undefined>
+Call stack:
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 175, in <module>
+    clean_and_reload_data(args.user_id, platforms=args.platforms)
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 93, in clean_and_reload_data
+    success = load_user_data_auto(user_id, platforms=platforms)
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 37, in load_user_data_auto
+    logging.info("\U0001f680 CHARGEMENT AUTOMATIQUE DONN╔ES PATRIMOINE")
+Message: '\U0001f680 CHARGEMENT AUTOMATIQUE DONN╔ES PATRIMOINE'
+Arguments: ()
+2025-07-14 01:15:20,350 - INFO - Connexion Ó Supabase rÚussie.
+2025-07-14 01:15:20,351 - INFO - Validation des fichiers dans data/raw
+2025-07-14 01:15:20,351 - INFO - Validation filtrÚe pour les plateformes : pretup
+2025-07-14 01:15:21,241 - INFO - Fichier valide: PRETUP: Portefeuille PretUp.xlsx
+2025-07-14 01:15:21,241 - INFO - VALIDATION: 1/1 fichiers valides
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\U0001f4e5' in position 33: character maps to <undefined>
+Call stack:
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 175, in <module>
+    clean_and_reload_data(args.user_id, platforms=args.platforms)
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 93, in clean_and_reload_data
+    success = load_user_data_auto(user_id, platforms=platforms)
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 50, in load_user_data_auto
+    logging.info(f"\U0001f4e5 DÚbut chargement pour utilisateur: {user_id}")
+Message: '\U0001f4e5 DÚbut chargement pour utilisateur: e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\U0001f4c2' in position 33: character maps to <undefined>
+Call stack:
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 175, in <module>
+    clean_and_reload_data(args.user_id, platforms=args.platforms)
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 93, in clean_and_reload_data
+    success = load_user_data_auto(user_id, platforms=platforms)
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 51, in load_user_data_auto
+    success = loader.load_all_user_files(user_id, data_folder, platforms_to_load=platforms)
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\backend\data\data_loader.py", line 237, in load_all_user_files
+    logging.info(f"\U0001f4c2 Chargement complet pour utilisateur {user_id} depuis {data_folder}")
+Message: '\U0001f4c2 Chargement complet pour utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 depuis data/raw'
+Arguments: ()
+2025-07-14 01:15:21,246 - INFO - Filtre appliquÚ pour les plateformes : pretup
+2025-07-14 01:15:21,246 - INFO - Chargement PRETUP pour utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9
+2025-07-14 01:15:21,246 - INFO - Parsing PretUp...
+2025-07-14 01:15:21,247 - INFO - DÚbut du parsing pour la plateforme PRETUP avec le fichier : data/raw\Portefeuille PretUp.xlsx
+2025-07-14 01:15:21,247 - INFO - DÚbut du parsing PretUp avec la nouvelle mÚthode robuste.
+2025-07-14 01:15:21,317 - INFO - Onglets dÚtectÚs dans le fichier : ['RelevÚ compte', 'Recapitulatif', 'Projet Sains - Offres', 'Projets Sains - EchÚances', 'ProcÚdures - Offres', 'ProcÚdures - EchÚances', 'Perdu - Offres', 'Perdu - EchÚances', 'Worksheet']
+2025-07-14 01:15:21,323 - INFO - Onglet 'Projet Sains - Offres' (attendu: 'Projet Sains - Offres') chargÚ avec succÞs.
+2025-07-14 01:15:21,326 - INFO - Onglet 'ProcÚdures - Offres' (attendu: 'ProcÚdures - Offres') chargÚ avec succÞs.
+2025-07-14 01:15:21,330 - INFO - Onglet 'Perdu - Offres' (attendu: 'Perdu - Offres') chargÚ avec succÞs.
+2025-07-14 01:15:21,410 - INFO - Onglet 'Projets Sains - EchÚances' (attendu: 'Projets Sains - EchÚances') chargÚ avec succÞs.
+2025-07-14 01:15:21,424 - INFO - Onglet 'ProcÚdures - EchÚances' (attendu: 'ProcÚdures - EchÚances') chargÚ avec succÞs.
+2025-07-14 01:15:21,431 - INFO - Onglet 'Perdu - EchÚances' (attendu: 'Perdu - EchÚances') chargÚ avec succÞs.
+2025-07-14 01:15:21,561 - INFO - Onglet 'RelevÚ compte' (attendu: 'RelevÚ compte') chargÚ avec succÞs.
+2025-07-14 01:15:21,657 - INFO - DÚbut du parsing du relevÚ de compte PretUp.
+2025-07-14 01:15:21,839 - INFO - Parsing du relevÚ de compte PretUp terminÚ. 154 flux trouvÚs.
+2025-07-14 01:15:21,839 - ERROR - Erreur critique lors du parsing de PretUp.
+Traceback (most recent call last):
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\backend\data\unified_parser.py", line 660, in _parse_pretup
+    liquidity_balance = self._extract_pretup_liquidity(all_data['releve'])
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'UnifiedPortfolioParser' object has no attribute '_extract_pretup_liquidity'. Did you mean: '_extract_pretup_projects'?
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\U0001f4ca' in position 33: character maps to <undefined>
+Call stack:
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 175, in <module>
+    clean_and_reload_data(args.user_id, platforms=args.platforms)
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 93, in clean_and_reload_data
+    success = load_user_data_auto(user_id, platforms=platforms)
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 51, in load_user_data_auto
+    success = loader.load_all_user_files(user_id, data_folder, platforms_to_load=platforms)
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\backend\data\data_loader.py", line 258, in load_all_user_files
+    if self.load_platform_data(file_path, plateforme_key, user_id):
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\backend\data\data_loader.py", line 44, in load_platform_data
+    logging.info(f"\U0001f4ca DonnÚes parsÚes: {len(investments)} investissements, {len(cash_flows)} flux")
+Message: '\U0001f4ca DonnÚes parsÚes: 0 investissements, 0 flux'
+Arguments: ()
+2025-07-14 01:15:21,849 - WARNING - Aucune donnÚe parsÚe pour PretUp
+2025-07-14 01:15:21,849 - WARNING - DonnÚes PretUp invalides
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\U0001f4cb' in position 33: character maps to <undefined>
+Call stack:
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 175, in <module>
+    clean_and_reload_data(args.user_id, platforms=args.platforms)
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 93, in clean_and_reload_data
+    success = load_user_data_auto(user_id, platforms=platforms)
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 51, in load_user_data_auto
+    success = loader.load_all_user_files(user_id, data_folder, platforms_to_load=platforms)
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\backend\data\data_loader.py", line 274, in load_all_user_files
+    logging.info(f"\U0001f4cb R╔SUM╔ CHARGEMENT: {success_count} source(s) de donnÚes chargÚe(s) avec succÞs.")
+Message: '\U0001f4cb R╔SUM╔ CHARGEMENT: 0 source(s) de donnÚes chargÚe(s) avec succÞs.'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u274c' in position 34: character maps to <undefined>
+Call stack:
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 175, in <module>
+    clean_and_reload_data(args.user_id, platforms=args.platforms)
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 93, in clean_and_reload_data
+    success = load_user_data_auto(user_id, platforms=platforms)
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 68, in load_user_data_auto
+    logging.error("\u274c ╔CHEC DU CHARGEMENT")
+Message: '\u274c ╔CHEC DU CHARGEMENT'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u274c' in position 34: character maps to <undefined>
+Call stack:
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 175, in <module>
+    clean_and_reload_data(args.user_id, platforms=args.platforms)
+  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 98, in clean_and_reload_data
+    logging.error("\u274c ╔chec du rechargement")
+Message: '\u274c ╔chec du rechargement'
+Arguments: ()

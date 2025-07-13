@@ -80,3 +80,14 @@ Cette feuille de route détaille les fonctionnalités futures envisagées pour e
     *   **Valeur Ajoutée :** Un indicateur composite qui évalue la proportion d'investissements arrivant à terme, la liquidité disponible et la capacité de réinvestissement, donnant une idée de la "vieillesse" ou de la "jeunesse" du portefeuille.
     *   **Considérations Techniques :**
         *   **Backend (`PatrimoineCalculator`) :** Développé une métrique composite basée sur la duration, les projections de liquidité et le taux de réinvestissement.
+
+### 5. Fonctionnalités Temporairement Désactivées
+
+**Objectif :** Suivre les fonctionnalités qui ont été temporairement désactivées et qui nécessitent une réimplémentation ou une correction.
+
+*   **5.1. Évolution du Patrimoine vs. Benchmark (ETF World)** - **TERMINÉ**
+    *   **Valeur Ajoutée :** Permet de comparer la performance du portefeuille de l'utilisateur à un indice de référence (ETF World) pour évaluer l'outperformance ou la sous-performance.
+    *   **Considérations Techniques :**
+        *   **Problème Identifié :** Erreur `Only valid with DatetimeIndex, TimedeltaIndex or PeriodIndex, but got an instance of 'Index'` lors de l'affichage dans le frontend.
+        *   **Action :** Correction appliquée dans `backend/analytics/patrimoine_calculator.py` pour assurer la cohérence des index de dates.
+        *   **Prochaine Étape :** Vérifier l'affichage dans le frontend et s'assurer que le graphique est correctement généré.

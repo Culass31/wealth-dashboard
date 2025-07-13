@@ -7,8 +7,20 @@ import logging
 from typing import Optional, List
 
 # Configuration du logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-logging.getLogger().setLevel(logging.DEBUG)
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+
+# Supprimer les handlers existants pour éviter les doublons
+for handler in logger.handlers[:]:
+    logger.removeHandler(handler)
+
+# Handler pour la console
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.DEBUG) # Niveau de log DEBUG pour la console
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+
 
 # Ajouter de la racine du project au chemin Python
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -51,10 +63,6 @@ def load_user_data_auto(user_id: str = Config.DEFAULT_USER_ID, data_folder: str 
             logging.info(f"  💰 Capital total: {total_capital:,.0f} €")
             logging.info(f"  📈 Positions totales: {total_positions}")
             logging.info(f"  🏢 Plateformes: {len(summary)}")
-
-        # Afficher les détails des investissements LPB si LPB a été chargé
-        if platforms and 'lpb' in platforms:
-            loader.display_lpb_investment_details(user_id)
 
     else:
         logging.error("❌ ÉCHEC DU CHARGEMENT")

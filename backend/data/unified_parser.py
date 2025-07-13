@@ -646,11 +646,12 @@ class UnifiedPortfolioParser:
             # 1. Charger toutes les données pertinentes en une seule fois
             all_data = self._load_all_pretup_sheets(file_path)
             
+            # Normaliser les colonnes du relevé de compte une fois pour toutes
+            if 'releve' in all_data and not all_data['releve'].empty:
+                all_data['releve'].columns = [normalize_text(col) for col in all_data['releve'].columns]
+
             # 2. Extraire les informations de base sur les projets
             investments = self._extract_pretup_projects(all_data)
-            
-            # 3. Enrichir les projets avec les dates et statuts depuis les échéanciers et le relevé
-            self._enrich_pretup_projects(investments, all_data)
             
             # 4. Parser le relevé de compte pour les flux de trésorerie
             cash_flows = self._parse_pretup_account(all_data['releve'], investments)
@@ -713,6 +714,7 @@ class UnifiedPortfolioParser:
     def _extract_pretup_projects(self, all_data: Dict[str, pd.DataFrame]) -> List[Dict]:
         """Extrait et normalise les projets depuis chaque onglet d'offres en utilisant les en-têtes de colonnes fournis."""
         investments_data = []
+        investment_map = {} # Initialiser investment_map ici
 
         # Fonction interne pour traiter une ligne et éviter la répétition de code
         def process_row(row, status, capital_col_name):
@@ -767,12 +769,7 @@ class UnifiedPortfolioParser:
                 **data
             }
             investments.append(investment)
-            
-        return investments
-
-    def _enrich_pretup_projects(self, investments: List[Dict], all_data: Dict[str, pd.DataFrame]):
-        """Enrichit les projets avec les dates de début et de fin, et gère les statuts 'completed' et 'delayed'."""
-        investment_map = {inv['platform_id']: inv for inv in investments}
+            investment_map[investment['platform_id']] = investment # Remplir investment_map ici
 
         # 1. Extraire les dates depuis les échéanciers
         all_echeances_df = pd.concat([
@@ -786,14 +783,24 @@ class UnifiedPortfolioParser:
             all_echeances_df['Date Encaissement'] = pd.to_datetime(all_echeances_df['Date Encaissement'], dayfirst=True, errors='coerce')
             all_echeances_df = all_echeances_df.sort_values(by=['Numéro Offre', 'Date Encaissement'])
             
+            # Calculer duration_months en comptant le nombre d'échéances par projet
+            echeance_counts = all_echeances_df.groupby('Numéro Offre').size().to_dict()
+
             schedule_dates = all_echeances_df.groupby('Numéro Offre')['Date Encaissement'].agg(['min', 'max']).to_dict('index')
 
-            for platform_id, dates in schedule_dates.items():
+            for platform_id, inv in investment_map.items():
                 str_platform_id = str(platform_id)
-                if str_platform_id in investment_map:
-                    inv = investment_map[str_platform_id]
+                if str_platform_id in schedule_dates:
+                    dates = schedule_dates[str_platform_id]
                     inv['signature_date'] = dates['min'].strftime('%Y-%m-%d') if pd.notna(dates['min']) else None
                     inv['expected_end_date'] = dates['max'].strftime('%Y-%m-%d') if pd.notna(dates['max']) else None
+                
+                # Mettre à jour duration_months avec le compte des échéances
+                if str_platform_id in echeance_counts:
+                    inv['duration_months'] = int(echeance_counts[str_platform_id])
+                    logging.info(f"PretUp: Duration pour l'offre {str_platform_id} mise à jour à {inv['duration_months']} mois (nombre d'échéances).")
+                else:
+                    inv['duration_months'] = None
 
         # 2. Affiner le statut final pour les projets qui ne sont pas déjà en défaut ou en procédure
         for inv in investments:
@@ -815,153 +822,158 @@ class UnifiedPortfolioParser:
                         inv['status'] = 'delayed'
                 except (ValueError, TypeError):
                     pass
+        
+        return investments
 
+    def _parse_pretup_account(self, df_releve: pd.DataFrame, investments: List[Dict]) -> List[Dict]:
+        """
+        Parse le relevé de compte PretUp et crée les flux de trésorerie.
+        Liaison robuste par Numéro Offre ou par nom d'entreprise/projet.
+        """
+        logging.info("Début du parsing du relevé de compte PretUp.")
+        cash_flows = []
+        
+        # Créer un dictionnaire pour un accès rapide aux investissements par platform_id
+        investment_map_by_platform_id = {inv['platform_id']: inv for inv in investments if 'platform_id' in inv}
+        
+        # Créer un dictionnaire pour un accès rapide aux investissements par nom de projet/entreprise
+        investment_map_by_name = {}
+        for inv in investments:
+            key = (normalize_text(inv.get('company_name', '')), normalize_text(inv.get('project_name', '')))
+            investment_map_by_name[key] = inv
 
-    
-
-    def _parse_pretup_account(self, df: pd.DataFrame, investments: List[Dict]) -> List[Dict]:
-        """Parse le relevé de compte PretUp pour créer les flux et lier aux investissements de manière robuste."""
-        if df.empty:
+        if df_releve.empty:
+            logging.warning("DataFrame du relevé PretUp est vide.")
             return []
 
-        cash_flows = []
-        investment_map_by_id = {inv['platform_id']: inv for inv in investments}
+        # Normaliser les noms de colonnes (déjà fait dans _parse_pretup maintenant)
+        # df_releve.columns = [normalize_text(col) for col in df_releve.columns]
 
-        for _, row in df.iterrows():
-            date_str = safe_get(row, 'Date')
-            if pd.isna(date_str) or "Date" in str(date_str):
+        for _, row in df_releve.iterrows():
+            date_str = safe_get(row, 'date')
+            type_transaction = safe_get(row, 'type', '') # Extraire le type de la colonne 'Type'
+            operation = safe_get(row, 'libelle', '') # Utiliser 'Libellé' pour la description
+            montant_debit_str = safe_get(row, 'debit')
+            montant_credit_str = safe_get(row, 'credit')
+
+            if pd.isna(date_str) or not operation or (pd.isna(montant_debit_str) and pd.isna(montant_credit_str)):
                 continue
 
             transaction_date = self._parse_pretup_date(date_str)
             if not transaction_date:
+                logging.warning(f"Date de transaction invalide pour la ligne: {row.to_dict()}")
                 continue
 
-            type_transaction_raw = safe_get(row, 'Type', '')
-            type_transaction = normalize_text(type_transaction_raw)
-            logging.debug(f"PretUp: Traitement ligne. Type brut: '{type_transaction_raw}', Type normalisé: '{type_transaction}'")
+            gross_amount = 0.0
+            flow_direction = ''
 
-            status = safe_get(row, 'Statut', '')
-            description = safe_get(row, 'Libellé', '')
-            normalized_description = normalize_text(description)
+            if pd.notna(montant_credit_str) and clean_amount(montant_credit_str) > 0:
+                gross_amount = clean_amount(montant_credit_str)
+                flow_direction = 'in'
+            elif pd.notna(montant_debit_str) and clean_amount(montant_debit_str) > 0:
+                gross_amount = clean_amount(montant_debit_str)
+                flow_direction = 'out'
             
-            if 'non abouti' in normalize_text(status):
-                logging.info(f"PretUp: Ligne ignorée car statut 'Non abouti': '{status}'")
+            if gross_amount == 0:
                 continue
 
-            debit = clean_amount(safe_get(row, 'Débit', 0))
-            credit = clean_amount(safe_get(row, 'Crédit', 0))
+            flow_type = self._classify_pretup_transaction(type_transaction, flow_direction) # Utiliser le type de transaction
             
-            flow_type, flow_direction, gross_amount, net_amount, tax_amount = 'other', 'in', 0, 0, 0
-            
-            # --- Logique de liaison flexible ---
             linked_investment_id = None
-            linked_investment = None
-
-            # 1. Essayer de lier via l'ID de l'offre (le plus fiable)
-            platform_id_match = re.search(r'Offre n°(\d+)', description)
-            if platform_id_match:
-                platform_id = platform_id_match.group(1)
-                linked_investment = investment_map_by_id.get(platform_id)
-
-            # 2. Si échec, chercher par inclusion du nom de l'entreprise et du projet
-            if not linked_investment:
-                for inv in investments:
-                    norm_company = normalize_text(inv['company_name'])
-                    norm_project = normalize_text(inv['project_name'])
-                    
-                    # Vérifier que les deux sont présents et non vides
-                    if norm_company and norm_project and norm_company in normalized_description and norm_project in normalized_description:
-                        linked_investment = inv
-                        break # On a trouvé une correspondance
-
-            if linked_investment:
-                linked_investment_id = linked_investment['id']
-
-            # --- Classification et calcul des montants ---
-            if 'echance' in type_transaction:
-                flow_type, flow_direction = 'repayment', 'in'
+            # Tenter de lier par Numéro Offre si disponible dans la description
+            num_offre_match = re.search(r'offre n°(\d+)', operation, re.IGNORECASE)
+            if num_offre_match:
+                platform_id_from_op = num_offre_match.group(1)
+                if platform_id_from_op in investment_map_by_platform_id:
+                    linked_investment_id = investment_map_by_platform_id[platform_id_from_op]['id']
+            
+            # Si pas lié par Numéro Offre, tenter de lier par nom de projet/entreprise
+            if not linked_investment_id:
+                # Extraire le nom de l'entreprise/projet de l'opération
+                # Exemple: "Remboursement mensuel - Projet XYZ - Entreprise ABC"
+                project_name_match = re.search(r'projet (.+?)(?: - |$)', operation, re.IGNORECASE)
+                company_name_match = re.search(r'entreprise (.+?)(?: - |$)', operation, re.IGNORECASE)
                 
-                gross_amount = clean_amount(safe_get(row, 'Montant échéance', 0))
-                capital_amount = clean_amount(safe_get(row, 'Part de Capital', 0))
-                interest_amount = clean_amount(safe_get(row, 'Part Intérêts Bruts', 0))
-                tax_amount = clean_amount(safe_get(row, 'Retenue à la source (Cotisations sociales)', 0)) + \
-                             clean_amount(safe_get(row, 'Retenue à la source (Prélèvement forfaitaire)', 0))
-                net_amount = clean_amount(safe_get(row, 'Intérêts nets', 0)) + capital_amount
-                
-            elif 'remboursement anticip' in type_transaction:
-                flow_type, flow_direction = 'repayment', 'in'
-                gross_amount = credit
-                net_amount = credit
-                # Pour les remboursements anticipés, les colonnes de ventilation peuvent être vides
-                # On les initialise à 0.0 et on laisse le post-traitement (update_investments_from_cashflows)
-                # gérer le capital_repaid global.
-                interest_amount = 0.0
-                tax_amount = 0.0
-                capital_amount = 0.0
-                
-            elif 'alimentation' in type_transaction:
-                flow_type, flow_direction = 'deposit', 'in'
-                gross_amount = credit
-                net_amount = credit
-                
-            elif 'offre' in type_transaction:
-                flow_type, flow_direction = 'investment', 'out'
-                gross_amount = debit
-                net_amount = -debit
-                capital_amount = 0.0  # Doit être vide pour un investissement
-                interest_amount = 0.0 # Doit être vide pour un investissement
-                tax_amount = 0.0      # Doit être vide pour un investissement
-                if linked_investment and linked_investment.get('investment_date') is None:
-                    linked_investment['investment_date'] = transaction_date
-                    logging.info(f"Date d'investissement mise à jour pour {linked_investment['project_name']} -> {transaction_date}")
+                op_project_name = project_name_match.group(1).strip() if project_name_match else ''
+                op_company_name = company_name_match.group(1).strip() if company_name_match else ''
+
+                lookup_key = (normalize_text(op_company_name), normalize_text(op_project_name))
+                if lookup_key in investment_map_by_name:
+                    linked_investment_id = investment_map_by_name[lookup_key]['id']
+                elif op_project_name: # Fallback si seul le nom du projet est trouvé
+                    for inv_key, inv_obj in investment_map_by_name.items():
+                        if normalize_text(op_project_name) in inv_key[1]:
+                            linked_investment_id = inv_obj['id']
+                            break
+            
+            # Initialisation des montants détaillés
+            net_amount = gross_amount
+            tax_amount = 0.0
+            capital_amount = 0.0
+            interest_amount = 0.0
+
+            # Récupérer les montants détaillés si disponibles dans le relevé
+            capital_amount_releve = clean_amount(safe_get(row, 'part de capital', 0)) # Nom de colonne corrigé
+            interest_amount_releve = clean_amount(safe_get(row, 'part interets bruts', 0))
+            retenue_sociale_releve = clean_amount(safe_get(row, 'retenue a la source (cotisations sociales)', 0))
+            retenue_forfaitaire_releve = clean_amount(safe_get(row, 'retenue a la source (prelevement forfaitaire)', 0))
+
+            if flow_type == 'repayment':
+                capital_amount = capital_amount_releve
+                interest_amount = interest_amount_releve
+                tax_amount = retenue_sociale_releve + retenue_forfaitaire_releve
+                net_amount = gross_amount - tax_amount
+            elif flow_type == 'tax':
+                tax_amount = gross_amount
+                net_amount = -gross_amount # Les taxes sont des sorties
+            elif flow_type == 'investment':
+                net_amount = -gross_amount # Les investissements sont des sorties
+            
+            # Ajuster le net_amount pour les sorties
+            if flow_direction == 'out':
+                net_amount = -abs(net_amount)
             else:
-                continue
+                net_amount = abs(net_amount)
 
-            cash_flow = {
+            cash_flows.append({
                 'id': str(uuid.uuid4()),
                 'investment_id': linked_investment_id,
                 'user_id': self.user_id,
                 'platform': 'PretUp',
                 'flow_type': flow_type,
                 'flow_direction': flow_direction,
-                'gross_amount': abs(gross_amount),
-                'net_amount': net_amount,
-                'tax_amount': tax_amount,
-                'capital_amount': capital_amount,
-                'interest_amount': interest_amount,
+                'gross_amount': round(gross_amount, 2),
+                'net_amount': round(net_amount, 2),
+                'tax_amount': round(tax_amount, 2),
+                'capital_amount': round(capital_amount, 2),
+                'interest_amount': round(interest_amount, 2),
                 'transaction_date': transaction_date,
                 'status': 'completed',
-                'description': description,
+                'description': operation,
                 'created_at': datetime.now().isoformat()
-            }
-            cash_flows.append(cash_flow)
-                
+            })
+        
+        logging.info(f"Parsing du relevé de compte PretUp terminé. {len(cash_flows)} flux trouvés.")
         return cash_flows
 
-    def _extract_pretup_liquidity(self, df: pd.DataFrame) -> Optional[Dict]:
-        """Extrait le solde de liquidités le plus récent du relevé de compte."""
-        if df.empty:
-            return None
-            
-        for _, row in df.iloc[::-1].iterrows():
-            date_str = safe_get(row, 'Date')
-            if pd.isna(date_str):
-                continue
-                
-            transaction_date = self._parse_pretup_date(date_str)
-            if not transaction_date:
-                continue
+    def _classify_pretup_transaction(self, type_transaction: str, flow_direction: str) -> str:
+        """
+        Classifie le type de flux pour les transactions PretUp en se basant sur la colonne 'Type'.
+        """
+        type_lower = type_transaction.lower()
 
-            balance = safe_get(row, 'Solde')
-            if pd.notna(balance):
-                return {
-                    'id': str(uuid.uuid4()),
-                    'user_id': self.user_id,
-                    'platform': 'PretUp',
-                    'balance_date': transaction_date,
-                    'amount': clean_amount(balance)
-                }
-        return None
+        if 'echeance' in type_lower or 'remboursement anticipé' in type_lower:
+            return 'repayment'
+        elif 'offre' in type_lower:
+            return 'investment'
+        elif 'alimentation' in type_lower:
+            return 'deposit'
+        elif 'impôts' in type_lower:
+            return 'tax'
+        elif 'virement sortant' in type_lower or 'retrait' in type_lower:
+            return 'withdrawal'
+        else:
+            return 'other'
 
     # ===== ASSURANCE VIE =====
     def _parse_assurance_vie(self, file_path: str) -> Dict[str, List[Dict]]:
@@ -1309,7 +1321,7 @@ class UnifiedPortfolioParser:
                 # Nom actif nettoyé
                 asset_name = designation.replace(isin, '').strip()
                 asset_name = re.sub(r'^\d+\s*', '', asset_name).strip()
-                asset_name = re.sub(r'\s*\d+$', '', asset_name).strip()
+                asset_name = re.sub(r'\s*\d+,', '', asset_name).strip()
                 
                 # Valeurs numériques
                 quantity = clean_amount(quantities[i]) if i < len(quantities) else 0
@@ -1635,7 +1647,7 @@ class UnifiedPortfolioParser:
         cleaned = re.sub(r'Cours\s*:\s*[\d,\.\s]+', '', cleaned)
         
         # Enlever les montants en fin
-        cleaned = re.sub(r'[\d\s,\.]+$\\', '', cleaned)
+        cleaned = re.sub(r'[\d\s,\.]+\\', '', cleaned)
         
         # Nettoyer espaces
         cleaned = re.sub(r'\s+', ' ', cleaned).strip()
@@ -1787,10 +1799,10 @@ class UnifiedPortfolioParser:
         cleaned = designation.strip()
         
         # CORRECTION : Supprimer le code "025" à la fin
-        cleaned = re.sub(r'\s+025\s*$', '', cleaned)
+        cleaned = re.sub(r'\s+025\s*,', '', cleaned)
         
         # Supprimer autres codes potentiels (3 chiffres à la fin)
-        cleaned = re.sub(r'\s+\d{3}\s*$', '', cleaned)
+        cleaned = re.sub(r'\s+\d{3}\s*,', '', cleaned)
         
         # Nettoyer espaces multiples
         cleaned = re.sub(r'\s+', ' ', cleaned).strip()

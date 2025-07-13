@@ -1,0 +1,206 @@
+INFO: Début du parsing pour la plateforme PRETUP avec le fichier : C:/Users/culas/OneDrive/Documents/Finances/Projets/wealth-dashboard/data/raw/Portefeuille PretUp.xlsx
+INFO: Début du parsing PretUp avec la nouvelle méthode robuste.
+INFO: Onglets détectés dans le fichier : ['Relevé compte', 'Recapitulatif', 'Projet Sains - Offres', 'Projets Sains - Echéances', 'Procédures - Offres', 'Procédures - Echéances', 'Perdu - Offres', 'Perdu - Echéances', 'Worksheet']
+INFO: Onglet 'Projet Sains - Offres' (attendu: 'Projet Sains - Offres') chargé avec succès.
+INFO: Onglet 'Procédures - Offres' (attendu: 'Procédures - Offres') chargé avec succès.
+INFO: Onglet 'Perdu - Offres' (attendu: 'Perdu - Offres') chargé avec succès.
+INFO: Onglet 'Projets Sains - Echéances' (attendu: 'Projets Sains - Echéances') chargé avec succès.
+INFO: Onglet 'Procédures - Echéances' (attendu: 'Procédures - Echéances') chargé avec succès.
+INFO: Onglet 'Perdu - Echéances' (attendu: 'Perdu - Echéances') chargé avec succès.
+INFO: Onglet 'Relevé compte' (attendu: 'Relevé compte') chargé avec succès.
+INFO: Date d'investissement mise à jour pour Boch22 #4 - Chapelle Blanche -> 2025-03-26
+INFO: Date d'investissement mise à jour pour DMF INVEST #4  -> 2024-08-01
+INFO: Date d'investissement mise à jour pour Riverparc Patrimoine -> 2024-03-22
+INFO: Date d'investissement mise à jour pour CLS IMMO-PRESTIGE #3 -> 2023-09-22
+INFO: Date d'investissement mise à jour pour SAS TTM INVEST -> 2023-07-14
+INFO: Date d'investissement mise à jour pour SASU SCALP #2 -> 2023-07-12
+INFO: Date d'investissement mise à jour pour ADV Invest - Divonne les Bains -> 2023-05-17
+INFO: Date d'investissement mise à jour pour AFI4 -> 2022-12-27
+INFO: Date d'investissement mise à jour pour Financement immobilier à Vallauris  -> 2022-09-15
+INFO: Date d'investissement mise à jour pour SAS LAVERRIERE -> 2022-08-30
+INFO: Date d'investissement mise à jour pour Groupe Best  -> 2022-08-18
+INFO: Parsing PretUp terminé avec succès. 11 investissements et 13 flux trouvés.
+--- Début du test du parser PretUp pour le fichier : C:/Users/culas/OneDrive/Documents/Finances/Projets/wealth-dashboard/data/raw/Portefeuille PretUp.xlsx ---
+
+--- INVESTISSEMENTS (11 trouvés) ---
+{'actual_end_date': None,
+ 'asset_class': 'fixed_income',
+ 'capital_repaid': 0.0,
+ 'company_name': 'Boch 22',
+ 'created_at': '2025-07-13T20:24:11.585211',
+ 'expected_end_date': '2026-10-05',
+ 'id': '75440270-44bc-4792-903c-aff8ce192ac3',
+ 'invested_amount': 100.0,
+ 'investment_date': '2025-03-26',
+ 'investment_type': 'crowdfunding',
+ 'platform': 'PretUp',
+ 'platform_id': '679076',
+ 'project_name': 'Boch22 #4 - Chapelle Blanche',
+ 'remaining_capital': 100.0,
+ 'signature_date': '2025-05-05',
+ 'status': 'active',
+ 'updated_at': '2025-07-13T20:24:11.585219',
+ 'user_id': 'a1b2c3d4-e5f6-7890-1234-567890abcdef'}
+
+--- FLUX DE TRÉSORERIE (13 trouvés) ---
+
+...Exemples de flux (5 premiers)... 
+{'capital_amount': 0.0,
+ 'created_at': '2025-07-13T20:24:11.684538',
+ 'description': '-',
+ 'flow_direction': 'in',
+ 'flow_type': 'deposit',
+ 'gross_amount': 500.0,
+ 'id': 'c29e1c45-364f-4c2b-a95c-5b50db7bf309',
+ 'interest_amount': 0.0,
+ 'investment_id': None,
+ 'net_amount': 500.0,
+ 'platform': 'PretUp',
+ 'status': 'completed',
+ 'tax_amount': 0,
+ 'transaction_date': '2022-08-15',
+ 'user_id': 'a1b2c3d4-e5f6-7890-1234-567890abcdef'}
+{'capital_amount': 0.0,
+ 'created_at': '2025-07-13T20:24:11.684310',
+ 'description': '-',
+ 'flow_direction': 'in',
+ 'flow_type': 'deposit',
+ 'gross_amount': 500.0,
+ 'id': '32ec2eea-815f-435b-864d-4ed72f0dddae',
+ 'interest_amount': 0.0,
+ 'investment_id': None,
+ 'net_amount': 500.0,
+ 'platform': 'PretUp',
+ 'status': 'completed',
+ 'tax_amount': 0,
+ 'transaction_date': '2022-08-16',
+ 'user_id': 'a1b2c3d4-e5f6-7890-1234-567890abcdef'}
+{'capital_amount': 0.0,
+ 'created_at': '2025-07-13T20:24:11.684090',
+ 'description': 'groupe best / Groupe Best',
+ 'flow_direction': 'out',
+ 'flow_type': 'investment',
+ 'gross_amount': 100.0,
+ 'id': '51437b0d-defd-4eee-9613-cea55ecca9f0',
+ 'interest_amount': 0.0,
+ 'investment_id': '1f07ac22-c011-4116-97c1-bed49d196493',
+ 'net_amount': 100.0,
+ 'platform': 'PretUp',
+ 'status': 'completed',
+ 'tax_amount': 0.0,
+ 'transaction_date': '2022-08-18',
+ 'user_id': 'a1b2c3d4-e5f6-7890-1234-567890abcdef'}
+{'capital_amount': 0.0,
+ 'created_at': '2025-07-13T20:24:11.683825',
+ 'description': 'SAS LAVERRIERE / SAS LAVERRIERE',
+ 'flow_direction': 'out',
+ 'flow_type': 'investment',
+ 'gross_amount': 200.0,
+ 'id': '6b890bd0-aacf-4bd3-b92a-da9c32b1280c',
+ 'interest_amount': 0.0,
+ 'investment_id': '7b8153d8-87ad-4923-8151-66ec9ac32942',
+ 'net_amount': 200.0,
+ 'platform': 'PretUp',
+ 'status': 'completed',
+ 'tax_amount': 0.0,
+ 'transaction_date': '2022-08-30',
+ 'user_id': 'a1b2c3d4-e5f6-7890-1234-567890abcdef'}
+{'capital_amount': 0.0,
+ 'created_at': '2025-07-13T20:24:11.683535',
+ 'description': 'DMF Invest / Financement immobilier à Vallauris',
+ 'flow_direction': 'out',
+ 'flow_type': 'investment',
+ 'gross_amount': 200.0,
+ 'id': '15987c8d-8bda-4c54-8450-a6e6959127a4',
+ 'interest_amount': 0.0,
+ 'investment_id': '82da78bc-9692-48e0-ad3f-ee9170f0098c',
+ 'net_amount': 200.0,
+ 'platform': 'PretUp',
+ 'status': 'completed',
+ 'tax_amount': 0.0,
+ 'transaction_date': '2022-09-15',
+ 'user_id': 'a1b2c3d4-e5f6-7890-1234-567890abcdef'}
+
+...et les 5 derniers flux... 
+{'capital_amount': 0.0,
+ 'created_at': '2025-07-13T20:24:11.668432',
+ 'description': 'TTM INVEST / SAS TTM INVEST',
+ 'flow_direction': 'out',
+ 'flow_type': 'investment',
+ 'gross_amount': 56.0,
+ 'id': 'c29cd547-bead-40b0-9818-2654cc3045aa',
+ 'interest_amount': 0.0,
+ 'investment_id': '581f23fd-429f-48eb-be93-030b7a2cd406',
+ 'net_amount': 56.0,
+ 'platform': 'PretUp',
+ 'status': 'completed',
+ 'tax_amount': 0.0,
+ 'transaction_date': '2023-07-14',
+ 'user_id': 'a1b2c3d4-e5f6-7890-1234-567890abcdef'}
+{'capital_amount': 0.0,
+ 'created_at': '2025-07-13T20:24:11.662363',
+ 'description': 'C.L.S Immo-Prestige / CLS IMMO-PRESTIGE #3',
+ 'flow_direction': 'out',
+ 'flow_type': 'investment',
+ 'gross_amount': 38.0,
+ 'id': 'eaa7f3dc-1303-4c92-b4ae-936b3d19ebed',
+ 'interest_amount': 0.0,
+ 'investment_id': '55a549e9-9790-486f-bd66-e9889c9a9c7c',
+ 'net_amount': 38.0,
+ 'platform': 'PretUp',
+ 'status': 'completed',
+ 'tax_amount': 0.0,
+ 'transaction_date': '2023-09-22',
+ 'user_id': 'a1b2c3d4-e5f6-7890-1234-567890abcdef'}
+{'capital_amount': 0.0,
+ 'created_at': '2025-07-13T20:24:11.640177',
+ 'description': 'Riverparc Patrimoine / Riverparc Patrimoine',
+ 'flow_direction': 'out',
+ 'flow_type': 'investment',
+ 'gross_amount': 224.0,
+ 'id': '6fc2cba0-8b44-43a5-87ab-0e6b4ed8684f',
+ 'interest_amount': 0.0,
+ 'investment_id': '1744df6c-a2f5-4e38-8631-b72f0cca6dad',
+ 'net_amount': 224.0,
+ 'platform': 'PretUp',
+ 'status': 'completed',
+ 'tax_amount': 0.0,
+ 'transaction_date': '2024-03-22',
+ 'user_id': 'a1b2c3d4-e5f6-7890-1234-567890abcdef'}
+{'capital_amount': 0.0,
+ 'created_at': '2025-07-13T20:24:11.632300',
+ 'description': 'DMF Invest / DMF INVEST #4',
+ 'flow_direction': 'out',
+ 'flow_type': 'investment',
+ 'gross_amount': 48.0,
+ 'id': '57d38614-4194-478d-8709-1526a314eb8b',
+ 'interest_amount': 0.0,
+ 'investment_id': 'a71885bb-fe52-4914-a05a-5fbabdaaaff7',
+ 'net_amount': 48.0,
+ 'platform': 'PretUp',
+ 'status': 'completed',
+ 'tax_amount': 0.0,
+ 'transaction_date': '2024-08-01',
+ 'user_id': 'a1b2c3d4-e5f6-7890-1234-567890abcdef'}
+{'capital_amount': 0.0,
+ 'created_at': '2025-07-13T20:24:11.614847',
+ 'description': 'Boch 22 / Boch22 #4 - Chapelle Blanche',
+ 'flow_direction': 'out',
+ 'flow_type': 'investment',
+ 'gross_amount': 100.0,
+ 'id': '6f51fbfc-0aa9-478d-89f1-b443f28230a7',
+ 'interest_amount': 0.0,
+ 'investment_id': '75440270-44bc-4792-903c-aff8ce192ac3',
+ 'net_amount': 100.0,
+ 'platform': 'PretUp',
+ 'status': 'completed',
+ 'tax_amount': 0.0,
+ 'transaction_date': '2025-03-26',
+ 'user_id': 'a1b2c3d4-e5f6-7890-1234-567890abcdef'}
+
+--- SOLDES DE LIQUIDITÉS (1 trouvés) ---
+[{'amount': 0.0,
+  'balance_date': '2022-08-15',
+  'id': 'd82d4a94-c996-4165-84b5-b7e4a95e89d6',
+  'platform': 'PretUp',
+  'user_id': 'a1b2c3d4-e5f6-7890-1234-567890abcdef'}]

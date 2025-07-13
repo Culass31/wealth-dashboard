@@ -8,10 +8,7 @@ import os
 import logging
 from pathlib import Path
 from typing import Dict, Any
-
-# --- Configuration du logging pour le frontend ---
-# On ne veut voir que les avertissements et les erreurs dans la console Streamlit
-logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
+from dotenv import load_dotenv
 
 # --- Configuration du chemin et des imports ---
 project_root = Path(__file__).resolve().parent.parent
@@ -126,23 +123,27 @@ def display_global_charts(charts_data: Dict[str, Any]):
             fig.update_layout(showlegend=False, margin=dict(t=0, b=0, l=0, r=0))
             st.plotly_chart(fig, use_container_width=True)
     with c2:
-        st.subheader("Évolution du Patrimoine vs. Benchmark (ETF World)")
-        evolution = charts_data.get('evolution_data', {})
-        apports = evolution.get('apports_cumules')
-        patrimoine_total_evolution = evolution.get('patrimoine_total_evolution')
-        benchmark = evolution.get('benchmark')
-        logging.debug(f"Frontend: Type of benchmark: {type(benchmark)}") # Nouveau log
-        if isinstance(benchmark, pd.Series) and not benchmark.empty:
+        st.subheader("Évolution du Patrimoine vs. Benchmark")
+        evolution_data = charts_data.get('evolution_data', {})
+        patrimoine_total_evolution = evolution_data.get('patrimoine_total_evolution')
+        benchmark = evolution_data.get('benchmark')
+
+        if not patrimoine_total_evolution.empty:
             fig = go.Figure()
-            fig.add_trace(go.Scatter(x=apports.index, y=apports.values, name='Vos Apports Cumulés', fill='tozeroy', line_color='#B0BEC5'))
-            if isinstance(patrimoine_total_evolution, pd.Series) and not patrimoine_total_evolution.empty:
-                fig.add_trace(go.Scatter(x=patrimoine_total_evolution.index, y=patrimoine_total_evolution.values, name='Votre Patrimoine Total', line_color='#00ACC1', line=dict(width=3)))
-            if isinstance(benchmark, pd.Series) and not benchmark.empty:
-                fig.add_trace(go.Scatter(x=benchmark.index, y=benchmark.values, name='Performance Benchmark (Normalisée)', line_color='#1E88E5', line=dict(width=3, dash='dot')))
-            fig.update_layout(hovermode="x unified", legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
+            fig.add_trace(go.Scatter(x=patrimoine_total_evolution.index, y=patrimoine_total_evolution.values, mode='lines', name='Mon Patrimoine', line=dict(color='#1E88E5')))
+            if not benchmark.empty:
+                fig.add_trace(go.Scatter(x=benchmark.index, y=benchmark.values, mode='lines', name='Benchmark (ETF World)', line=dict(color='#00ACC1', dash='dash')))
+            
+            fig.update_layout(
+                title_text='Évolution du Patrimoine et Benchmark',
+                xaxis_title='Date',
+                yaxis_title='Valeur (Indexée)',
+                hovermode="x unified",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
             st.plotly_chart(fig, use_container_width=True)
         else:
-            st.info("Chargez des données pour voir l'évolution.")
+            st.warning("Pas de données d'évolution du patrimoine disponibles pour le graphique.")
 
 def display_periodic_performance(calculator: PatrimoineCalculator):
     st.markdown("<div class='section-header'>Performance Périodique</div>", unsafe_allow_html=True)
@@ -176,8 +177,12 @@ def display_platform_analysis(calculator: PatrimoineCalculator):
 
 # --- Application Principale ---
 def main():
+    load_dotenv()  # Charger les variables d'environnement depuis .env
     st.title("✨ Wealth Dashboard")
-    user_id = "29dec51d-0772-4e3a-8e8f-1fece8fefe0e"
+    user_id = os.getenv("DEFAULT_USER_ID")
+    if not user_id:
+        st.error("DEFAULT_USER_ID n'est pas défini dans le fichier .env. Veuillez le configurer.")
+        return
     with st.sidebar:
         st.header("⚙️ Actions")
         if st.button("🔄 Actualiser les Données"):
