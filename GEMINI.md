@@ -97,6 +97,8 @@
 *   Ne jamais halluciner des bibliothèques ou des fonctions – utiliser uniquement des paquets Python connus et vérifiés.
 *   Toujours confirmer que les chemins de fichiers et les noms de modules existent avant de les référencer dans le code ou les tests.
 *   Ne jamais supprimer ou écraser du code existant, sauf instruction explicite ou si cela fait partie d'une tâche de `TASK.md`.
+*   Toute la conversation avec l'utilisateur doit se faire en français.
+*   Les messages de commit doivent être rédigés en français et suivre les conventions de Conventional Commits.
 *   Tous les commentaires dans le code doivent être rédigés en français.
 *   Proposer de faire des commits avant chaque évolution majeure du code que vous souhaitez effectuer.
 

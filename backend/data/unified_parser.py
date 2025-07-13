@@ -975,8 +975,52 @@ class UnifiedPortfolioParser:
         else:
             return 'other'
 
-    # ===== ASSURANCE VIE =====
-    def _parse_assurance_vie(self, file_path: str) -> Dict[str, List[Dict]]:
+    def _extract_pretup_liquidity(self, df_releve: pd.DataFrame) -> Optional[Dict]:
+        """
+        Extrait le solde de liquidités le plus récent du relevé de compte PretUp.
+        """
+        logging.info("Extraction du solde de liquidités PretUp...")
+        if df_releve.empty:
+            logging.warning("DataFrame du relevé PretUp est vide, impossible d'extraire la liquidité.")
+            return None
+
+        # Assurer que les colonnes nécessaires existent et sont au bon format
+        # Normaliser les noms de colonnes si ce n'est pas déjà fait
+        df_releve.columns = [normalize_text(col) for col in df_releve.columns]
+
+        # Trouver la colonne de date et de solde
+        date_col = get_column_by_normalized_name(df_releve, 'date')
+        solde_col = get_column_by_normalized_name(df_releve, 'solde')
+
+        if not date_col or not solde_col:
+            logging.warning(f"Colonnes 'date' ou 'solde' non trouvées dans le relevé PretUp. Colonnes disponibles: {df_releve.columns.tolist()}")
+            return None
+
+        df_releve[date_col] = pd.to_datetime(df_releve[date_col], errors='coerce')
+        df_releve.dropna(subset=[date_col, solde_col], inplace=True)
+
+        if df_releve.empty:
+            logging.warning("Après nettoyage, le DataFrame du relevé PretUp est vide, impossible d'extraire la liquidité.")
+            return None
+
+        # Trier par date et prendre la dernière entrée
+        latest_balance_row = df_releve.sort_values(by=date_col, ascending=False).iloc[0]
+        
+        balance_date = latest_balance_row[date_col].strftime('%Y-%m-%d')
+        amount = clean_amount(latest_balance_row[solde_col])
+
+        liquidity_balance = {
+            'user_id': self.user_id,
+            'platform': 'PretUp',
+            'balance_date': balance_date,
+            'amount': amount,
+            'created_at': datetime.now().isoformat(),
+            'updated_at': datetime.now().isoformat()
+        }
+        logging.info(f"Liquidité PretUp extraite : {amount} EUR à la date {balance_date}")
+        return liquidity_balance
+
+    # ===== ASSURANCE VIE =====    def _parse_assurance_vie(self, file_path: str) -> Dict[str, List[Dict]]:
         """Parser Assurance Vie ultra-robuste contre les erreurs de type"""
         
         try:
@@ -1501,7 +1545,7 @@ class UnifiedPortfolioParser:
             for word in reversed(words[-4:]):  # Les 4 derniers mots
                 if (',' in word and \
                     not word.startswith(',') and \
-                    not word.endswith(',') and
+                    not word.endswith(',') and\
                     len(word) >= 3):
                     
                     try:
