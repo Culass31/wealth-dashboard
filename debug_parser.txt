@@ -1,396 +1,279 @@
-2025-07-13 04:16:52,552 - INFO - Nettoyage et rechargement pour l'utilisateur : e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9
-2025-07-13 04:16:53,298 - INFO - Connexion Ó Supabase rÚussie.
-2025-07-13 04:16:53,298 - INFO - \U0001f5d1\ufe0f Suppression des donnÚes existantes...
-2025-07-13 04:16:53,298 - INFO - DÚbut de la suppression des donnÚes pour la plateforme 'La PremiÞre Brique'...
-2025-07-13 04:16:53,298 - INFO - Suppression des donnÚes de la table 'cash_flows' pour la plateforme 'La PremiÞre Brique'...
-2025-07-13 04:16:54,066 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/cash_flows?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9&platform=eq.La+Premi%C3%A8re+Brique "HTTP/2 200 OK"
-2025-07-13 04:16:54,450 - INFO - -> 263 enregistrements supprimÚs de 'cash_flows'.
-2025-07-13 04:16:54,450 - INFO - Suppression des donnÚes de la table 'expert_metrics_cache' pour la plateforme 'La PremiÞre Brique'...
-2025-07-13 04:16:54,556 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/expert_metrics_cache?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9&platform=eq.La+Premi%C3%A8re+Brique "HTTP/2 200 OK"
-2025-07-13 04:16:54,557 - INFO - -> Aucune donnÚe Ó supprimer dans 'expert_metrics_cache' pour cette plateforme.
-2025-07-13 04:16:54,557 - INFO - Suppression des donnÚes de la table 'liquidity_balances' pour la plateforme 'La PremiÞre Brique'...
-2025-07-13 04:16:54,667 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/liquidity_balances?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9&platform=eq.La+Premi%C3%A8re+Brique "HTTP/2 200 OK"
-2025-07-13 04:16:54,668 - INFO - -> Aucune donnÚe Ó supprimer dans 'liquidity_balances' pour cette plateforme.
-2025-07-13 04:16:54,669 - INFO - Suppression des donnÚes de la table 'portfolio_positions' pour la plateforme 'La PremiÞre Brique'...
-2025-07-13 04:16:54,747 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/portfolio_positions?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9&platform=eq.La+Premi%C3%A8re+Brique "HTTP/2 200 OK"
-2025-07-13 04:16:54,747 - INFO - -> Aucune donnÚe Ó supprimer dans 'portfolio_positions' pour cette plateforme.
-2025-07-13 04:16:54,747 - INFO - Suppression des donnÚes de la table 'investments' pour la plateforme 'La PremiÞre Brique'...
-2025-07-13 04:16:54,850 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/investments?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9&platform=eq.La+Premi%C3%A8re+Brique "HTTP/2 200 OK"
-2025-07-13 04:16:54,852 - INFO - -> 37 enregistrements supprimÚs de 'investments'.
-2025-07-13 04:16:54,852 - INFO - \u2705 Suppression des donnÚes pour la plateforme 'La PremiÞre Brique' terminÚe.
-2025-07-13 04:16:54,852 - INFO - Rechargement des donnÚes...
-2025-07-13 04:16:54,852 - INFO - \U0001f680 CHARGEMENT AUTOMATIQUE DONN╔ES PATRIMOINE
-2025-07-13 04:16:54,853 - INFO - ==================================================
-2025-07-13 04:16:55,158 - INFO - Connexion Ó Supabase rÚussie.
-2025-07-13 04:16:55,158 - INFO - Validation des fichiers dans data/raw
-2025-07-13 04:16:55,158 - INFO - Validation filtrÚe pour les plateformes : lpb
-2025-07-13 04:16:55,481 - INFO - Fichier valide: LA PREMI╚RE BRIQUE: Portefeuille LPB.xlsx
-2025-07-13 04:16:55,481 - INFO - VALIDATION: 1/1 fichiers valides
-2025-07-13 04:16:55,481 - INFO - \U0001f4e5 DÚbut chargement pour utilisateur: e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9
-2025-07-13 04:16:55,481 - INFO - \U0001f4c2 Chargement complet pour utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 depuis data/raw
-2025-07-13 04:16:55,481 - INFO - Filtre appliquÚ pour les plateformes : lpb
-2025-07-13 04:16:55,481 - INFO - Chargement LA PREMI╚RE BRIQUE pour utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9
-2025-07-13 04:16:55,482 - INFO - Parsing La PremiÞre Brique...
-2025-07-13 04:16:55,482 - INFO - DÚbut du parsing pour la plateforme LA PREMI╚RE BRIQUE avec le fichier : data/raw\Portefeuille LPB.xlsx
-2025-07-13 04:16:55,482 - INFO - DÚbut du parsing pour La PremiÞre Brique avec la nouvelle logique d'ÚchÚancier.
-2025-07-13 04:16:55,587 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'L'Isoir'.
-2025-07-13 04:16:55,616 - WARNING - Projet 'L'Isoir' marquÚ comme 'delayed' en raison de la mention 'prolongation' dans l'ÚchÚancier.
-2025-07-13 04:16:55,626 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'Le Quattuor'.
-2025-07-13 04:16:55,651 - WARNING - Projet 'Le Quattuor' marquÚ comme 'delayed' en raison de la mention 'prolongation' dans l'ÚchÚancier.
-2025-07-13 04:16:55,663 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'Le Canard'.
-2025-07-13 04:16:55,686 - WARNING - Projet 'Le Canard' marquÚ comme 'delayed' en raison de la mention 'prolongation' dans l'ÚchÚancier.
-2025-07-13 04:16:55,697 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'L'Envol'.
-2025-07-13 04:16:55,718 - WARNING - Projet 'L'Envol' marquÚ comme 'delayed' en raison de la mention 'prolongation' dans l'ÚchÚancier.
-2025-07-13 04:16:55,728 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'La Plumeria'.
-2025-07-13 04:16:55,748 - WARNING - Projet 'La Plumeria' marquÚ comme 'delayed' en raison de la mention 'prolongation' dans l'ÚchÚancier.
-2025-07-13 04:16:55,753 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'Le HÚrisson'.
-2025-07-13 04:16:55,769 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'Le Windsor'.
-2025-07-13 04:16:55,790 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'L'Ange'.
-2025-07-13 04:16:55,806 - WARNING - Projet 'L'Ange' marquÚ comme 'delayed' en raison de la mention 'prolongation' dans l'ÚchÚancier.
-2025-07-13 04:16:55,809 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'Le Raisin'.
-2025-07-13 04:16:55,826 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'Le Gaillard'.
-2025-07-13 04:16:55,846 - WARNING - Projet 'Le Gaillard' marquÚ comme 'delayed' en raison de la mention 'prolongation' dans l'ÚchÚancier.
-2025-07-13 04:16:55,850 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'Le Pommier'.
-2025-07-13 04:16:55,868 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'La Voile'.
-2025-07-13 04:16:55,883 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'L'Iliade'.
-2025-07-13 04:16:55,899 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'La Mangue'.
-2025-07-13 04:16:55,918 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'L'OmÚga'.
-2025-07-13 04:16:55,935 - WARNING - Projet 'L'OmÚga' marquÚ comme 'delayed' en raison de la mention 'prolongation' dans l'ÚchÚancier.
-2025-07-13 04:16:55,941 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'Le Magenta'.
-2025-07-13 04:16:55,956 - WARNING - Projet 'Le Magenta' marquÚ comme 'delayed' en raison de la mention 'prolongation' dans l'ÚchÚancier.
-2025-07-13 04:16:55,961 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'L'Europe'.
-2025-07-13 04:16:55,981 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'L'Olive'.
-2025-07-13 04:16:55,999 - WARNING - Projet 'L'Olive' marquÚ comme 'delayed' en raison de la mention 'prolongation' dans l'ÚchÚancier.
-2025-07-13 04:16:56,002 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'Le Cayenne'.
-2025-07-13 04:16:56,020 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'L'Aiguille'.
-2025-07-13 04:16:56,041 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'Le Coach'.
-2025-07-13 04:16:56,066 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'Le Vitton'.
-2025-07-13 04:16:56,090 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'Le Zola'.
-2025-07-13 04:16:56,113 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'Les Nuages'.
-2025-07-13 04:16:56,134 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'Le Cuivre'.
-2025-07-13 04:16:56,153 - WARNING - Projet 'Le Cuivre' marquÚ comme 'delayed' en raison de la mention 'prolongation' dans l'ÚchÚancier.
-2025-07-13 04:16:56,159 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'Le CÞdre'.
-2025-07-13 04:16:56,176 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'Le Leclerc'.
-2025-07-13 04:16:56,195 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'Le SoufflÚ'.
-2025-07-13 04:16:56,211 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'La Berge'.
-2025-07-13 04:16:56,225 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'Le Cygne'.
-2025-07-13 04:16:56,239 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'Le Corsaire'.
-2025-07-13 04:16:56,252 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'LÆOlympique'.
-2025-07-13 04:16:56,265 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'Le Arnold'.
-2025-07-13 04:16:56,279 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'Le Virtuose'.
-2025-07-13 04:16:56,298 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'La Papalia'.
-2025-07-13 04:16:56,312 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'LÆHumoriste'.
-2025-07-13 04:16:56,328 - INFO - ╔chÚancier trouvÚ et parsÚ pour le projet 'Le Brillant'.
-2025-07-13 04:16:56,349 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (136.08) ne correspond pas au montant brut du relevÚ (132.14) pour Remboursement mensualitÚ n║5 liÚe au projet Le Quattuor. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,354 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (477.00) ne correspond pas au montant brut du relevÚ (476.06) pour Remboursement mensualitÚ n║1 liÚe au projet Le Windsor. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,358 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (30.54) ne correspond pas au montant brut du relevÚ (30.37) pour Remboursement mensualitÚ n║4 liÚe au projet Le Windsor. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,361 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (302.79) ne correspond pas au montant brut du relevÚ (301.04) pour Remboursement mensualitÚ n║2 liÚe au projet Le Gaillard . Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,365 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (17.73) ne correspond pas au montant brut du relevÚ (515.13) pour Remboursement mensualitÚ n║3 liÚe au projet Le Raisin. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,369 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (40.62) ne correspond pas au montant brut du relevÚ (34.66) pour Remboursement mensualitÚ n║15 liÚe au projet Le Quattuor. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,372 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (166.45) ne correspond pas au montant brut du relevÚ (163.83) pour Remboursement mensualitÚ n║3 liÚe au projet Le Pommier . Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,375 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (224.51) ne correspond pas au montant brut du relevÚ (223.90) pour Remboursement mensualitÚ n║4 liÚe au projet Le Pommier . Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,379 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (945.56) ne correspond pas au montant brut du relevÚ (933.07) pour Remboursement mensualitÚ n║8 liÚe au projet Le HÚrisson. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,383 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (313.80) ne correspond pas au montant brut du relevÚ (311.12) pour Remboursement mensualitÚ n║3 liÚe au projet La Voile . Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,387 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (219.06) ne correspond pas au montant brut du relevÚ (218.68) pour Remboursement mensualitÚ n║4 liÚe au projet La Voile . Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,391 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (40.00) ne correspond pas au montant brut du relevÚ (39.93) pour Remboursement mensualitÚ n║9 liÚe au projet Le HÚrisson. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,395 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (6.20) ne correspond pas au montant brut du relevÚ (5.29) pour Remboursement mensualitÚ n║1 liÚe au projet L'Europe. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,399 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (211.02) ne correspond pas au montant brut du relevÚ (198.41) pour Remboursement mensualitÚ n║16 liÚe au projet L'Envol. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,403 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (6.20) ne correspond pas au montant brut du relevÚ (5.29) pour Remboursement mensualitÚ n║2 liÚe au projet L'Europe. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,411 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (6.20) ne correspond pas au montant brut du relevÚ (5.29) pour Remboursement mensualitÚ n║3 liÚe au projet L'Europe. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,416 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (326.67) ne correspond pas au montant brut du relevÚ (322.30) pour Remboursement mensualitÚ n║5 liÚe au projet Le Magenta. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,420 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (17.59) ne correspond pas au montant brut du relevÚ (515.01) pour Remboursement mensualitÚ n║3 liÚe au projet Le Cayenne. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,423 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (6.20) ne correspond pas au montant brut du relevÚ (5.29) pour Remboursement mensualitÚ n║4 liÚe au projet L'Europe. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,427 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (0.86) ne correspond pas au montant brut du relevÚ (5.00) pour Remboursement mensualitÚ n║1 liÚe au projet Le Coach. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,431 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (52.55) ne correspond pas au montant brut du relevÚ (45.80) pour Remboursement mensualitÚ n║22 liÚe au projet Le Quattuor. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,434 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (6.20) ne correspond pas au montant brut du relevÚ (5.29) pour Remboursement mensualitÚ n║5 liÚe au projet L'Europe. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,438 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (43.65) ne correspond pas au montant brut du relevÚ (540.66) pour Remboursement mensualitÚ n║8 liÚe au projet L'Iliade. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,442 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (0.86) ne correspond pas au montant brut du relevÚ (5.00) pour Remboursement mensualitÚ n║2 liÚe au projet Le Coach. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,445 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (5.37) ne correspond pas au montant brut du relevÚ (4.58) pour Remboursement mensualitÚ n║1 liÚe au projet Le Zola. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,449 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (6.20) ne correspond pas au montant brut du relevÚ (5.29) pour Remboursement mensualitÚ n║6 liÚe au projet L'Europe. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,453 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (0.86) ne correspond pas au montant brut du relevÚ (5.00) pour Remboursement mensualitÚ n║3 liÚe au projet Le Coach. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,456 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (5.37) ne correspond pas au montant brut du relevÚ (4.58) pour Remboursement mensualitÚ n║2 liÚe au projet Le Zola. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,460 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (0.86) ne correspond pas au montant brut du relevÚ (5.00) pour Remboursement mensualitÚ n║4 liÚe au projet Le Coach. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,463 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (145.13) ne correspond pas au montant brut du relevÚ (143.07) pour Remboursement mensualitÚ n║13 liÚe au projet Le Pommier . Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,467 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (5.38) ne correspond pas au montant brut du relevÚ (4.59) pour Remboursement mensualitÚ n║3 liÚe au projet Le Zola. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,470 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (84.68) ne correspond pas au montant brut du relevÚ (82.10) pour Remboursement mensualitÚ n║3 liÚe au projet Les Nuages . Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,474 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (6.20) ne correspond pas au montant brut du relevÚ (5.29) pour Remboursement mensualitÚ n║7 liÚe au projet L'Europe. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,477 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (6.20) ne correspond pas au montant brut du relevÚ (5.29) pour Remboursement mensualitÚ n║8 liÚe au projet L'Europe. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,480 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (150.03) ne correspond pas au montant brut du relevÚ (136.15) pour Remboursement mensualitÚ n║16 liÚe au projet L'Ange. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,484 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (0.86) ne correspond pas au montant brut du relevÚ (5.00) pour Remboursement mensualitÚ n║5 liÚe au projet Le Coach. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,487 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (5.37) ne correspond pas au montant brut du relevÚ (4.58) pour Remboursement mensualitÚ n║4 liÚe au projet Le Zola. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,491 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (6.20) ne correspond pas au montant brut du relevÚ (5.29) pour Remboursement mensualitÚ n║9 liÚe au projet L'Europe. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,495 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (206.20) ne correspond pas au montant brut du relevÚ (205.43) pour Remboursement mensualitÚ n║17 liÚe au projet L'Ange. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,498 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (0.86) ne correspond pas au montant brut du relevÚ (5.00) pour Remboursement mensualitÚ n║6 liÚe au projet Le Coach. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,502 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (5.37) ne correspond pas au montant brut du relevÚ (4.58) pour Remboursement mensualitÚ n║5 liÚe au projet Le Zola. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,505 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (6.20) ne correspond pas au montant brut du relevÚ (5.29) pour Remboursement mensualitÚ n║10 liÚe au projet L'Europe. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,508 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (387.73) ne correspond pas au montant brut du relevÚ (386.94) pour Remboursement mensualitÚ n║6 liÚe au projet Le Zola. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,511 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (0.86) ne correspond pas au montant brut du relevÚ (5.00) pour Remboursement mensualitÚ n║7 liÚe au projet Le Coach. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,517 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (387.37) ne correspond pas au montant brut du relevÚ (376.88) pour Remboursement mensualitÚ n║12 liÚe au projet L'OmÚga . Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,520 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (6.20) ne correspond pas au montant brut du relevÚ (5.29) pour Remboursement mensualitÚ n║11 liÚe au projet L'Europe. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,524 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (58.17) ne correspond pas au montant brut du relevÚ (57.15) pour Remboursement mensualitÚ n║19 liÚe au projet L'Ange. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,527 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (1.50) ne correspond pas au montant brut du relevÚ (5.00) pour Remboursement mensualitÚ n║8 liÚe au projet Le Coach. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,531 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (144.72) ne correspond pas au montant brut du relevÚ (139.77) pour Remboursement mensualitÚ n║13 liÚe au projet Le Magenta. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,534 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (1.41) ne correspond pas au montant brut du relevÚ (1.08) pour Remboursement mensualitÚ n║7 liÚe au projet Le Zola. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,538 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (32.47) ne correspond pas au montant brut du relevÚ (30.88) pour Remboursement mensualitÚ n║12 liÚe au projet L'Europe. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,542 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (41.49) ne correspond pas au montant brut du relevÚ (40.67) pour Remboursement mensualitÚ n║20 liÚe au projet L'Ange. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,545 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (1.50) ne correspond pas au montant brut du relevÚ (5.00) pour Remboursement mensualitÚ n║9 liÚe au projet Le Coach. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,549 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (119.06) ne correspond pas au montant brut du relevÚ (118.73) pour Remboursement mensualitÚ n║8 liÚe au projet Le Zola. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,552 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (41.66) ne correspond pas au montant brut du relevÚ (40.16) pour Remboursement mensualitÚ n║13 liÚe au projet L'Europe. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,556 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (110.76) ne correspond pas au montant brut du relevÚ (110.10) pour Remboursement mensualitÚ n║21 liÚe au projet L'Ange. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,560 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (1.50) ne correspond pas au montant brut du relevÚ (5.00) pour Remboursement mensualitÚ n║10 liÚe au projet Le Coach. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,563 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (1.50) ne correspond pas au montant brut du relevÚ (5.00) pour Remboursement mensualitÚ n║1 liÚe au projet LÆOlympique. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,567 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (32.22) ne correspond pas au montant brut du relevÚ (30.82) pour Remboursement mensualitÚ n║14 liÚe au projet L'Europe. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,570 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (1.50) ne correspond pas au montant brut du relevÚ (5.00) pour Remboursement mensualitÚ n║11 liÚe au projet Le Coach. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,574 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (1.50) ne correspond pas au montant brut du relevÚ (5.00) pour Remboursement mensualitÚ n║2 liÚe au projet LÆOlympique. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,578 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (32.09) ne correspond pas au montant brut du relevÚ (30.78) pour Remboursement mensualitÚ n║15 liÚe au projet L'Europe. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,582 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (23.01) ne correspond pas au montant brut du relevÚ (560.01) pour Remboursement mensualitÚ n║12 liÚe au projet Le Vitton. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,585 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (1.50) ne correspond pas au montant brut du relevÚ (5.00) pour Remboursement mensualitÚ n║12 liÚe au projet Le Coach. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,589 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (1.50) ne correspond pas au montant brut du relevÚ (5.00) pour Remboursement mensualitÚ n║3 liÚe au projet LÆOlympique. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,593 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (32.00) ne correspond pas au montant brut du relevÚ (30.77) pour Remboursement mensualitÚ n║16 liÚe au projet L'Europe. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,596 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (1.50) ne correspond pas au montant brut du relevÚ (5.00) pour Remboursement mensualitÚ n║13 liÚe au projet Le Coach. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,600 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (1.50) ne correspond pas au montant brut du relevÚ (5.00) pour Remboursement mensualitÚ n║4 liÚe au projet LÆOlympique. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,603 - WARNING - LPB Repayment: Somme des parties de l'ÚchÚancier (31.88) ne correspond pas au montant brut du relevÚ (30.73) pour Remboursement mensualitÚ n║17 liÚe au projet L'Europe. Les montants du relevÚ seront utilisÚs pour gross/net.
-2025-07-13 04:16:56,609 - INFO - Parsing LPB terminÚ. 37 investissements et 263 flux trouvÚs.
-2025-07-13 04:16:56,610 - INFO - \U0001f4ca DonnÚes parsÚes: 37 investissements, 263 flux
-2025-07-13 04:16:57,200 - INFO - HTTP Request: POST https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/investments?columns=%22isin%22%2C%22annual_rate%22%2C%22investment_date%22%2C%22user_id%22%2C%22platform%22%2C%22company_name%22%2C%22monthly_payment%22%2C%22duration_months%22%2C%22signature_date%22%2C%22is_delayed%22%2C%22expected_end_date%22%2C%22investment_type%22%2C%22is_short_term%22%2C%22platform_id%22%2C%22remaining_capital%22%2C%22asset_class%22%2C%22project_name%22%2C%22capital_repaid%22%2C%22id%22%2C%22actual_end_date%22%2C%22invested_amount%22%2C%22status%22 "HTTP/2 201 Created"
-2025-07-13 04:16:57,234 - INFO - 37 investissements insÚrÚs avec succÞs.
-2025-07-13 04:16:57,609 - INFO - HTTP Request: POST https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/cash_flows?columns=%22capital_amount%22%2C%22investment_id%22%2C%22transaction_date%22%2C%22flow_type%22%2C%22user_id%22%2C%22description%22%2C%22tax_amount%22%2C%22net_amount%22%2C%22flow_direction%22%2C%22id%22%2C%22gross_amount%22%2C%22platform%22%2C%22interest_amount%22%2C%22status%22%2C%22payment_method%22 "HTTP/2 201 Created"
-2025-07-13 04:16:57,778 - INFO - 263 flux de trÚsorerie insÚrÚs avec succÞs.
-2025-07-13 04:16:57,779 - INFO - \u2705 LA PREMI╚RE BRIQUE chargÚ avec succÞs
-2025-07-13 04:16:57,779 - INFO - \U0001f4cb R╔SUM╔ CHARGEMENT: 1 source(s) de donnÚes chargÚe(s) avec succÞs.
-2025-07-13 04:16:57,779 - INFO - \U0001f389 CHARGEMENT TERMIN╔ AVEC SUCC╚S!
-2025-07-13 04:16:57,888 - INFO - HTTP Request: GET https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/investments?select=%2A&user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 "HTTP/2 200 OK"
-2025-07-13 04:16:57,890 - INFO - RÚcupÚration de 73 investissements pour l'utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9.
-2025-07-13 04:16:57,968 - INFO - HTTP Request: GET https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/cash_flows?select=%2A&user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 "HTTP/2 200 OK"
-2025-07-13 04:16:58,002 - INFO - RÚcupÚration de 502 flux de trÚsorerie pour l'utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9.
-2025-07-13 04:16:58,028 - INFO - \U0001f4ca R╔SUM╔ FINAL:
-2025-07-13 04:16:58,028 - INFO -   \U0001f4b0 Capital total: 30,242 Ç
-2025-07-13 04:16:58,028 - INFO -   \U0001f4c8 Positions totales: 73
-2025-07-13 04:16:58,028 - INFO -   \U0001f3e2 Plateformes: 4
-2025-07-13 04:16:58,113 - INFO - HTTP Request: GET https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/investments?select=%2A&user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 "HTTP/2 200 OK"
-2025-07-13 04:16:58,163 - INFO - RÚcupÚration de 73 investissements pour l'utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9.
-2025-07-13 04:16:58,168 - INFO - 
+2025-07-13 16:47:24,450 - INFO - Nettoyage et rechargement pour l'utilisateur : e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9
+2025-07-13 16:47:26,924 - INFO - Connexion Ó Supabase rÚussie.
+2025-07-13 16:47:26,924 - INFO - \U0001f5d1\ufe0f Suppression des donnÚes existantes...
+2025-07-13 16:47:26,924 - INFO - DÚbut de la suppression des donnÚes pour la plateforme 'La PremiÞre Brique'...
+2025-07-13 16:47:26,925 - INFO - Suppression des donnÚes de la table 'cash_flows' pour la plateforme 'La PremiÞre Brique'...
+2025-07-13 16:47:28,344 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/cash_flows?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9&platform=eq.La+Premi%C3%A8re+Brique "HTTP/2 200 OK"
+2025-07-13 16:47:28,378 - INFO - -> 119 enregistrements supprimÚs de 'cash_flows'.
+2025-07-13 16:47:28,378 - INFO - Suppression des donnÚes de la table 'expert_metrics_cache' pour la plateforme 'La PremiÞre Brique'...
+2025-07-13 16:47:28,450 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/expert_metrics_cache?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9&platform=eq.La+Premi%C3%A8re+Brique "HTTP/2 200 OK"
+2025-07-13 16:47:28,451 - INFO - -> Aucune donnÚe Ó supprimer dans 'expert_metrics_cache' pour cette plateforme.
+2025-07-13 16:47:28,451 - INFO - Suppression des donnÚes de la table 'liquidity_balances' pour la plateforme 'La PremiÞre Brique'...
+2025-07-13 16:47:28,526 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/liquidity_balances?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9&platform=eq.La+Premi%C3%A8re+Brique "HTTP/2 200 OK"
+2025-07-13 16:47:28,527 - INFO - -> Aucune donnÚe Ó supprimer dans 'liquidity_balances' pour cette plateforme.
+2025-07-13 16:47:28,527 - INFO - Suppression des donnÚes de la table 'portfolio_positions' pour la plateforme 'La PremiÞre Brique'...
+2025-07-13 16:47:28,626 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/portfolio_positions?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9&platform=eq.La+Premi%C3%A8re+Brique "HTTP/2 200 OK"
+2025-07-13 16:47:28,627 - INFO - -> Aucune donnÚe Ó supprimer dans 'portfolio_positions' pour cette plateforme.
+2025-07-13 16:47:28,627 - INFO - Suppression des donnÚes de la table 'investments' pour la plateforme 'La PremiÞre Brique'...
+2025-07-13 16:47:28,694 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/investments?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9&platform=eq.La+Premi%C3%A8re+Brique "HTTP/2 200 OK"
+2025-07-13 16:47:28,730 - INFO - -> 37 enregistrements supprimÚs de 'investments'.
+2025-07-13 16:47:28,730 - INFO - \u2705 Suppression des donnÚes pour la plateforme 'La PremiÞre Brique' terminÚe.
+2025-07-13 16:47:28,730 - INFO - Rechargement des donnÚes...
+2025-07-13 16:47:28,730 - INFO - \U0001f680 CHARGEMENT AUTOMATIQUE DONN╔ES PATRIMOINE
+2025-07-13 16:47:28,730 - INFO - ==================================================
+2025-07-13 16:47:29,738 - INFO - Connexion Ó Supabase rÚussie.
+2025-07-13 16:47:29,738 - INFO - Validation des fichiers dans data/raw
+2025-07-13 16:47:29,739 - INFO - Validation filtrÚe pour les plateformes : lpb
+2025-07-13 16:47:31,156 - INFO - Fichier valide: LA PREMI╚RE BRIQUE: Portefeuille LPB.xlsx
+2025-07-13 16:47:31,156 - INFO - VALIDATION: 1/1 fichiers valides
+2025-07-13 16:47:31,156 - INFO - \U0001f4e5 DÚbut chargement pour utilisateur: e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9
+2025-07-13 16:47:31,156 - INFO - \U0001f4c2 Chargement complet pour utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 depuis data/raw
+2025-07-13 16:47:31,156 - INFO - Filtre appliquÚ pour les plateformes : lpb
+2025-07-13 16:47:31,156 - INFO - Chargement LA PREMI╚RE BRIQUE pour utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9
+2025-07-13 16:47:31,157 - INFO - Parsing La PremiÞre Brique...
+2025-07-13 16:47:31,157 - INFO - DÚbut du parsing pour la plateforme LA PREMI╚RE BRIQUE avec le fichier : data/raw\Portefeuille LPB.xlsx
+2025-07-13 16:47:31,157 - INFO - DÚbut du parsing pour La PremiÞre Brique avec la logique finale V4.
+2025-07-13 16:47:32,938 - INFO - Parsing LPB terminÚ. 37 investissements et 167 flux trouvÚs.
+2025-07-13 16:47:32,939 - INFO - \U0001f4ca DonnÚes parsÚes: 37 investissements, 167 flux
+2025-07-13 16:47:34,758 - INFO - HTTP Request: POST https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/investments?columns=%22id%22%2C%22remaining_capital%22%2C%22company_name%22%2C%22expected_end_date%22%2C%22annual_rate%22%2C%22investment_type%22%2C%22user_id%22%2C%22capital_repaid%22%2C%22status%22%2C%22is_short_term%22%2C%22platform%22%2C%22invested_amount%22%2C%22signature_date%22%2C%22investment_date%22%2C%22project_name%22%2C%22platform_id%22%2C%22actual_end_date%22%2C%22asset_class%22%2C%22isin%22%2C%22monthly_payment%22%2C%22duration_months%22%2C%22is_delayed%22 "HTTP/2 201 Created"
+2025-07-13 16:47:34,763 - INFO - 37 investissements insÚrÚs avec succÞs.
+2025-07-13 16:47:35,033 - INFO - HTTP Request: POST https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/cash_flows?columns=%22tax_amount%22%2C%22id%22%2C%22description%22%2C%22transaction_date%22%2C%22flow_type%22%2C%22flow_direction%22%2C%22net_amount%22%2C%22gross_amount%22%2C%22status%22%2C%22investment_id%22%2C%22interest_amount%22%2C%22platform%22%2C%22payment_method%22%2C%22capital_amount%22%2C%22user_id%22 "HTTP/2 201 Created"
+2025-07-13 16:47:35,036 - INFO - 167 flux de trÚsorerie insÚrÚs avec succÞs.
+2025-07-13 16:47:35,036 - INFO - \u2705 LA PREMI╚RE BRIQUE chargÚ avec succÞs
+2025-07-13 16:47:35,037 - INFO - \U0001f4cb R╔SUM╔ CHARGEMENT: 1 source(s) de donnÚes chargÚe(s) avec succÞs.
+2025-07-13 16:47:35,037 - INFO - \U0001f389 CHARGEMENT TERMIN╔ AVEC SUCC╚S!
+2025-07-13 16:47:35,133 - INFO - HTTP Request: GET https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/investments?select=%2A&user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 "HTTP/2 200 OK"
+2025-07-13 16:47:35,136 - INFO - RÚcupÚration de 73 investissements pour l'utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9.
+2025-07-13 16:47:35,226 - INFO - HTTP Request: GET https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/cash_flows?select=%2A&user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 "HTTP/2 200 OK"
+2025-07-13 16:47:35,264 - INFO - RÚcupÚration de 406 flux de trÚsorerie pour l'utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9.
+2025-07-13 16:47:35,292 - INFO - \U0001f4ca R╔SUM╔ FINAL:
+2025-07-13 16:47:35,292 - INFO -   \U0001f4b0 Capital total: 30,242 Ç
+2025-07-13 16:47:35,293 - INFO -   \U0001f4c8 Positions totales: 73
+2025-07-13 16:47:35,293 - INFO -   \U0001f3e2 Plateformes: 4
+2025-07-13 16:47:35,355 - INFO - HTTP Request: GET https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/investments?select=%2A&user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 "HTTP/2 200 OK"
+2025-07-13 16:47:35,357 - INFO - RÚcupÚration de 73 investissements pour l'utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9.
+2025-07-13 16:47:35,360 - INFO - 
 \U0001f4ca DÚtails des investissements LPB (status, capital_repaid, actual_end_date):
-2025-07-13 04:16:58,169 - INFO -   Projet: L'Isoir
-2025-07-13 04:16:58,169 - INFO -     Statut: delayed
-2025-07-13 04:16:58,169 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,169 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 04:16:58,169 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,169 - INFO -     Date de fin prÚvue: 2026-01-29
-2025-07-13 04:16:58,170 - INFO -   Projet: Le Quattuor
-2025-07-13 04:16:58,170 - INFO -     Statut: delayed
-2025-07-13 04:16:58,170 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,170 - INFO -     Capital remboursÚ: 115.78Ç
-2025-07-13 04:16:58,170 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,170 - INFO -     Date de fin prÚvue: 2026-05-15
-2025-07-13 04:16:58,171 - INFO -   Projet: Le Canard
-2025-07-13 04:16:58,171 - INFO -     Statut: delayed
-2025-07-13 04:16:58,171 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,171 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 04:16:58,171 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,171 - INFO -     Date de fin prÚvue: 2026-03-05
-2025-07-13 04:16:58,171 - INFO -   Projet: L'Envol
-2025-07-13 04:16:58,172 - INFO -     Statut: delayed
-2025-07-13 04:16:58,172 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,172 - INFO -     Capital remboursÚ: 125.08Ç
-2025-07-13 04:16:58,172 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,172 - INFO -     Date de fin prÚvue: 2026-05-14
-2025-07-13 04:16:58,172 - INFO -   Projet: La Plumeria 
-2025-07-13 04:16:58,172 - INFO -     Statut: delayed
-2025-07-13 04:16:58,172 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,172 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 04:16:58,172 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,172 - INFO -     Date de fin prÚvue: 2026-02-15
-2025-07-13 04:16:58,173 - INFO -   Projet: Le HÚrisson
-2025-07-13 04:16:58,173 - INFO -     Statut: completed
-2025-07-13 04:16:58,173 - INFO -     Montant investi: 900.00Ç
-2025-07-13 04:16:58,173 - INFO -     Capital remboursÚ: 900.00Ç
-2025-07-13 04:16:58,173 - INFO -     Date de fin rÚelle: 2024-01-31
-2025-07-13 04:16:58,173 - INFO -     Date de fin prÚvue: 2024-07-29
-2025-07-13 04:16:58,173 - INFO -   Projet: Le Windsor
-2025-07-13 04:16:58,173 - INFO -     Statut: completed
-2025-07-13 04:16:58,173 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,173 - INFO -     Capital remboursÚ: 500.00Ç
-2025-07-13 04:16:58,173 - INFO -     Date de fin rÚelle: 2023-09-12
-2025-07-13 04:16:58,173 - INFO -     Date de fin prÚvue: 2024-01-11
-2025-07-13 04:16:58,174 - INFO -   Projet: L'Ange
-2025-07-13 04:16:58,174 - INFO -     Statut: delayed
-2025-07-13 04:16:58,174 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,174 - INFO -     Capital remboursÚ: 453.50Ç
-2025-07-13 04:16:58,174 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,174 - INFO -     Date de fin prÚvue: 2025-07-30
-2025-07-13 04:16:58,174 - INFO -   Projet: Le Raisin
-2025-07-13 04:16:58,174 - INFO -     Statut: completed
-2025-07-13 04:16:58,174 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,174 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 04:16:58,174 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,175 - INFO -     Date de fin prÚvue: 2024-09-30
-2025-07-13 04:16:58,175 - INFO -   Projet: Le Gaillard 
-2025-07-13 04:16:58,175 - INFO -     Statut: delayed
-2025-07-13 04:16:58,175 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,175 - INFO -     Capital remboursÚ: 290.88Ç
-2025-07-13 04:16:58,175 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,175 - INFO -     Date de fin prÚvue: 2026-05-15
-2025-07-13 04:16:58,175 - INFO -   Projet: Le Pommier 
-2025-07-13 04:16:58,175 - INFO -     Statut: completed
-2025-07-13 04:16:58,175 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,175 - INFO -     Capital remboursÚ: 500.00Ç
-2025-07-13 04:16:58,176 - INFO -     Date de fin rÚelle: 2024-09-16
-2025-07-13 04:16:58,176 - INFO -     Date de fin prÚvue: 2024-11-16
-2025-07-13 04:16:58,176 - INFO -   Projet: La Voile 
-2025-07-13 04:16:58,176 - INFO -     Statut: completed
-2025-07-13 04:16:58,176 - INFO -     Montant investi: 512.00Ç
-2025-07-13 04:16:58,176 - INFO -     Capital remboursÚ: 512.00Ç
-2025-07-13 04:16:58,176 - INFO -     Date de fin rÚelle: 2024-01-26
-2025-07-13 04:16:58,176 - INFO -     Date de fin prÚvue: 2025-01-29
-2025-07-13 04:16:58,176 - INFO -   Projet: L'Iliade
-2025-07-13 04:16:58,176 - INFO -     Statut: completed
-2025-07-13 04:16:58,176 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,176 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 04:16:58,176 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,176 - INFO -     Date de fin prÚvue: 2024-11-02
-2025-07-13 04:16:58,176 - INFO -   Projet: La Mangue 
-2025-07-13 04:16:58,176 - INFO -     Statut: active
-2025-07-13 04:16:58,176 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,177 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 04:16:58,177 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,177 - INFO -     Date de fin prÚvue: 2025-07-20
-2025-07-13 04:16:58,177 - INFO -   Projet: L'OmÚga 
-2025-07-13 04:16:58,177 - INFO -     Statut: delayed
-2025-07-13 04:16:58,177 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,177 - INFO -     Capital remboursÚ: 315.88Ç
-2025-07-13 04:16:58,177 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,177 - INFO -     Date de fin prÚvue: 2026-06-15
-2025-07-13 04:16:58,177 - INFO -   Projet: Le Magenta
-2025-07-13 04:16:58,177 - INFO -     Statut: delayed
-2025-07-13 04:16:58,177 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,177 - INFO -     Capital remboursÚ: 420.15Ç
-2025-07-13 04:16:58,177 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,177 - INFO -     Date de fin prÚvue: 2025-10-22
-2025-07-13 04:16:58,177 - INFO -   Projet: L'Europe
-2025-07-13 04:16:58,177 - INFO -     Statut: active
-2025-07-13 04:16:58,177 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,177 - INFO -     Capital remboursÚ: 166.90Ç
-2025-07-13 04:16:58,177 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,177 - INFO -     Date de fin prÚvue: 2026-01-24
-2025-07-13 04:16:58,177 - INFO -   Projet: L'Olive 
-2025-07-13 04:16:58,177 - INFO -     Statut: delayed
-2025-07-13 04:16:58,177 - INFO -     Montant investi: 3.00Ç
-2025-07-13 04:16:58,178 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 04:16:58,178 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,178 - INFO -     Date de fin prÚvue: 2026-03-05
-2025-07-13 04:16:58,178 - INFO -   Projet: Le Cayenne
-2025-07-13 04:16:58,178 - INFO -     Statut: completed
-2025-07-13 04:16:58,178 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,178 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 04:16:58,178 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,178 - INFO -     Date de fin prÚvue: 2025-07-19
-2025-07-13 04:16:58,178 - INFO -   Projet: L'Aiguille
-2025-07-13 04:16:58,178 - INFO -     Statut: active
-2025-07-13 04:16:58,178 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,178 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 04:16:58,178 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,178 - INFO -     Date de fin prÚvue: 2025-10-05
-2025-07-13 04:16:58,178 - INFO -   Projet: Le Coach
-2025-07-13 04:16:58,178 - INFO -     Statut: active
-2025-07-13 04:16:58,178 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,178 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 04:16:58,178 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,178 - INFO -     Date de fin prÚvue: 2027-05-06
-2025-07-13 04:16:58,178 - INFO -   Projet: Le Vitton
-2025-07-13 04:16:58,178 - INFO -     Statut: completed
-2025-07-13 04:16:58,178 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,178 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 04:16:58,178 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,179 - INFO -     Date de fin prÚvue: 2025-07-13
-2025-07-13 04:16:58,179 - INFO -   Projet: Le Zola
-2025-07-13 04:16:58,179 - INFO -     Statut: completed
-2025-07-13 04:16:58,179 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,179 - INFO -     Capital remboursÚ: 500.00Ç
-2025-07-13 04:16:58,179 - INFO -     Date de fin rÚelle: 2025-02-14
-2025-07-13 04:16:58,179 - INFO -     Date de fin prÚvue: 2025-12-17
-2025-07-13 04:16:58,180 - INFO -   Projet: Les Nuages 
-2025-07-13 04:16:58,180 - INFO -     Statut: active
-2025-07-13 04:16:58,180 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,180 - INFO -     Capital remboursÚ: 67.09Ç
-2025-07-13 04:16:58,180 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,180 - INFO -     Date de fin prÚvue: 2025-10-18
-2025-07-13 04:16:58,180 - INFO -   Projet: Le Cuivre
-2025-07-13 04:16:58,180 - INFO -     Statut: delayed
-2025-07-13 04:16:58,180 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,180 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 04:16:58,180 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,180 - INFO -     Date de fin prÚvue: 2026-06-02
-2025-07-13 04:16:58,181 - INFO -   Projet: Le CÞdre
-2025-07-13 04:16:58,181 - INFO -     Statut: active
-2025-07-13 04:16:58,181 - INFO -     Montant investi: 505.00Ç
-2025-07-13 04:16:58,181 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 04:16:58,181 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,181 - INFO -     Date de fin prÚvue: 2026-08-15
-2025-07-13 04:16:58,181 - INFO -   Projet: Le Leclerc
-2025-07-13 04:16:58,181 - INFO -     Statut: active
-2025-07-13 04:16:58,181 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,181 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 04:16:58,181 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,182 - INFO -     Date de fin prÚvue: 2026-03-10
-2025-07-13 04:16:58,182 - INFO -   Projet: Le SoufflÚ
-2025-07-13 04:16:58,182 - INFO -     Statut: active
-2025-07-13 04:16:58,182 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,182 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 04:16:58,182 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,182 - INFO -     Date de fin prÚvue: 2025-10-28
-2025-07-13 04:16:58,182 - INFO -   Projet: La Berge
-2025-07-13 04:16:58,182 - INFO -     Statut: active
-2025-07-13 04:16:58,182 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,182 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 04:16:58,182 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,182 - INFO -     Date de fin prÚvue: 2026-11-15
-2025-07-13 04:16:58,183 - INFO -   Projet: Le Cygne
-2025-07-13 04:16:58,183 - INFO -     Statut: active
-2025-07-13 04:16:58,183 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,183 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 04:16:58,183 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,183 - INFO -     Date de fin prÚvue: 2026-06-26
-2025-07-13 04:16:58,183 - INFO -   Projet: Le Corsaire
-2025-07-13 04:16:58,183 - INFO -     Statut: active
-2025-07-13 04:16:58,183 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,183 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 04:16:58,183 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,183 - INFO -     Date de fin prÚvue: 2026-09-17
-2025-07-13 04:16:58,183 - INFO -   Projet: LÆOlympique
-2025-07-13 04:16:58,183 - INFO -     Statut: active
-2025-07-13 04:16:58,183 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,183 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 04:16:58,184 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,184 - INFO -     Date de fin prÚvue: 2026-08-07
-2025-07-13 04:16:58,184 - INFO -   Projet: Le Arnold
-2025-07-13 04:16:58,184 - INFO -     Statut: active
-2025-07-13 04:16:58,184 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,184 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 04:16:58,184 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,184 - INFO -     Date de fin prÚvue: 2027-02-28
-2025-07-13 04:16:58,184 - INFO -   Projet: Le Virtuose 
-2025-07-13 04:16:58,184 - INFO -     Statut: active
-2025-07-13 04:16:58,184 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,184 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 04:16:58,184 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,184 - INFO -     Date de fin prÚvue: 2027-09-14
-2025-07-13 04:16:58,185 - INFO -   Projet: La Papalia
-2025-07-13 04:16:58,185 - INFO -     Statut: active
-2025-07-13 04:16:58,185 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,185 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 04:16:58,185 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,185 - INFO -     Date de fin prÚvue: 2027-04-30
-2025-07-13 04:16:58,185 - INFO -   Projet: LÆHumoriste
-2025-07-13 04:16:58,185 - INFO -     Statut: active
-2025-07-13 04:16:58,185 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,185 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 04:16:58,185 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,185 - INFO -     Date de fin prÚvue: 2027-03-02
-2025-07-13 04:16:58,185 - INFO -   Projet: Le Brillant
-2025-07-13 04:16:58,185 - INFO -     Statut: active
-2025-07-13 04:16:58,185 - INFO -     Montant investi: 500.00Ç
-2025-07-13 04:16:58,185 - INFO -     Capital remboursÚ: 0.00Ç
-2025-07-13 04:16:58,186 - INFO -     Date de fin rÚelle: None
-2025-07-13 04:16:58,186 - INFO -     Date de fin prÚvue: 2027-01-03
-2025-07-13 04:16:58,186 - INFO - \U0001f389 Rechargement terminÚ avec succÞs !
+2025-07-13 16:47:35,361 - INFO -   Projet: L'Isoir
+2025-07-13 16:47:35,361 - INFO -     Statut: active
+2025-07-13 16:47:35,361 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,361 - INFO -     Capital remboursÚ: 0.00Ç
+2025-07-13 16:47:35,361 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,361 - INFO -     Date de fin prÚvue: 2026-01-29
+2025-07-13 16:47:35,361 - INFO -   Projet: Le Quattuor
+2025-07-13 16:47:35,362 - INFO -     Statut: active
+2025-07-13 16:47:35,362 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,362 - INFO -     Capital remboursÚ: 115.78Ç
+2025-07-13 16:47:35,362 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,362 - INFO -     Date de fin prÚvue: 2026-05-15
+2025-07-13 16:47:35,362 - INFO -   Projet: Le Canard
+2025-07-13 16:47:35,362 - INFO -     Statut: active
+2025-07-13 16:47:35,362 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,362 - INFO -     Capital remboursÚ: 0.00Ç
+2025-07-13 16:47:35,362 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,363 - INFO -     Date de fin prÚvue: 2026-03-05
+2025-07-13 16:47:35,363 - INFO -   Projet: L'Envol
+2025-07-13 16:47:35,363 - INFO -     Statut: active
+2025-07-13 16:47:35,363 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,363 - INFO -     Capital remboursÚ: 125.08Ç
+2025-07-13 16:47:35,363 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,363 - INFO -     Date de fin prÚvue: 2026-05-14
+2025-07-13 16:47:35,363 - INFO -   Projet: La Plumeria 
+2025-07-13 16:47:35,364 - INFO -     Statut: active
+2025-07-13 16:47:35,364 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,364 - INFO -     Capital remboursÚ: 0.00Ç
+2025-07-13 16:47:35,364 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,364 - INFO -     Date de fin prÚvue: 2026-02-15
+2025-07-13 16:47:35,364 - INFO -   Projet: Le HÚrisson
+2025-07-13 16:47:35,364 - INFO -     Statut: completed
+2025-07-13 16:47:35,364 - INFO -     Montant investi: 900.00Ç
+2025-07-13 16:47:35,364 - INFO -     Capital remboursÚ: 900.00Ç
+2025-07-13 16:47:35,364 - INFO -     Date de fin rÚelle: 2024-01-31
+2025-07-13 16:47:35,364 - INFO -     Date de fin prÚvue: 2024-07-29
+2025-07-13 16:47:35,365 - INFO -   Projet: Le Windsor
+2025-07-13 16:47:35,365 - INFO -     Statut: completed
+2025-07-13 16:47:35,365 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,365 - INFO -     Capital remboursÚ: 500.00Ç
+2025-07-13 16:47:35,365 - INFO -     Date de fin rÚelle: 2023-09-12
+2025-07-13 16:47:35,365 - INFO -     Date de fin prÚvue: 2024-01-11
+2025-07-13 16:47:35,365 - INFO -   Projet: L'Ange
+2025-07-13 16:47:35,365 - INFO -     Statut: active
+2025-07-13 16:47:35,365 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,366 - INFO -     Capital remboursÚ: 453.50Ç
+2025-07-13 16:47:35,366 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,366 - INFO -     Date de fin prÚvue: 2025-07-30
+2025-07-13 16:47:35,366 - INFO -   Projet: Le Raisin
+2025-07-13 16:47:35,366 - INFO -     Statut: completed
+2025-07-13 16:47:35,366 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,366 - INFO -     Capital remboursÚ: 0.00Ç
+2025-07-13 16:47:35,366 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,366 - INFO -     Date de fin prÚvue: 2024-09-30
+2025-07-13 16:47:35,367 - INFO -   Projet: Le Gaillard 
+2025-07-13 16:47:35,367 - INFO -     Statut: active
+2025-07-13 16:47:35,367 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,367 - INFO -     Capital remboursÚ: 290.88Ç
+2025-07-13 16:47:35,367 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,367 - INFO -     Date de fin prÚvue: 2026-05-15
+2025-07-13 16:47:35,367 - INFO -   Projet: Le Pommier 
+2025-07-13 16:47:35,367 - INFO -     Statut: completed
+2025-07-13 16:47:35,367 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,367 - INFO -     Capital remboursÚ: 500.00Ç
+2025-07-13 16:47:35,367 - INFO -     Date de fin rÚelle: 2024-09-16
+2025-07-13 16:47:35,367 - INFO -     Date de fin prÚvue: 2024-11-16
+2025-07-13 16:47:35,368 - INFO -   Projet: La Voile 
+2025-07-13 16:47:35,368 - INFO -     Statut: completed
+2025-07-13 16:47:35,368 - INFO -     Montant investi: 512.00Ç
+2025-07-13 16:47:35,368 - INFO -     Capital remboursÚ: 512.00Ç
+2025-07-13 16:47:35,368 - INFO -     Date de fin rÚelle: 2024-01-26
+2025-07-13 16:47:35,368 - INFO -     Date de fin prÚvue: 2025-01-29
+2025-07-13 16:47:35,368 - INFO -   Projet: L'Iliade
+2025-07-13 16:47:35,368 - INFO -     Statut: completed
+2025-07-13 16:47:35,368 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,369 - INFO -     Capital remboursÚ: 0.00Ç
+2025-07-13 16:47:35,369 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,369 - INFO -     Date de fin prÚvue: 2024-11-02
+2025-07-13 16:47:35,369 - INFO -   Projet: La Mangue 
+2025-07-13 16:47:35,369 - INFO -     Statut: active
+2025-07-13 16:47:35,369 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,369 - INFO -     Capital remboursÚ: 0.00Ç
+2025-07-13 16:47:35,369 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,369 - INFO -     Date de fin prÚvue: 2025-07-20
+2025-07-13 16:47:35,369 - INFO -   Projet: L'OmÚga 
+2025-07-13 16:47:35,370 - INFO -     Statut: active
+2025-07-13 16:47:35,370 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,370 - INFO -     Capital remboursÚ: 315.88Ç
+2025-07-13 16:47:35,370 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,370 - INFO -     Date de fin prÚvue: 2026-06-15
+2025-07-13 16:47:35,370 - INFO -   Projet: Le Magenta
+2025-07-13 16:47:35,370 - INFO -     Statut: active
+2025-07-13 16:47:35,370 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,370 - INFO -     Capital remboursÚ: 420.15Ç
+2025-07-13 16:47:35,370 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,370 - INFO -     Date de fin prÚvue: 2025-10-22
+2025-07-13 16:47:35,371 - INFO -   Projet: L'Europe
+2025-07-13 16:47:35,371 - INFO -     Statut: active
+2025-07-13 16:47:35,371 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,371 - INFO -     Capital remboursÚ: 166.90Ç
+2025-07-13 16:47:35,371 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,371 - INFO -     Date de fin prÚvue: 2026-01-24
+2025-07-13 16:47:35,371 - INFO -   Projet: L'Olive 
+2025-07-13 16:47:35,371 - INFO -     Statut: active
+2025-07-13 16:47:35,371 - INFO -     Montant investi: 3.00Ç
+2025-07-13 16:47:35,372 - INFO -     Capital remboursÚ: 0.00Ç
+2025-07-13 16:47:35,372 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,372 - INFO -     Date de fin prÚvue: 2026-03-05
+2025-07-13 16:47:35,372 - INFO -   Projet: Le Cayenne
+2025-07-13 16:47:35,372 - INFO -     Statut: completed
+2025-07-13 16:47:35,372 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,372 - INFO -     Capital remboursÚ: 0.00Ç
+2025-07-13 16:47:35,372 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,372 - INFO -     Date de fin prÚvue: 2025-07-19
+2025-07-13 16:47:35,372 - INFO -   Projet: L'Aiguille
+2025-07-13 16:47:35,372 - INFO -     Statut: active
+2025-07-13 16:47:35,373 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,373 - INFO -     Capital remboursÚ: 0.00Ç
+2025-07-13 16:47:35,373 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,373 - INFO -     Date de fin prÚvue: 2025-10-05
+2025-07-13 16:47:35,373 - INFO -   Projet: Le Coach
+2025-07-13 16:47:35,373 - INFO -     Statut: active
+2025-07-13 16:47:35,373 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,373 - INFO -     Capital remboursÚ: 0.00Ç
+2025-07-13 16:47:35,373 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,373 - INFO -     Date de fin prÚvue: 2027-05-06
+2025-07-13 16:47:35,373 - INFO -   Projet: Le Vitton
+2025-07-13 16:47:35,374 - INFO -     Statut: completed
+2025-07-13 16:47:35,374 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,374 - INFO -     Capital remboursÚ: 0.00Ç
+2025-07-13 16:47:35,374 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,374 - INFO -     Date de fin prÚvue: 2025-07-13
+2025-07-13 16:47:35,374 - INFO -   Projet: Le Zola
+2025-07-13 16:47:35,374 - INFO -     Statut: completed
+2025-07-13 16:47:35,374 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,374 - INFO -     Capital remboursÚ: 500.00Ç
+2025-07-13 16:47:35,374 - INFO -     Date de fin rÚelle: 2025-02-14
+2025-07-13 16:47:35,374 - INFO -     Date de fin prÚvue: 2025-12-17
+2025-07-13 16:47:35,374 - INFO -   Projet: Les Nuages 
+2025-07-13 16:47:35,375 - INFO -     Statut: active
+2025-07-13 16:47:35,375 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,375 - INFO -     Capital remboursÚ: 67.09Ç
+2025-07-13 16:47:35,375 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,375 - INFO -     Date de fin prÚvue: 2025-10-18
+2025-07-13 16:47:35,376 - INFO -   Projet: Le Cuivre
+2025-07-13 16:47:35,376 - INFO -     Statut: active
+2025-07-13 16:47:35,376 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,376 - INFO -     Capital remboursÚ: 0.00Ç
+2025-07-13 16:47:35,377 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,378 - INFO -     Date de fin prÚvue: 2026-06-02
+2025-07-13 16:47:35,378 - INFO -   Projet: Le CÞdre
+2025-07-13 16:47:35,378 - INFO -     Statut: active
+2025-07-13 16:47:35,378 - INFO -     Montant investi: 505.00Ç
+2025-07-13 16:47:35,378 - INFO -     Capital remboursÚ: 0.00Ç
+2025-07-13 16:47:35,379 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,379 - INFO -     Date de fin prÚvue: 2026-08-15
+2025-07-13 16:47:35,379 - INFO -   Projet: Le Leclerc
+2025-07-13 16:47:35,379 - INFO -     Statut: active
+2025-07-13 16:47:35,379 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,379 - INFO -     Capital remboursÚ: 0.00Ç
+2025-07-13 16:47:35,379 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,379 - INFO -     Date de fin prÚvue: 2026-03-10
+2025-07-13 16:47:35,380 - INFO -   Projet: Le SoufflÚ
+2025-07-13 16:47:35,380 - INFO -     Statut: active
+2025-07-13 16:47:35,380 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,380 - INFO -     Capital remboursÚ: 0.00Ç
+2025-07-13 16:47:35,380 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,380 - INFO -     Date de fin prÚvue: 2025-10-28
+2025-07-13 16:47:35,380 - INFO -   Projet: La Berge
+2025-07-13 16:47:35,381 - INFO -     Statut: active
+2025-07-13 16:47:35,381 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,381 - INFO -     Capital remboursÚ: 0.00Ç
+2025-07-13 16:47:35,381 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,381 - INFO -     Date de fin prÚvue: 2026-11-15
+2025-07-13 16:47:35,381 - INFO -   Projet: Le Cygne
+2025-07-13 16:47:35,381 - INFO -     Statut: active
+2025-07-13 16:47:35,381 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,382 - INFO -     Capital remboursÚ: 0.00Ç
+2025-07-13 16:47:35,382 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,382 - INFO -     Date de fin prÚvue: 2026-06-26
+2025-07-13 16:47:35,382 - INFO -   Projet: Le Corsaire
+2025-07-13 16:47:35,382 - INFO -     Statut: active
+2025-07-13 16:47:35,382 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,382 - INFO -     Capital remboursÚ: 0.00Ç
+2025-07-13 16:47:35,382 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,382 - INFO -     Date de fin prÚvue: 2026-09-17
+2025-07-13 16:47:35,383 - INFO -   Projet: LÆOlympique
+2025-07-13 16:47:35,383 - INFO -     Statut: active
+2025-07-13 16:47:35,383 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,383 - INFO -     Capital remboursÚ: 0.00Ç
+2025-07-13 16:47:35,383 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,383 - INFO -     Date de fin prÚvue: 2026-08-07
+2025-07-13 16:47:35,383 - INFO -   Projet: Le Arnold
+2025-07-13 16:47:35,384 - INFO -     Statut: active
+2025-07-13 16:47:35,384 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,384 - INFO -     Capital remboursÚ: 0.00Ç
+2025-07-13 16:47:35,384 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,384 - INFO -     Date de fin prÚvue: 2027-02-28
+2025-07-13 16:47:35,384 - INFO -   Projet: Le Virtuose 
+2025-07-13 16:47:35,384 - INFO -     Statut: active
+2025-07-13 16:47:35,384 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,384 - INFO -     Capital remboursÚ: 0.00Ç
+2025-07-13 16:47:35,384 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,384 - INFO -     Date de fin prÚvue: 2027-09-14
+2025-07-13 16:47:35,385 - INFO -   Projet: La Papalia
+2025-07-13 16:47:35,385 - INFO -     Statut: active
+2025-07-13 16:47:35,385 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,385 - INFO -     Capital remboursÚ: 0.00Ç
+2025-07-13 16:47:35,385 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,385 - INFO -     Date de fin prÚvue: 2027-04-30
+2025-07-13 16:47:35,385 - INFO -   Projet: LÆHumoriste
+2025-07-13 16:47:35,385 - INFO -     Statut: active
+2025-07-13 16:47:35,385 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,385 - INFO -     Capital remboursÚ: 0.00Ç
+2025-07-13 16:47:35,385 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,386 - INFO -     Date de fin prÚvue: 2027-03-02
+2025-07-13 16:47:35,386 - INFO -   Projet: Le Brillant
+2025-07-13 16:47:35,386 - INFO -     Statut: active
+2025-07-13 16:47:35,386 - INFO -     Montant investi: 500.00Ç
+2025-07-13 16:47:35,386 - INFO -     Capital remboursÚ: 0.00Ç
+2025-07-13 16:47:35,386 - INFO -     Date de fin rÚelle: None
+2025-07-13 16:47:35,386 - INFO -     Date de fin prÚvue: 2027-01-03
+2025-07-13 16:47:35,386 - INFO - \U0001f389 Rechargement terminÚ avec succÞs !

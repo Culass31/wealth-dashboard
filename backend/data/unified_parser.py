@@ -73,8 +73,8 @@ class UnifiedPortfolioParser:
 
     # ===== LPB (LA PREMIÈRE BRIQUE) =====
     def _parse_lpb(self, file_path: str) -> Dict[str, List[Dict]]:
-        """Parser LPB amélioré avec lecture des échéanciers par projet."""
-        logging.info("Début du parsing pour La Première Brique avec la nouvelle logique d'échéancier.")
+        """[FINAL V4] Parser LPB avec une logique de classification et de mise à jour entièrement revue."""
+        logging.info("Début du parsing pour La Première Brique avec la logique finale V4.")
         
         try:
             xls = pd.ExcelFile(file_path)
@@ -84,22 +84,13 @@ class UnifiedPortfolioParser:
             logging.error(f"Erreur critique lors de la lecture des onglets principaux du fichier LPB : {e}")
             return {"investments": [], "cash_flows": [], "portfolio_positions": [], "liquidity_balances": []}
 
-        # 1. Parser les projets pour créer les investissements de base et les mappings
         investment_map_by_name, investment_map_by_id = self._parse_lpb_projects(projects_df)
+        schedules = self._parse_lpb_schedules(xls, investment_map_by_name)
+        cash_flows_df = self._parse_lpb_account(account_df, schedules, investment_map_by_name)
         
-        # 2. Parser les échéanciers, ce qui met aussi à jour le statut des projets en retard
-        schedules = self._parse_lpb_schedules(xls, investment_map_by_name, investment_map_by_id)
-
-        # 3. Parser le relevé de compte en utilisant les échéanciers pour la ventilation
-        cash_flows_df = self._parse_lpb_account(account_df, self.investments, schedules, investment_map_by_name)
-        
-        # Convertir le DataFrame en liste de dictionnaires pour le post-traitement
         cash_flows = cash_flows_df.to_dict(orient='records')
-        
-        # 4. Post-traitement final pour définir la date de fin réelle
         self._update_investments_from_cashflows(self.investments, cash_flows)
         
-        # 5. Validation finale des données
         self._validate_data(self.investments, ['id', 'user_id', 'platform', 'project_name', 'invested_amount', 'status'], 'LPB')
         self._validate_data(cash_flows, ['id', 'user_id', 'platform', 'flow_type', 'flow_direction', 'net_amount', 'transaction_date'], 'LPB')
         
@@ -112,14 +103,13 @@ class UnifiedPortfolioParser:
             "liquidity_balances": []
         }
 
-    def _parse_lpb_schedules(self, xls: pd.ExcelFile, investment_map_by_name: Dict[str, str], investment_map_by_id: Dict[str, Dict]) -> Dict[str, pd.DataFrame]:
-        """Parse tous les onglets d'échéancier, met à jour les projets en retard et retourne les échéanciers"""
+    def _parse_lpb_schedules(self, xls: pd.ExcelFile, investment_map_by_name: Dict[str, str]) -> Dict[str, pd.DataFrame]:
         schedules = {}
         ignored_sheets = ['Projets', 'Relevé compte']
-        
+        numeric_cols = ['partducapital', 'partdesinterets', 'interetsrembourses', 'bonusverse', 'csgcrds', 'ir', 'partdubonus', 'montantapayer', 'echeance']
+
         for sheet_name in xls.sheet_names:
-            if sheet_name in ignored_sheets:
-                continue
+            if sheet_name in ignored_sheets: continue
             
             normalized_sheet_name = normalize_text(sheet_name)
             investment_id = investment_map_by_name.get(normalized_sheet_name)
@@ -128,87 +118,63 @@ class UnifiedPortfolioParser:
                 try:
                     df = pd.read_excel(xls, sheet_name=sheet_name)
                     df.columns = [normalize_text(col) for col in df.columns]
-                    
-                    # Convertir les colonnes de montant en numrique
-                    for col_name in ['partducapital', 'partdesinterets', 'csgcrds', 'ir', 'partdubonus']:
+                    for col_name in numeric_cols:
                         if col_name in df.columns:
-                            df[col_name] = pd.to_numeric(df[col_name], errors='coerce').fillna(0)
-
+                            df[col_name] = df[col_name].apply(lambda x: clean_amount(x))
                     schedules[investment_id] = df
-                    logging.info(f"Échéancier trouvé et parsé pour le projet '{sheet_name}'.")
-                    logging.debug(f"Colonnes de l'chancier {sheet_name}: {df.columns.tolist()}")
-                    logging.debug(f"Types de donnes de l'chancier {sheet_name}: {df.dtypes}")
-                    logging.debug(f"Contenu de l'chancier {sheet_name}: {df.head()}")
 
-                    # Extraire la duration_months si disponible
-                    echeance_col = get_column_by_normalized_name(df, 'echeance')
-                    if echeance_col and not df[echeance_col].empty:
-                        # Prendre la dernière valeur non nulle de la colonne 'echeance'
-                        duration_val = df[echeance_col].dropna().iloc[-1] if not df[echeance_col].dropna().empty else None
-                        if duration_val is not None:
-                            try:
-                                investment_obj = investment_map_by_id[investment_id] # Assurez-vous que investment_obj est défini
-                                investment_obj['duration_months'] = int(duration_val)
-                            except ValueError:
-                                logging.warning(f"Impossible de convertir 'Echeance' ({duration_val}) en entier pour le projet '{sheet_name}'.")
+                    # --- NOUVELLE LOGIQUE POUR duration_months ---
+                    # Calcule la durée en mois à partir du numéro d'échéance le plus élevé
+                    if 'echeance' in df.columns:
+                        max_echeance = df['echeance'].max()
+                        if pd.notna(max_echeance):
+                            # Met à jour l'objet investissement directement
+                            investment = next((inv for inv in self.investments if inv['id'] == investment_id), None)
+                            if investment:
+                                investment['duration_months'] = int(max_echeance)
+                                logging.info(f"LPB: Durée ({max_echeance} mois) mise à jour pour le projet {investment['project_name']}")
 
-                    # Détection de retard via le mot "prolongation"
-                    if 'prolongation' in df.to_string().lower():
-                        investment_obj = investment_map_by_id[investment_id] # Assurez-vous que investment_obj est défini
-                        if investment_obj['status'] == 'active': # Ne pas écraser un statut 'completed'
-                            investment_obj['is_delayed'] = True
-                            investment_obj['status'] = 'delayed'
-                            logging.warning(f"Projet '{sheet_name}' marqué comme 'delayed' en raison de la mention 'prolongation' dans l'échéancier.")
+                    # --- NOUVELLE LOGIQUE POUR le statut 'delayed' ---
+                    # Vérifie la présence de 'prolongation' dans le DataFrame de l'échéancier
+                    prolongation_detected = df.astype(str).apply(lambda x: x.str.contains('prolongation', case=False)).any().any()
+                    
+                    if prolongation_detected:
+                        investment = next((inv for inv in self.investments if inv['id'] == investment_id), None)
+                        if investment:
+                            investment['is_delayed'] = True
+                            # Ne met à jour le statut à 'delayed' que s'il n'est pas déjà 'completed'
+                            if investment['status'] != 'completed':
+                                investment['status'] = 'delayed'
+                            logging.warning(f"LPB: Prolongation détectée pour le projet {investment['project_name']}. Statut mis à jour à 'delayed'.")
 
                 except Exception as e:
                     logging.warning(f"Impossible de lire l'échéancier pour le projet '{sheet_name}'. Erreur: {e}")
-            else:
-                logging.warning(f"Aucun projet correspondant trouvé pour l'échéancier '{sheet_name}'. Il sera ignoré.")
-                
         return schedules
 
     def _parse_lpb_projects(self, df: pd.DataFrame) -> Tuple[Dict[str, str], Dict[str, Dict]]:
-        """
-        Parse les projets LPB en utilisant l'onglet Projets comme source de vérité pour le capital.
-        """
         self.investments = []
         investment_map_by_name = {}
         investment_map_by_id = {}
         
         for _, row in df.iterrows():
             project_name = safe_get(row, 'Nom du projet')
-            if pd.isna(project_name) or "Nom du projet" in project_name:
-                continue
+            if pd.isna(project_name) or "Nom du projet" in project_name: continue
 
             invested_amount = clean_amount(safe_get(row, 'Montant investi (€)', 0))
-            capital_repaid = clean_amount(safe_get(row, 'Dont capital (€)', 0))
             status_from_file = safe_get(row, 'Statut', '').lower()
-
-            status = 'active'
-            if 'remboursée' in status_from_file:
-                status = 'completed'
+            status = 'completed' if 'remboursée' in status_from_file else 'active'
 
             investment = {
-                'id': str(uuid.uuid4()),
-                'user_id': self.user_id,
-                'platform': 'La Première Brique',
-                'investment_type': 'crowdfunding',
-                'asset_class': 'real_estate',
-                'project_name': project_name,
-                'company_name': project_name, 
-                'invested_amount': invested_amount,
+                'id': str(uuid.uuid4()), 'user_id': self.user_id, 'platform': 'La Première Brique',
+                'investment_type': 'crowdfunding', 'asset_class': 'real_estate', 'project_name': project_name,
+                'company_name': project_name, 'invested_amount': invested_amount,
                 'annual_rate': clean_amount(safe_get(row, 'Taux annuel total (%)', 0)),
-                'capital_repaid': 0.0, # Initialisé à 0, sera mis à jour par les flux
-                'remaining_capital': invested_amount, # Initialisé à invested_amount
-                'duration_months': None, # Sera mis à jour par les échéanciers
-                'investment_date': standardize_date(safe_get(row, 'Date de collecte (JJ/MM/AAAA)')),
+                'capital_repaid': 0.0, 'remaining_capital': invested_amount,
+                'duration_months': None, 'investment_date': standardize_date(safe_get(row, 'Date de collecte (JJ/MM/AAAA)')),
                 'signature_date': standardize_date(safe_get(row, 'Date de signature (JJ/MM/AAAA)')),
                 'expected_end_date': standardize_date(safe_get(row, 'Date de remboursement maximale (JJ/MM/AAAA)')),
-                'actual_end_date': None, # Sera déterminé par les flux réels
-                'status': status,
-                'is_delayed': False, # Sera mis à jour par les échéanciers
-                'created_at': datetime.now().isoformat(),
-                'updated_at': datetime.now().isoformat(),
+                'actual_end_date': None, 'status': status, 'is_delayed': False,
+                'created_at': datetime.now().isoformat(), 'updated_at': datetime.now().isoformat(),
             }
             self.investments.append(investment)
             investment_map_by_name[normalize_text(project_name)] = investment['id']
@@ -216,166 +182,82 @@ class UnifiedPortfolioParser:
         
         return investment_map_by_name, investment_map_by_id
 
-    def _parse_lpb_account(self, df_account: pd.DataFrame, investments_list: List[Dict], lpb_schedules: Dict[str, pd.DataFrame], investment_map: Dict[str, str]) -> pd.DataFrame:
-        """
-        Parse le relevé de compte LPB en utilisant les échéanciers pour une ventilation précise.
-        """
+    def _parse_lpb_account(self, df_account: pd.DataFrame, lpb_schedules: Dict[str, pd.DataFrame], investment_map: Dict[str, str]) -> pd.DataFrame:
         cash_flows = []
         df = df_account
         df['Date d’exécution'] = pd.to_datetime(df['Date d’exécution'], dayfirst=True, errors='coerce')
         df = df.sort_values(by='Date d’exécution').reset_index(drop=True)
 
         for _, row in df.iterrows():
-            nature = safe_get(row, 'Nature de la transaction', '')
-            if pd.isna(nature): continue
+            nature = safe_get(row, 'Nature de la transaction', '').strip()
+            if not nature: continue
 
-            transaction_date_obj = row['Date d’exécution']
-            if pd.isna(transaction_date_obj): continue
-            transaction_date = transaction_date_obj.strftime('%Y-%m-%d')
+            flow_type, flow_direction, should_ignore = self._classify_lpb_transaction(nature)
+            if should_ignore:
+                continue
 
-            flow_type, flow_direction = self._classify_lpb_transaction(nature)
-            
+            transaction_date = pd.to_datetime(row['Date d’exécution']).strftime('%Y-%m-%d')
             gross_amount_from_releve = clean_amount(safe_get(row, 'Montant', 0))
             
             linked_investment_id = None
-            normalized_nature = normalize_text(nature)
             for project_name_key, inv_id in investment_map.items():
-                if project_name_key in normalized_nature:
+                if project_name_key in normalize_text(nature):
                     linked_investment_id = inv_id
                     break
             
-            # Initialiser les valeurs pour le flux de trésorerie
-            gross_amount = abs(gross_amount_from_releve) # Toujours positif pour gross_amount
-            net_amount = gross_amount_from_releve # Conserve le signe original du relevé
-            tax_amount = 0.0
-            capital_amount = 0.0
-            interest_amount = 0.0
+            gross_amount = abs(gross_amount_from_releve)
+            net_amount = gross_amount_from_releve
+            tax_amount, capital_amount, interest_amount = 0.0, 0.0, 0.0
 
-            if flow_type == 'repayment' and linked_investment_id and linked_investment_id in lpb_schedules:
-                schedule_df = lpb_schedules[linked_investment_id]
-                
-                # Trouver la ligne d'échéancier correspondante par montant brut et date
-                # On cherche la ligne d'échéancier dont le montant total correspond au montant du relevé
-                # et dont la date est la plus proche de la date de transaction
-                
-                # Assurer que les colonnes de montant sont numériques
-                for col_name in ['partducapital', 'partdesinterets', 'csgcrds', 'ir', 'montantapayer']:
-                    if col_name in schedule_df.columns:
-                        schedule_df.loc[:, col_name] = pd.to_numeric(schedule_df[col_name], errors='coerce').fillna(0)
+            if flow_type == 'repayment':
+                if linked_investment_id and linked_investment_id in lpb_schedules:
+                    schedule_df = lpb_schedules[linked_investment_id]
+                    echeance_col = get_column_by_normalized_name(schedule_df, 'echeance')
+                    matched_row = None
+                    installment_match = re.search(r'mensualit\S*\s+n\D*(\d+)', nature, re.IGNORECASE)
+                    
+                    if installment_match and echeance_col is not None:
+                        installment_number = int(installment_match.group(1))
+                        matched_rows = schedule_df[schedule_df[echeance_col] == installment_number]
+                        if not matched_rows.empty:
+                            matched_row = matched_rows.iloc[0]
 
-                amount_col = get_column_by_normalized_name(schedule_df, 'montantapayer')
-                date_col = get_column_by_normalized_name(schedule_df, 'datedecheance')
-
-                if amount_col and date_col:
-                    # Filtrer les lignes d'échéancier qui correspondent au montant du relevé
-                    matching_rows = schedule_df[np.isclose(schedule_df[amount_col], gross_amount_from_releve)]
-
-                    if not matching_rows.empty:
-                        # Trouver la ligne la plus proche en date
-                        matching_rows.loc[:, date_col] = pd.to_datetime(matching_rows[date_col], errors='coerce')
-                        valid_dates_rows = matching_rows.dropna(subset=[date_col])
-                        
-                        if not valid_dates_rows.empty:
-                            time_diff = (valid_dates_rows[date_col] - transaction_date_obj).abs()
-                            closest_schedule_row = valid_dates_rows.loc[time_diff.idxmin()]
-
-                            capital_amount = clean_amount(safe_get(closest_schedule_row, 'partducapital', 0))
-                            interest_amount = clean_amount(safe_get(closest_schedule_row, 'partdesinterets', 0)) + clean_amount(safe_get(closest_schedule_row, 'partdubonus', 0)) # Ajout du bonus
-                            tax_amount = clean_amount(safe_get(closest_schedule_row, 'csgcrds', 0)) + clean_amount(safe_get(closest_schedule_row, 'ir', 0))
-                            
-                            # Le gross_amount du flux de trésorerie est le montant brut du relevé
-                            gross_amount = abs(gross_amount_from_releve)
-                            # Le net_amount est le montant brut moins les taxes
-                            net_amount = gross_amount - tax_amount
-                            
-                            # Journaliser un avertissement si la somme des parties de l'échéancier ne correspond pas au gross_amount du relevé
-                            if not np.isclose(capital_amount + interest_amount + tax_amount, gross_amount):
-                                logging.warning(f"LPB Repayment: Somme des parties de l'échéancier ({capital_amount + interest_amount + tax_amount:.2f}) ne correspond pas au montant brut du relevé ({gross_amount:.2f}) pour {nature}. Les montants du relevé seront utilisés pour gross/net.")
-                        else:
-                            logging.warning(f"LPB Repayment: Aucune date d'échéance valide trouvée pour le remboursement de {gross_amount_from_releve} du projet {linked_investment_id}. Le flux sera enregistré sans ventilation détaillée.")
-                    else:
-                        logging.warning(f"LPB Repayment: Aucune ligne d'échéancier correspondante trouvée pour le remboursement de {gross_amount_from_releve} du projet {linked_investment_id} à la date {transaction_date}. Le flux sera enregistré sans ventilation détaillée.")
-                else:
-                    logging.error(f"LPB Repayment: Colonnes 'montantapayer' ou 'datedecheance' non trouvées dans l'échéancier du projet {linked_investment_id}. Le flux sera enregistré sans ventilation détaillée.")
+                    if matched_row is not None:
+                        capital_amount = clean_amount(safe_get(matched_row, 'partducapital', 0))
+                        interest_amount = clean_amount(safe_get(matched_row, 'partdesinterets', 0)) + clean_amount(safe_get(matched_row, 'partdubonus', 0))
+                        tax_amount = clean_amount(safe_get(matched_row, 'csgcrds', 0)) + clean_amount(safe_get(matched_row, 'ir', 0))
+                        net_amount = gross_amount - tax_amount
             
-            elif flow_type == 'tax': # Anciennement 'fee'
-                tax_amount = gross_amount # Le montant brut est la taxe
-                net_amount = -gross_amount # Le montant net est négatif
-                interest_amount = 0.0
-                capital_amount = 0.0
-            
-            elif flow_type == 'withdrawal':
-                # Pour les retraits, gross_amount est le montant retiré, net_amount est négatif
-                # capital_amount, interest_amount, tax_amount sont 0
-                net_amount = -gross_amount
-                interest_amount = 0.0
-                tax_amount = 0.0
-                capital_amount = 0.0
+            elif flow_type == 'investment':
+                if flow_direction == 'out':
+                    net_amount = -gross_amount
+                else:  # Annulation, direction 'in'
+                    net_amount = gross_amount
+            elif flow_type == 'bonus': interest_amount = gross_amount
+            elif flow_type == 'withdrawal': net_amount = -gross_amount
 
-            elif flow_type == 'bonus': # Nouveau type pour les codes cadeaux
-                interest_amount = gross_amount # Le montant brut est l'intérêt (bonus)
-                net_amount = gross_amount # Le montant net est le même
-                tax_amount = 0.0
-                capital_amount = 0.0
-            
-            elif flow_type == 'investment' and flow_direction == 'out':
-                # Pour les investissements sortants, gross_amount est le montant investi
-                net_amount = -gross_amount
-                interest_amount = 0.0
-                tax_amount = 0.0
-                capital_amount = 0.0
-            
-            elif flow_type == 'investment' and flow_direction == 'in': # Annulation de souscription
-                # Pour les annulations, gross_amount est le montant remboursé
-                net_amount = gross_amount
-                interest_amount = 0.0
-                tax_amount = 0.0
-                capital_amount = gross_amount # Le capital est remboursé
-
-            # Pour les 'deposit', les montants sont déjà corrects (gross_amount = net_amount, autres à 0)
-            # Pour les 'other', les montants sont déjà corrects (gross_amount = net_amount, autres à 0)
-
-            cash_flow = {
-                'id': str(uuid.uuid4()),
-                'investment_id': linked_investment_id,
-                'user_id': self.user_id,
-                'platform': 'La Première Brique',
-                'flow_type': flow_type,
-                'flow_direction': flow_direction,
-                'gross_amount': round(gross_amount, 2),
-                'net_amount': round(net_amount, 2),
-                'tax_amount': round(tax_amount, 2),
-                'capital_amount': round(capital_amount, 2),
-                'interest_amount': round(interest_amount, 2),
-                'transaction_date': transaction_date,
-                'status': 'completed',
-                'description': f"{nature} - {safe_get(row, 'Détails', '')}",
+            cash_flows.append({
+                'id': str(uuid.uuid4()), 'investment_id': linked_investment_id, 'user_id': self.user_id,
+                'platform': 'La Première Brique', 'flow_type': flow_type, 'flow_direction': flow_direction,
+                'gross_amount': round(gross_amount, 2), 'net_amount': round(net_amount, 2),
+                'tax_amount': round(tax_amount, 2), 'capital_amount': round(capital_amount, 2),
+                'interest_amount': round(interest_amount, 2), 'transaction_date': transaction_date,
+                'status': 'completed', 'description': f"{nature} - {safe_get(row, 'Détails', '')}",
                 'created_at': datetime.now().isoformat()
-            }
-            cash_flows.append(cash_flow)
+            })
         
-        return pd.DataFrame(cash_flows) # Retourne un DataFrame pour la cohérence avec les autres parsers
+        return pd.DataFrame(cash_flows)
     
-    def _classify_lpb_transaction(self, nature: str) -> Tuple[str, str]:
-        """Classification LPB corrigée pour gérer les frais, les bonus et les annulations."""
-        nature_lower = nature.lower()
-        
-        if any(keyword in nature_lower for keyword in ['csg', 'crds', 'ir', 'prélèvement']):
-            return 'tax', 'out' # Changement de 'fee' à 'tax' pour les prélèvements fiscaux
-        elif 'crédit du compte' in nature_lower:
-            return 'deposit', 'in'
-        elif 'souscription' in nature_lower and 'annulation' not in nature_lower: # S'assurer que ce n'est pas une annulation
-            return 'investment', 'out'
-        elif 'retrait de l\'épargne' in nature_lower:
-            return 'withdrawal', 'out'
-        elif 'rémunération' in nature_lower or 'code cadeau' in nature_lower:
-            return 'bonus', 'in' # Nouveau type 'bonus' pour les codes cadeaux
-        elif 'remboursement mensualité' in nature_lower:
-            return 'repayment', 'in'
-        elif 'annulation de la souscription' in nature_lower: # Plus spécifique pour les annulations
-            return 'investment', 'in' # L'argent revient, donc 'in'
-        else:
-            return 'other', 'in'
+    def _classify_lpb_transaction(self, nature: str) -> Tuple[str, str, bool]:
+        nature_lower = nature.lower().strip()
+        if nature_lower.startswith('remboursement mensualité'): return 'repayment', 'in', False
+        if nature_lower.startswith('annulation de la souscription'): return 'investment', 'in', False
+        if nature_lower.startswith('souscription au projet'): return 'investment', 'out', False
+        if nature_lower.startswith('rémunération code cadeau'): return 'bonus', 'in', False
+        if nature_lower == 'crédit du compte': return 'deposit', 'in', False
+        if nature_lower == "retrait de l'épargne": return 'withdrawal', 'out', False
+        if nature_lower in ['csg/crds', 'prélèvement ir']: return 'tax', 'out', True
+        return 'other', 'in', False
 
     # ===== BIENPRÊTER =====
     def _parse_bienpreter(self, file_path: str) -> Dict[str, List[Dict]]:
@@ -513,15 +395,15 @@ class UnifiedPortfolioParser:
         return 'other', 'in'
 
     def _update_investments_from_cashflows(self, investments: List[Dict], cash_flows: List[Dict]):
-        """Met à jour les investissements (capital remboursé, statut, dates) après avoir traité tous les flux."""
+        """
+        [CORRIGÉ] Met à jour les investissements après avoir traité tous les flux.
+        C'est la source de vérité pour le capital remboursé et le statut final (completed/delayed).
+        """
         investment_map = {inv['id']: inv for inv in investments}
         
-        # Dictionnaire pour stocker le capital remboursé calculé à partir des flux
         capital_repaid_from_flows = {inv_id: 0.0 for inv_id in investment_map.keys()}
-        # Dictionnaire pour stocker les dates de remboursement
         repayment_dates = {inv_id: [] for inv_id in investment_map.keys()}
 
-        # 1. Agréger le capital remboursé et les dates à partir des cash_flows
         for cf in cash_flows:
             inv_id = cf.get('investment_id')
             if inv_id and inv_id in investment_map:
@@ -529,41 +411,25 @@ class UnifiedPortfolioParser:
                     capital_repaid_from_flows[inv_id] += cf.get('capital_amount', 0)
                     repayment_dates[inv_id].append(cf['transaction_date'])
 
-        # 2. Mettre à jour chaque investissement avec les données agrégées
         for inv_id, inv in investment_map.items():
             calculated_repaid = capital_repaid_from_flows[inv_id]
-            
-            # Mettre à jour le capital remboursé dans l'investissement
-            # C'est la source de vérité pour le statut 'completed'
             inv['capital_repaid'] = calculated_repaid
-            
-            # S'assurer que le capital remboursé ne dépasse pas le montant investi (sécurité)
-            if inv['capital_repaid'] > inv['invested_amount']:
-                logging.warning(f"Le capital remboursé pour {inv.get('project_name', inv_id)} ({inv['capital_repaid']:.2f}€) dépasse le montant investi ({inv['invested_amount']:.2f}€). Ajustement.")
-                inv['capital_repaid'] = inv['invested_amount']
-            
-            inv['remaining_capital'] = inv['invested_amount'] - inv['capital_repaid']
-            
-            # 3. Vérifier si le projet est terminé en se basant sur le capital recalculé
-            # On utilise une petite tolérance pour les erreurs de floating point
+            inv['remaining_capital'] = inv['invested_amount'] - calculated_repaid
+
+            # Logique de mise à jour du statut
+            # Utilise une tolérance de 1 centime pour la comparaison des montants
             if inv['invested_amount'] > 0 and inv['remaining_capital'] <= 0.01:
                 inv['status'] = 'completed'
                 if repayment_dates[inv_id]:
-                    # La date de fin réelle est la date du dernier remboursement
                     inv['actual_end_date'] = max(repayment_dates[inv_id])
-                elif not inv.get('actual_end_date') and inv.get('expected_end_date'):
-                    # Fallback si pas de date de remboursement mais statut est complet
-                    inv['actual_end_date'] = inv['expected_end_date']
-            
-            # 4. Mettre à jour le statut de retard (uniquement si pas déjà 'completed')
-            elif inv['status'] != 'completed' and inv.get('expected_end_date'):
+            elif inv.get('expected_end_date'):
                 try:
                     expected_end = datetime.strptime(inv['expected_end_date'], '%Y-%m-%d')
-                    if expected_end.date() < datetime.now().date():
+                    if expected_end.date() < datetime.now().date() and inv['status'] != 'completed':
                         inv['is_delayed'] = True
                         inv['status'] = 'delayed'
                 except (ValueError, TypeError):
-                    pass # Ignorer si la date n'est pas dans le bon format
+                    pass
             
             inv['updated_at'] = datetime.now().isoformat()
 

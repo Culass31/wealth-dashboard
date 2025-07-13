@@ -1,12 +1,11 @@
 import logging
 import os
 import pandas as pd
-from typing import Dict, List, Any, Optional
-
+from typing import Dict, List, Optional
 from backend.models.database import ExpertDatabaseManager
 from backend.data.unified_parser import UnifiedPortfolioParser
-from backend.models.models import InvestmentCreate, CashFlowCreate, PortfolioPositionCreate
 from backend.data.parser_constants import PLATFORM_MAPPING
+from scripts.config import Config
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -70,64 +69,64 @@ class DataLoader:
 
     from scripts.config import Config
 
-def load_pea_data(self, releve_path: str = None, evaluation_path: str = None, user_id: str = Config.DEFAULT_USER_ID) -> bool:
-        """ Charger PEA avec portfolio_positions """
-        logging.info(f"Chargement PEA pour utilisateur: {user_id}")
-        
-        if not releve_path and not evaluation_path:
-            logging.warning("Aucun fichier PEA fourni")
-            return False
-        
-        logging.info(f"Fichiers fournis:")
-        if releve_path:
-            logging.info(f"  📄 Relevé: {releve_path}")
-        if evaluation_path:
-            logging.info(f"  📊 Évaluation: {evaluation_path}")
-        
-        try:
-            parser = UnifiedPortfolioParser(user_id)
+    def load_pea_data(self, releve_path: str = None, evaluation_path: str = None, user_id: str = Config.DEFAULT_USER_ID) -> bool:
+            """ Charger PEA avec portfolio_positions """
+            logging.info(f"Chargement PEA pour utilisateur: {user_id}")
             
-            # Parser PEA
-            investments_data, cash_flows_data = parser._parse_pea(releve_path, evaluation_path)
-            
-            # Récupérer les positions de portefeuille
-            portfolio_positions_data = parser.get_pea_portfolio_positions()
-            
-            # Insérer données
-            success_cf = True
-            success_pp = True
-            success_lb = True # Nouvelle variable pour liquidité
-            
-            if cash_flows_data:
-                success_cf = self.db.insert_cash_flows(cash_flows_data)
-                logging.info(f"📊 Cash flows: {len(cash_flows_data)} transactions")
-            
-            if portfolio_positions_data:
-                success_pp = self.db.insert_portfolio_positions(portfolio_positions_data)
-                logging.info(f"📊 Portfolio positions: {len(portfolio_positions_data)} positions")
-            
-            # Insérer la liquidité PEA si extraite
-            liquidity_balance_data = parser.get_pea_liquidity_balance()
-            if liquidity_balance_data:
-                success_lb = self.db.insert_liquidity_balance(liquidity_balance_data)
-                logging.info(f"Liquidité PEA: {liquidity_balance_data.get('amount', 0)} euros")
-            
-            if success_cf and success_pp and success_lb:
-                logging.info("✅ PEA chargé avec succès!")
-                
-                # Résumé
-                if portfolio_positions_data:
-                    total_value = sum(pos.get('market_value', 0) for pos in portfolio_positions_data)
-                    logging.info(f"💰 Valorisation totale PEA: {total_value:,.0f}€")
-                
-                return True
-            else:
-                logging.error("❌ Échec chargement PEA")
+            if not releve_path and not evaluation_path:
+                logging.warning("Aucun fichier PEA fourni")
                 return False
+            
+            logging.info(f"Fichiers fournis:")
+            if releve_path:
+                logging.info(f"  📄 Relevé: {releve_path}")
+            if evaluation_path:
+                logging.info(f"  📊 Évaluation: {evaluation_path}")
+            
+            try:
+                parser = UnifiedPortfolioParser(user_id)
                 
-        except Exception as e:
-            logging.exception(f"❌ Erreur chargement PEA: {e}")
-            return False
+                # Parser PEA
+                investments_data, cash_flows_data = parser._parse_pea(releve_path, evaluation_path)
+                
+                # Récupérer les positions de portefeuille
+                portfolio_positions_data = parser.get_pea_portfolio_positions()
+                
+                # Insérer données
+                success_cf = True
+                success_pp = True
+                success_lb = True # Nouvelle variable pour liquidité
+                
+                if cash_flows_data:
+                    success_cf = self.db.insert_cash_flows(cash_flows_data)
+                    logging.info(f"📊 Cash flows: {len(cash_flows_data)} transactions")
+                
+                if portfolio_positions_data:
+                    success_pp = self.db.insert_portfolio_positions(portfolio_positions_data)
+                    logging.info(f"📊 Portfolio positions: {len(portfolio_positions_data)} positions")
+                
+                # Insérer la liquidité PEA si extraite
+                liquidity_balance_data = parser.get_pea_liquidity_balance()
+                if liquidity_balance_data:
+                    success_lb = self.db.insert_liquidity_balance(liquidity_balance_data)
+                    logging.info(f"Liquidité PEA: {liquidity_balance_data.get('amount', 0)} euros")
+                
+                if success_cf and success_pp and success_lb:
+                    logging.info("✅ PEA chargé avec succès!")
+                    
+                    # Résumé
+                    if portfolio_positions_data:
+                        total_value = sum(pos.get('market_value', 0) for pos in portfolio_positions_data)
+                        logging.info(f"💰 Valorisation totale PEA: {total_value:,.0f}€")
+                    
+                    return True
+                else:
+                    logging.error("❌ Échec chargement PEA")
+                    return False
+                    
+            except Exception as e:
+                logging.exception(f"❌ Erreur chargement PEA: {e}")
+                return False
         
     def load_all_pea_files(self, user_id: str, pea_folder: str) -> bool:
         """
