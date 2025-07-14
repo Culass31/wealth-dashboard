@@ -9,6 +9,7 @@ import re
 import os
 import logging
 from pprint import pprint
+from unidecode import unidecode
 from backend.utils.file_helpers import (
     standardize_date, clean_amount, clean_string_operation, safe_get, 
     normalize_text, get_column_by_normalized_name
@@ -636,30 +637,21 @@ class UnifiedPortfolioParser:
 
     # ===== PRETUP =====
     def _parse_pretup(self, file_path: str) -> Dict[str, List[Dict]]:
-        """
-        Parser PretUp entièrement revu pour une robustesse et une précision maximales.
-        Lit tous les onglets de données en une seule fois pour garantir la cohérence.
-        """
-        logging.info("Début du parsing PretUp avec la nouvelle méthode robuste.")
+        """[FINAL V3] Parser PretUp avec la logique métier spécifiée."""
+        logging.info("Début du parsing PretUp avec la logique finale V3.")
         
         try:
-            # 1. Charger toutes les données pertinentes en une seule fois
             all_data = self._load_all_pretup_sheets(file_path)
             
-            # Normaliser les colonnes du relevé de compte une fois pour toutes
-            if 'releve' in all_data and not all_data['releve'].empty:
-                all_data['releve'].columns = [normalize_text(col) for col in all_data['releve'].columns]
-
-            # 2. Extraire les informations de base sur les projets
-            investments = self._extract_pretup_projects(all_data)
+            investments, investment_map_by_key = self._extract_pretup_projects(all_data)
             
-            # 4. Parser le relevé de compte pour les flux de trésorerie
-            cash_flows = self._parse_pretup_account(all_data['releve'], investments)
+            cash_flows = self._parse_pretup_account(all_data.get('releve', pd.DataFrame()), investment_map_by_key)
             
-            # 5. Extraire le solde de liquidités
-            liquidity_balance = self._extract_pretup_liquidity(all_data['releve'])
+            self._update_investments_from_cashflows(investments, cash_flows)
 
-            logging.info(f"Parsing PretUp terminé avec succès. {len(investments)} investissements et {len(cash_flows)} flux trouvés.")
+            liquidity_balance = self._extract_pretup_liquidity(all_data.get('releve', pd.DataFrame()))
+
+            logging.info(f"Parsing PretUp terminé. {len(investments)} investissements et {len(cash_flows)} flux trouvés.")
             
             return {
                 "investments": investments,
@@ -673,70 +665,39 @@ class UnifiedPortfolioParser:
             return {"investments": [], "cash_flows": [], "portfolio_positions": [], "liquidity_balances": []}
 
     def _load_all_pretup_sheets(self, file_path: str) -> Dict[str, pd.DataFrame]:
-        """
-        Charge tous les onglets nécessaires du fichier PretUp de manière robuste.
-        Tente de trouver une correspondance même avec de légères variations de nom.
-        """
+        """Charge les onglets du fichier PretUp."""
         all_data = {}
         try:
-            xls = pd.ExcelFile(file_path)
+            xls = pd.ExcelFile(file_path, engine='openpyxl')
             actual_sheet_names = xls.sheet_names
-            logging.info(f"Onglets détectés dans le fichier : {actual_sheet_names}")
+            logging.info(f"Onglets détectés : {actual_sheet_names}")
         except Exception as e:
-            logging.error(f"Impossible de lire les noms d'onglets du fichier Excel : {e}")
-            # Fallback au cas où la lecture des noms d'onglets échoue
-            for key in PRETUP_SHEET_NAMES:
-                all_data[key] = pd.DataFrame()
-            return all_data
+            logging.error(f"Impossible de lire les noms d'onglets: {e}")
+            return {key: pd.DataFrame() for key in PRETUP_SHEET_NAMES}
 
-        # Normalise les noms pour la correspondance (minuscules, sans espaces superflus)
-        normalized_actual_names = {name.strip().lower(): name for name in actual_sheet_names}
+        normalized_actual_names = {unidecode(name).strip().lower(): name for name in actual_sheet_names}
 
         for key, expected_name in PRETUP_SHEET_NAMES.items():
-            normalized_expected = expected_name.strip().lower()
-            
-            # Tente de trouver une correspondance exacte (après normalisation)
+            normalized_expected = unidecode(expected_name).strip().lower()
             found_name = normalized_actual_names.get(normalized_expected)
 
             if found_name:
                 try:
                     all_data[key] = pd.read_excel(xls, sheet_name=found_name)
-                    logging.info(f"Onglet '{found_name}' (attendu: '{expected_name}') chargé avec succès.")
-                except Exception as e:
-                    logging.warning(f"L'onglet '{found_name}' a été trouvé mais n'a pas pu être chargé. Erreur: {e}. Il sera ignoré.")
+                    logging.info(f"Onglet '{found_name}' (attendu: '{expected_name}') chargé.")
+                except Exception:
                     all_data[key] = pd.DataFrame()
             else:
-                logging.warning(f"L'onglet attendu '{expected_name}' n'a pas été trouvé dans le fichier. Il sera ignoré.")
+                logging.warning(f"Onglet attendu '{expected_name}' non trouvé.")
                 all_data[key] = pd.DataFrame()
                 
         return all_data
 
-    def _extract_pretup_projects(self, all_data: Dict[str, pd.DataFrame]) -> List[Dict]:
-        """Extrait et normalise les projets depuis chaque onglet d'offres en utilisant les en-têtes de colonnes fournis."""
-        investments_data = []
-        investment_map = {} # Initialiser investment_map ici
+    def _extract_pretup_projects(self, all_data: Dict[str, pd.DataFrame]) -> Tuple[List[Dict], Dict[str, Dict]]:
+        """Extrait les projets et crée une map de liaison normalisée."""
+        investments = []
+        investment_map_by_key = {}
 
-        # Fonction interne pour traiter une ligne et éviter la répétition de code
-        def process_row(row, status, capital_col_name):
-            project_name = safe_get(row, 'Nom du Projet')
-            if pd.isna(project_name) or "TOTAUX" in str(project_name):
-                return None
-
-            invested_amount = clean_amount(safe_get(row, 'Montant Offre', 0))
-            remaining_capital = clean_amount(safe_get(row, capital_col_name, 0))
-            capital_repaid = invested_amount - remaining_capital
-
-            return {
-                'platform_id': str(safe_get(row, 'Numéro Offre', '')),
-                'project_name': project_name,
-                'company_name': safe_get(row, 'Entreprise'),
-                'invested_amount': invested_amount,
-                'remaining_capital': remaining_capital,
-                'capital_repaid': capital_repaid,
-                'status': status
-            }
-
-        # Traitement des différents onglets d'offres
         tabs_to_process = {
             'offres_sains': ('active', 'Capital Restant dû sain'),
             'offres_procedures': ('in_procedure', 'Capital Restant dû'),
@@ -744,283 +705,161 @@ class UnifiedPortfolioParser:
         }
 
         for tab_key, (status, capital_col) in tabs_to_process.items():
-            df = all_data.get(tab_key, pd.DataFrame())
-            if not df.empty:
-                for _, row in df.iterrows():
-                    data = process_row(row, status, capital_col)
-                    if data:
-                        investments_data.append(data)
+            df = all_data.get(tab_key)
+            if df is None or df.empty:
+                continue
+            
+            for _, row in df.iterrows():
+                project_name = safe_get(row, 'Nom du Projet')
+                company_name = safe_get(row, 'Entreprise')
+                if pd.isna(project_name) or "TOTAUX" in str(project_name):
+                    continue
 
-        # Création finale des objets investissements
-        investments = []
-        for data in investments_data:
-            investment = {
-                'id': str(uuid.uuid4()),
-                'user_id': self.user_id,
-                'platform': 'PretUp',
-                'investment_type': 'crowdfunding',
-                'asset_class': 'fixed_income',
-                'investment_date': None,
-                'signature_date': None,
-                'expected_end_date': None,
-                'actual_end_date': None,
-                'created_at': datetime.now().isoformat(),
-                'updated_at': datetime.now().isoformat(),
-                **data
-            }
-            investments.append(investment)
-            investment_map[investment['platform_id']] = investment # Remplir investment_map ici
-
-        # 1. Extraire les dates depuis les échéanciers
-        all_echeances_df = pd.concat([
-            all_data.get('echeances_sains', pd.DataFrame()),
-            all_data.get('echeances_procedures', pd.DataFrame()),
-            all_data.get('echeances_perdus', pd.DataFrame())
-        ], ignore_index=True)
+                invested_amount = clean_amount(safe_get(row, 'Montant Offre', 0))
+                
+                investment = {
+                    'id': str(uuid.uuid4()), 'user_id': self.user_id, 'platform': 'PretUp',
+                    'investment_type': 'crowdfunding', 'asset_class': 'fixed_income',
+                    'platform_id': str(safe_get(row, 'Numéro Offre', '')),
+                    'project_name': project_name, 'company_name': company_name,
+                    'invested_amount': invested_amount,
+                    'status': status,
+                    'capital_repaid': 0.0,
+                    'remaining_capital': invested_amount,
+                    'investment_date': None, 'signature_date': None,
+                    'expected_end_date': None, 'actual_end_date': None,
+                    'duration_months': None,
+                    'created_at': datetime.now().isoformat(), 'updated_at': datetime.now().isoformat(),
+                }
+                investments.append(investment)
+                key = normalize_text(str(company_name)) + normalize_text(str(project_name))
+                investment_map_by_key[key] = investment
+        
+        all_echeances_df = pd.concat(
+            [all_data.get(k, pd.DataFrame()) for k in ['echeances_sains', 'echeances_procedures', 'echeances_perdus']],
+            ignore_index=True
+        )
 
         if not all_echeances_df.empty:
             all_echeances_df.columns = [str(c).strip() for c in all_echeances_df.columns]
-            all_echeances_df['Date Encaissement'] = pd.to_datetime(all_echeances_df['Date Encaissement'], dayfirst=True, errors='coerce')
-            all_echeances_df = all_echeances_df.sort_values(by=['Numéro Offre', 'Date Encaissement'])
-            
-            # Calculer duration_months en comptant le nombre d'échéances par projet
-            echeance_counts = all_echeances_df.groupby('Numéro Offre').size().to_dict()
-
-            schedule_dates = all_echeances_df.groupby('Numéro Offre')['Date Encaissement'].agg(['min', 'max']).to_dict('index')
-
-            for platform_id, inv in investment_map.items():
-                str_platform_id = str(platform_id)
-                if str_platform_id in schedule_dates:
-                    dates = schedule_dates[str_platform_id]
-                    inv['signature_date'] = dates['min'].strftime('%Y-%m-%d') if pd.notna(dates['min']) else None
-                    inv['expected_end_date'] = dates['max'].strftime('%Y-%m-%d') if pd.notna(dates['max']) else None
+            date_col = get_column_by_normalized_name(all_echeances_df, normalize_text('Date Encaissement'))
+            if date_col:
+                all_echeances_df[date_col] = pd.to_datetime(all_echeances_df[date_col], dayfirst=True, errors='coerce')
                 
-                # Mettre à jour duration_months avec le compte des échéances
-                if str_platform_id in echeance_counts:
-                    inv['duration_months'] = int(echeance_counts[str_platform_id])
-                    logging.info(f"PretUp: Duration pour l'offre {str_platform_id} mise à jour à {inv['duration_months']} mois (nombre d'échéances).")
-                else:
-                    inv['duration_months'] = None
+                for inv in investments:
+                    echeances_projet = all_echeances_df[all_echeances_df['Numéro Offre'].astype(str) == inv['platform_id']]
+                    if not echeances_projet.empty:
+                        inv['duration_months'] = len(echeances_projet)
+                        inv['signature_date'] = standardize_date(echeances_projet[date_col].min())
+                        inv['expected_end_date'] = standardize_date(echeances_projet[date_col].max())
 
-        # 2. Affiner le statut final pour les projets qui ne sont pas déjà en défaut ou en procédure
-        for inv in investments:
-            # Ne pas modifier les statuts déjà fixés comme 'in_procedure' ou 'defaulted'
-            if inv['status'] in ['in_procedure', 'defaulted']:
-                continue
+        return investments, investment_map_by_key
 
-            # Si le capital restant est nul, le projet est complété
-            if inv.get('remaining_capital', 0) <= 0.01:
-                inv['status'] = 'completed'
-                if not inv.get('actual_end_date') and inv.get('expected_end_date'):
-                    inv['actual_end_date'] = inv['expected_end_date']
-            
-            # Si le projet est toujours actif mais que la date de fin est passée, il est en retard
-            elif inv['status'] == 'active' and inv.get('expected_end_date'):
-                try:
-                    expected_end = datetime.strptime(inv['expected_end_date'], '%Y-%m-%d')
-                    if expected_end.date() < datetime.now().date():
-                        inv['status'] = 'delayed'
-                except (ValueError, TypeError):
-                    pass
-        
-        return investments
-
-    def _parse_pretup_account(self, df_releve: pd.DataFrame, investments: List[Dict]) -> List[Dict]:
-        """
-        Parse le relevé de compte PretUp et crée les flux de trésorerie.
-        Liaison robuste par Numéro Offre ou par nom d'entreprise/projet.
-        """
-        logging.info("Début du parsing du relevé de compte PretUp.")
+    def _parse_pretup_account(self, df_releve: pd.DataFrame, investment_map: Dict[str, Dict]) -> List[Dict]:
+        """[FINAL V4] Parse le relevé en suivant les règles métier spécifiées et avec unidecode."""
         cash_flows = []
-        
-        # Créer un dictionnaire pour un accès rapide aux investissements par platform_id
-        investment_map_by_platform_id = {inv['platform_id']: inv for inv in investments if 'platform_id' in inv}
-        
-        # Créer un dictionnaire pour un accès rapide aux investissements par nom de projet/entreprise
-        investment_map_by_name = {}
-        for inv in investments:
-            key = (normalize_text(inv.get('company_name', '')), normalize_text(inv.get('project_name', '')))
-            investment_map_by_name[key] = inv
-
         if df_releve.empty:
-            logging.warning("DataFrame du relevé PretUp est vide.")
             return []
 
-        # Normaliser les noms de colonnes (déjà fait dans _parse_pretup maintenant)
-        # df_releve.columns = [normalize_text(col) for col in df_releve.columns]
-
-        for _, row in df_releve.iterrows():
-            date_str = safe_get(row, 'date')
-            type_transaction = safe_get(row, 'type', '') # Extraire le type de la colonne 'Type'
-            operation = safe_get(row, 'libelle', '') # Utiliser 'Libellé' pour la description
-            montant_debit_str = safe_get(row, 'debit')
-            montant_credit_str = safe_get(row, 'credit')
-
-            if pd.isna(date_str) or not operation or (pd.isna(montant_debit_str) and pd.isna(montant_credit_str)):
-                continue
-
-            transaction_date = self._parse_pretup_date(date_str)
-            if not transaction_date:
-                logging.warning(f"Date de transaction invalide pour la ligne: {row.to_dict()}")
-                continue
-
-            gross_amount = 0.0
-            flow_direction = ''
-
-            if pd.notna(montant_credit_str) and clean_amount(montant_credit_str) > 0:
-                gross_amount = clean_amount(montant_credit_str)
-                flow_direction = 'in'
-            elif pd.notna(montant_debit_str) and clean_amount(montant_debit_str) > 0:
-                gross_amount = clean_amount(montant_debit_str)
-                flow_direction = 'out'
-            
-            if gross_amount == 0:
-                continue
-
-            flow_type = self._classify_pretup_transaction(type_transaction, flow_direction) # Utiliser le type de transaction
-            
-            linked_investment_id = None
-            # Tenter de lier par Numéro Offre si disponible dans la description
-            num_offre_match = re.search(r'offre n°(\d+)', operation, re.IGNORECASE)
-            if num_offre_match:
-                platform_id_from_op = num_offre_match.group(1)
-                if platform_id_from_op in investment_map_by_platform_id:
-                    linked_investment_id = investment_map_by_platform_id[platform_id_from_op]['id']
-            
-            # Si pas lié par Numéro Offre, tenter de lier par nom de projet/entreprise
-            if not linked_investment_id:
-                # Extraire le nom de l'entreprise/projet de l'opération
-                # Exemple: "Remboursement mensuel - Projet XYZ - Entreprise ABC"
-                project_name_match = re.search(r'projet (.+?)(?: - |$)', operation, re.IGNORECASE)
-                company_name_match = re.search(r'entreprise (.+?)(?: - |$)', operation, re.IGNORECASE)
-                
-                op_project_name = project_name_match.group(1).strip() if project_name_match else ''
-                op_company_name = company_name_match.group(1).strip() if company_name_match else ''
-
-                lookup_key = (normalize_text(op_company_name), normalize_text(op_project_name))
-                if lookup_key in investment_map_by_name:
-                    linked_investment_id = investment_map_by_name[lookup_key]['id']
-                elif op_project_name: # Fallback si seul le nom du projet est trouvé
-                    for inv_key, inv_obj in investment_map_by_name.items():
-                        if normalize_text(op_project_name) in inv_key[1]:
-                            linked_investment_id = inv_obj['id']
-                            break
-            
-            # Initialisation des montants détaillés
-            net_amount = gross_amount
-            tax_amount = 0.0
-            capital_amount = 0.0
-            interest_amount = 0.0
-
-            # Récupérer les montants détaillés si disponibles dans le relevé
-            capital_amount_releve = clean_amount(safe_get(row, 'part de capital', 0)) # Nom de colonne corrigé
-            interest_amount_releve = clean_amount(safe_get(row, 'part interets bruts', 0))
-            retenue_sociale_releve = clean_amount(safe_get(row, 'retenue a la source (cotisations sociales)', 0))
-            retenue_forfaitaire_releve = clean_amount(safe_get(row, 'retenue a la source (prelevement forfaitaire)', 0))
-
-            if flow_type == 'repayment':
-                capital_amount = capital_amount_releve
-                interest_amount = interest_amount_releve
-                tax_amount = retenue_sociale_releve + retenue_forfaitaire_releve
-                net_amount = gross_amount - tax_amount
-            elif flow_type == 'tax':
-                tax_amount = gross_amount
-                net_amount = -gross_amount # Les taxes sont des sorties
-            elif flow_type == 'investment':
-                net_amount = -gross_amount # Les investissements sont des sorties
-            
-            # Ajuster le net_amount pour les sorties
-            if flow_direction == 'out':
-                net_amount = -abs(net_amount)
-            else:
-                net_amount = abs(net_amount)
-
-            cash_flows.append({
-                'id': str(uuid.uuid4()),
-                'investment_id': linked_investment_id,
-                'user_id': self.user_id,
-                'platform': 'PretUp',
-                'flow_type': flow_type,
-                'flow_direction': flow_direction,
-                'gross_amount': round(gross_amount, 2),
-                'net_amount': round(net_amount, 2),
-                'tax_amount': round(tax_amount, 2),
-                'capital_amount': round(capital_amount, 2),
-                'interest_amount': round(interest_amount, 2),
-                'transaction_date': transaction_date,
-                'status': 'completed',
-                'description': operation,
-                'created_at': datetime.now().isoformat()
-            })
-        
-        logging.info(f"Parsing du relevé de compte PretUp terminé. {len(cash_flows)} flux trouvés.")
-        return cash_flows
-
-    def _classify_pretup_transaction(self, type_transaction: str, flow_direction: str) -> str:
-        """
-        Classifie le type de flux pour les transactions PretUp en se basant sur la colonne 'Type'.
-        """
-        type_lower = type_transaction.lower()
-
-        if 'echeance' in type_lower or 'remboursement anticipé' in type_lower:
-            return 'repayment'
-        elif 'offre' in type_lower:
-            return 'investment'
-        elif 'alimentation' in type_lower:
-            return 'deposit'
-        elif 'impôts' in type_lower:
-            return 'tax'
-        elif 'virement sortant' in type_lower or 'retrait' in type_lower:
-            return 'withdrawal'
-        else:
-            return 'other'
-
-    def _extract_pretup_liquidity(self, df_releve: pd.DataFrame) -> Optional[Dict]:
-        """
-        Extrait le solde de liquidités le plus récent du relevé de compte PretUp.
-        """
-        logging.info("Extraction du solde de liquidités PretUp...")
-        if df_releve.empty:
-            logging.warning("DataFrame du relevé PretUp est vide, impossible d'extraire la liquidité.")
-            return None
-
-        # Assurer que les colonnes nécessaires existent et sont au bon format
-        # Normaliser les noms de colonnes si ce n'est pas déjà fait
         df_releve.columns = [normalize_text(col) for col in df_releve.columns]
 
-        # Trouver la colonne de date et de solde
+        for _, row in df_releve.iterrows():
+            type_transaction = safe_get(row, 'type', '')
+            if unidecode(type_transaction.lower()) == 'impots':
+                continue
+
+            libelle = safe_get(row, 'libelle', '')
+            transaction_date = self._parse_pretup_date(safe_get(row, 'date'))
+            if not transaction_date or not libelle:
+                continue
+
+            credit = clean_amount(safe_get(row, 'credit', 0))
+            debit = clean_amount(safe_get(row, 'debit', 0))
+            gross_amount = credit if credit > 0 else debit
+            if gross_amount == 0: continue
+
+            # Assurer que gross_amount est toujours positif
+            gross_amount = abs(gross_amount)
+
+            flow_direction = 'in' if credit > 0 else 'out'
+            flow_type = self._classify_pretup_transaction(type_transaction)
+            
+            linked_investment_id = None
+            capital_amount, interest_amount, tax_amount = 0.0, 0.0, 0.0
+
+            if flow_type in ['repayment', 'investment']:
+                libelle_norm = unidecode(libelle)
+                match = re.search(r'-\s*(.+?)\s*/\s*(.+?)(?:Part|Prélèvement|$)', libelle_norm)
+                if not match:
+                    match = re.search(r'(.+?)\s*/\s*(.+)', libelle_norm)
+
+                if match:
+                    company_name, project_name = match.groups()[0], match.groups()[1]
+                    lookup_key = normalize_text(company_name) + normalize_text(project_name.strip())
+                    if lookup_key in investment_map:
+                        linked_investment_id = investment_map[lookup_key]['id']
+                        if flow_type == 'investment':
+                            investment_map[lookup_key]['investment_date'] = transaction_date
+
+            if flow_type == 'repayment':
+                libelle_norm = unidecode(libelle)
+                capital_match = re.search(r'Part capital\s*:\s*([\d,\.]+)', libelle_norm)
+                interest_match = re.search(r'Part interet\s*:\s*([\d,\.]+)', libelle_norm)
+                capital_amount = clean_amount(capital_match.group(1)) if capital_match else 0.0
+                interest_amount = clean_amount(interest_match.group(1)) if interest_match else 0.0
+                net_amount = gross_amount
+                gross_amount = capital_amount + interest_amount
+            else:
+                net_amount = gross_amount if flow_direction == 'in' else -gross_amount
+
+            cash_flows.append({
+                'id': str(uuid.uuid4()), 'investment_id': linked_investment_id, 'user_id': self.user_id,
+                'platform': 'PretUp', 'flow_type': flow_type, 'flow_direction': flow_direction,
+                'gross_amount': round(gross_amount, 2), 'net_amount': round(net_amount, 2),
+                'tax_amount': round(tax_amount, 2), 'capital_amount': round(capital_amount, 2),
+                'interest_amount': round(interest_amount, 2), 'transaction_date': transaction_date,
+                'status': 'completed', 'description': libelle, 'created_at': datetime.now().isoformat()
+            })
+        return cash_flows
+
+    def _classify_pretup_transaction(self, type_transaction: str) -> str:
+        """[FINAL V4] Classification avec unidecode."""
+        type_lower = unidecode(type_transaction.lower())
+        if 'echeance' in type_lower or 'remboursement anticipe' in type_lower:
+            return 'repayment'
+        if 'offre' in type_lower:
+            return 'investment'
+        if 'alimentation' in type_lower:
+            return 'deposit'
+        if 'virement sortant' in type_lower:
+            return 'withdrawal'
+        return 'other'
+
+    def _extract_pretup_liquidity(self, df_releve: pd.DataFrame) -> Optional[Dict]:
+        """[CORRIGÉ] Extrait le solde de liquidités le plus récent."""
+        if df_releve.empty:
+            return None
+        df_releve.columns = [normalize_text(col) for col in df_releve.columns]
         date_col = get_column_by_normalized_name(df_releve, 'date')
         solde_col = get_column_by_normalized_name(df_releve, 'solde')
-
         if not date_col or not solde_col:
-            logging.warning(f"Colonnes 'date' ou 'solde' non trouvées dans le relevé PretUp. Colonnes disponibles: {df_releve.columns.tolist()}")
             return None
-
-        df_releve[date_col] = pd.to_datetime(df_releve[date_col], errors='coerce')
-        df_releve.dropna(subset=[date_col, solde_col], inplace=True)
-
-        if df_releve.empty:
-            logging.warning("Après nettoyage, le DataFrame du relevé PretUp est vide, impossible d'extraire la liquidité.")
+        df_copy = df_releve.copy()
+        df_copy['parsed_date'] = df_copy[date_col].apply(self._parse_pretup_date)
+        df_copy.dropna(subset=['parsed_date', solde_col], inplace=True)
+        if df_copy.empty:
             return None
-
-        # Trier par date et prendre la dernière entrée
-        latest_balance_row = df_releve.sort_values(by=date_col, ascending=False).iloc[0]
-        
-        balance_date = latest_balance_row[date_col].strftime('%Y-%m-%d')
+        latest_balance_row = df_copy.sort_values(by='parsed_date', ascending=False).iloc[0]
+        balance_date = standardize_date(latest_balance_row['parsed_date'])
         amount = clean_amount(latest_balance_row[solde_col])
-
-        liquidity_balance = {
-            'user_id': self.user_id,
-            'platform': 'PretUp',
-            'balance_date': balance_date,
-            'amount': amount,
-            'created_at': datetime.now().isoformat(),
-            'updated_at': datetime.now().isoformat()
+        return {
+            'id': str(uuid.uuid4()), 'user_id': self.user_id, 'platform': 'PretUp',
+            'balance_date': balance_date, 'amount': amount,
+            'created_at': datetime.now().isoformat(), 'updated_at': datetime.now().isoformat()
         }
-        logging.info(f"Liquidité PretUp extraite : {amount} EUR à la date {balance_date}")
-        return liquidity_balance
 
     # ===== ASSURANCE VIE =====    def _parse_assurance_vie(self, file_path: str) -> Dict[str, List[Dict]]:
+    def _parse_assurance_vie(self, file_path: str) -> Dict[str, List[Dict]]:
         """Parser Assurance Vie ultra-robuste contre les erreurs de type"""
         
         try:

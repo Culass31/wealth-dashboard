@@ -51,6 +51,39 @@
 *   Apporte une attention particulière à la lisibilité, la maintenabilité et la sécurité du code.
 *   Peut adapter ses réponses aux frameworks comme Django, FastAPI ou Flask.
 
+## 🤝 Cadre de Collaboration "Analyse-D'abord"
+
+*Pour garantir des modifications de code robustes, précises et efficaces, nous adoptons le processus itératif suivant pour toute tâche complexe (débogage, refactoring, ajout de fonctionnalité).*
+
+**Étape 1 : Définition de l'Objectif (Votre rôle)**
+*   **Action** : Vous décrivez le problème ou l'objectif de haut niveau.
+*   **Exemple** : *"Le parsing de PretUp est incohérent."* ou *"Je veux ajouter la gestion des dividendes pour Homunity."*
+
+**Étape 2 : Fourniture du Contexte Complet (Votre rôle)**
+*   **Action** : Vous me fournissez **tous les artefacts pertinents** en utilisant la syntaxe `@`. C'est l'étape la plus cruciale pour moi.
+*   **Checklist du Contexte Essentiel** :
+    *   **Le(s) Fichier(s) de Code Source** : Le ou les fichiers `.py` où la logique réside (`@backend/data/unified_parser.py`).
+    *   **Le(s) Fichier(s) d'Input** : Les données brutes que le code utilise (`@data/raw/Portefeuille PretUp.xlsx`).
+    *   **Le(s) Fichier(s) d'Output (si applicable)** : Un exemple de ce que vous obtenez et qui est incorrect (`@cash_flows_rows.csv`).
+    *   **La Logique Métier** : Vos explications et règles précises (comme vous l'avez fait pour les impôts et la classification des flux PretUp).
+
+**Étape 3 : Mon Analyse d'Expert et Plan d'Action (Mon rôle)**
+*   **Action** : Je m'engage à ne **pas** modifier le code immédiatement. À la place, je vais :
+    1.  Analyser l'ensemble des artefacts fournis.
+    2.  Poser des questions si des ambiguïtés subsistent.
+    3.  Présenter un **diagnostic clair** de la cause racine du problème.
+    4.  Proposer un **plan d'action détaillé et séquentiel**.
+
+**Étape 4 : Votre Validation (Votre rôle)**
+*   **Action** : Vous examinez mon analyse et mon plan. Vous pouvez demander des clarifications, suggérer des ajustements ou donner votre accord.
+*   **Garantie** : Je ne passerai **jamais** à l'étape d'implémentation sans votre "OK" explicite.
+
+**Étape 5 : Implémentation et Vérification (Mon rôle)**
+*   **Action** : Une fois le plan validé, je procède aux modifications du code. J'utiliserai les scripts de débogage (`debug_...`) pour valider mes changements en local avant de vous présenter le résultat.
+
+**Étape 6 : Finalisation (Nos deux rôles)**
+*   **Action** : Une fois la solution validée, nous procédons au "nettoyage" final : mise à jour de la documentation (`README.md`), rechargement des données en base, et confirmation que la tâche est terminée.
+
 ## 🧠 Règles de Comportement de l'IA et Mémoires Ajoutées
 
 ### 🔄 Connaissance et Contexte du Projet
@@ -98,9 +131,24 @@
 *   Toujours confirmer que les chemins de fichiers et les noms de modules existent avant de les référencer dans le code ou les tests.
 *   Ne jamais supprimer ou écraser du code existant, sauf instruction explicite ou si cela fait partie d'une tâche de `TASK.md`.
 *   Toute la conversation avec l'utilisateur doit se faire en français.
-*   Les messages de commit doivent être rédigés en français et suivre les conventions de Conventional Commits.
-*   Tous les commentaires dans le code doivent être rédigés en français.
-*   Proposer de faire des commits avant chaque évolution majeure du code que vous souhaitez effectuer.
+
+### 📝 Gestion des Commits Git
+
+*   **Préparation du Commit :**
+    *   Toujours commencer par vérifier l'état du dépôt : `git status && git diff HEAD && git log -n 3`.
+    *   Stager les fichiers pertinents : `git add <fichier1> <fichier2> ...`.
+*   **Rédaction du Message de Commit :**
+    *   Les messages de commit doivent être rédigés en français et suivre les conventions de Conventional Commits (`type: Sujet`).
+    *   Le sujet doit être concis (max 50 caractères) et décrire le *quoi* du changement.
+    *   Le corps du message (optionnel mais recommandé) doit expliquer le *pourquoi* et le *comment* du changement.
+    *   Pour les messages complexes ou multi-lignes, utiliser un fichier temporaire :
+        1.  Créer un fichier `commit_message.txt` avec le contenu du message.
+        2.  Effectuer un commit initial avec un message simple : `git commit -m "temp"`.
+        3.  Amender le commit avec le message du fichier : `git commit --amend -F commit_message.txt`.
+        4.  Supprimer le fichier temporaire : `del commit_message.txt` (pour Windows) ou `rm commit_message.txt` (pour Linux/macOS).
+*   **Vérification Post-Commit :**
+    *   Après chaque commit, confirmer le succès avec `git status`.
+    *   Ne jamais pousser les changements vers un dépôt distant sans instruction explicite de l'utilisateur.
 
 ## 🛡️ Robustesse des Modifications de Code
 

@@ -40,12 +40,19 @@ class PatrimoineCalculator:
         logging.info(f"Chargement des données pour l'utilisateur {self.user_id}...")
         self.investments_df = self.db.get_user_investments(self.user_id)
         self.cash_flows_df = self.db.get_user_cash_flows(self.user_id)
-        # Assurer que la colonne 'transaction_date' est de type datetime et gérer les erreurs
-        if not self.cash_flows_df.empty and 'transaction_date' in self.cash_flows_df.columns:
-            self.cash_flows_df['transaction_date'] = pd.to_datetime(self.cash_flows_df['transaction_date'], errors='coerce')
-            self.cash_flows_df.dropna(subset=['transaction_date'], inplace=True) # Supprimer les lignes avec dates invalides
         self.positions_df = self.db.get_portfolio_positions(self.user_id)
         self.liquidity_df = self.db.get_liquidity_balances(self.user_id)
+
+        # Assurer que les colonnes de date sont de type datetime et gérer les erreurs
+        if not self.cash_flows_df.empty and 'transaction_date' in self.cash_flows_df.columns:
+            self.cash_flows_df['transaction_date'] = pd.to_datetime(self.cash_flows_df['transaction_date'], errors='coerce')
+            self.cash_flows_df.dropna(subset=['transaction_date'], inplace=True)
+        
+        if not self.investments_df.empty:
+            for col in ['investment_date', 'signature_date', 'expected_end_date', 'actual_end_date']:
+                if col in self.investments_df.columns:
+                    self.investments_df[col] = pd.to_datetime(self.investments_df[col], errors='coerce')
+                    self.investments_df.dropna(subset=[col], inplace=True)
         logging.info("Données chargées.")
         logging.debug(f"Investments DF head:\n{self.investments_df.head()}")
         logging.debug(f"Cash Flows DF head:\n{self.cash_flows_df.head()}")
@@ -67,6 +74,9 @@ class PatrimoineCalculator:
                 return pd.Series(dtype=float)
             
             # Utiliser la colonne 'Adj Close' pour les prix ajustés
+            if 'Adj Close' not in data.columns:
+                logging.error(f"La colonne 'Adj Close' est manquante dans les données récupérées pour {ticker}. Colonnes disponibles: {data.columns.tolist()}")
+                return pd.Series(dtype=float)
             benchmark_series = data['Adj Close'].dropna()
             
             # S'assurer que l'index est un DatetimeIndex sans informations de fuseau horaire
@@ -495,31 +505,33 @@ class PatrimoineCalculator:
         if inv_p.empty: return metrics
 
         # --- Projections de Liquidité (2.2) ---
-        today = datetime.now().date()
+        today_timestamp = pd.Timestamp(datetime.now().date()) # Convertir en Timestamp
         future_investments = inv_p[
             (inv_p['status'] == 'active') &
-            (inv_p['expected_end_date'].notna()) &
-            (pd.to_datetime(inv_p['expected_end_date']).dt.date >= today)
+            (inv_p['expected_end_date'].notna())
         ].copy()
-
+        
         if not future_investments.empty:
             future_investments['expected_end_date'] = pd.to_datetime(future_investments['expected_end_date'])
             
+            # Filtrer les investissements dont la date de fin est supérieure ou égale à aujourd'hui
+            future_investments = future_investments[future_investments['expected_end_date'] >= today_timestamp]
+
             # Calcul des projections
-            end_6m = today + pd.DateOffset(months=6)
-            end_12m = today + pd.DateOffset(months=12)
-            end_24m = today + pd.DateOffset(months=24)
+            end_6m = today_timestamp + pd.DateOffset(months=6)
+            end_12m = today_timestamp + pd.DateOffset(months=12)
+            end_24m = today_timestamp + pd.DateOffset(months=24)
 
             metrics["projected_liquidity_6m"] = future_investments[
-                future_investments['expected_end_date'].dt.date <= end_6m.date()
+                future_investments['expected_end_date'] <= end_6m
             ]['remaining_capital'].sum()
 
             metrics["projected_liquidity_12m"] = future_investments[
-                future_investments['expected_end_date'].dt.date <= end_12m.date()
+                future_investments['expected_end_date'] <= end_12m
             ]['remaining_capital'].sum()
 
             metrics["projected_liquidity_24m"] = future_investments[
-                future_investments['expected_end_date'].dt.date <= end_24m.date()
+                future_investments['expected_end_date'] <= end_24m
             ]['remaining_capital'].sum()
 
         # --- Duration Moyenne Pondérée et Répartition par Échéance (2.3) ---

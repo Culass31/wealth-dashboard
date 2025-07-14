@@ -275,10 +275,11 @@ Pour ces plateformes, le parser s'appuie fortement sur la bibliothèque `pandas`
     *   **Parsing des Projets (`_parse_homunity_projects`)**: Gère les lignes de remboursement multiples pour un même projet et calcule le capital remboursé total. Le statut est mappé via `_map_homunity_status`.
     *   **Parsing du Relevé de Compte (`_parse_homunity_account`)**: Lie les flux à l'échéancier par (Promoteur, Projet, Date) et effectue des calculs précis, y compris la mise à jour de la date d'investissement.
 *   **PretUp**:
-    *   **Robustesse Maximale**: Lit tous les onglets de données en une seule fois (`_load_all_pretup_sheets`) pour garantir la cohérence, même avec de légères variations de noms d'onglets.
-    *   **Extraction et Enrichissement des Projets (`_extract_pretup_projects`, `_enrich_pretup_projects`)**: Extrait les informations de base sur les projets et les enrichit avec les dates de début et de fin, et gère les statuts 'completed' et 'delayed' à partir des échéanciers.
-    *   **Parsing du Relevé de Compte (`_parse_pretup_account`)**: Crée les flux et les lie aux investissements de manière robuste, en utilisant l'ID de l'offre ou l'inclusion du nom de l'entreprise et du projet. Gère les remboursements anticipés.
-    *   **Extraction de Liquidités (`_extract_pretup_liquidity`)**: Extrait le solde de liquidités le plus récent du relevé de compte.
+    *   **Logique Fiabilisée (V3)**: Le parser a été entièrement réécrit pour une robustesse maximale, en se basant sur les règles métier que nous avons définies.
+    *   **Liaison par Clé Normalisée**: La liaison entre le relevé de compte, les projets et les échéanciers ne se base plus sur des correspondances fragiles. Elle utilise maintenant une **clé de liaison unique et normalisée**, construite à partir du couple (`Nom de l'entreprise`, `Nom du Projet`), après avoir supprimé les accents et standardisé la casse. C'est le cœur de la fiabilisation.
+    *   **Classification Stricte**: La classification des flux (`repayment`, `investment`, etc.) se base **uniquement** sur la colonne `Type` du relevé, conformément à vos instructions, ce qui élimine toute ambiguïté.
+    *   **Extraction par Regex**: Les montants de capital et d'intérêts sont extraits de manière fiable depuis le libellé des transactions de remboursement grâce à des expressions régulières (regex) précises.
+    *   **Gestion des Dates**: La date de fin réelle (`actual_end_date`) est automatiquement calculée en se basant sur la date du dernier remboursement de capital, assurant une mise à jour correcte du statut des projets terminés.
 *   **Assurance Vie**:
     *   **Ultra-Robuste**: Le parser (`_parse_assurance_vie`) est conçu pour être ultra-robuste contre les erreurs de type, notamment pour la colonne d'opération. Il tente de lire le premier onglet si l'onglet 'Relevé compte' n'est pas trouvé.
     *   **Classification des Flux**: Gère la classification des flux (dividende, frais, versement, etc.) avec une gestion robuste des cas numériques et des lignes vides/headers.

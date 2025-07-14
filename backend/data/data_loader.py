@@ -233,43 +233,30 @@ class DataLoader:
             return False
     
     def load_all_user_files(self, user_id: str, data_folder: str = "data/raw", platforms_to_load: Optional[List[str]] = None) -> bool:
-        """[CORRIGÉ] Charge les fichiers pour un utilisateur, avec filtrage par plateforme."""
+        """[CORRIGÉ V3] Charge les fichiers validés à partir du rapport de validation."""
         logging.info(f"📂 Chargement complet pour utilisateur {user_id} depuis {data_folder}")
         if platforms_to_load:
             logging.info(f"Filtre appliqué pour les plateformes : {', '.join(platforms_to_load)}")
 
-        fichiers_plateformes = {
-            'lpb': 'Portefeuille LPB.xlsx',
-            'pretup': 'Portefeuille PretUp.xlsx',
-            'bienpreter': 'Portefeuille BienPreter.xlsx',
-            'homunity': 'Portefeuille Homunity.xlsx',
-            'assurance_vie': 'Portefeuille Linxea.xlsx'
-        }
-        
+        validation_report = self.validate_all_files(data_folder, platforms_to_load)
+        if validation_report['valid_count'] == 0:
+            logging.error("Aucun fichier valide à charger.")
+            return False
+
         success_count = 0
         
-        # Charger les plateformes Excel
-        for plateforme_key, filename in fichiers_plateformes.items():
-            if platforms_to_load and plateforme_key not in platforms_to_load:
-                continue # Ignorer si pas dans la liste demandée
-            
-            file_path = os.path.join(data_folder, filename)
-            if os.path.exists(file_path):
-                if self.load_platform_data(file_path, plateforme_key, user_id):
-                    success_count += 1
-            else:
-                logging.warning(f"Fichier non trouvé pour {PLATFORM_MAPPING.get(plateforme_key.lower(), plateforme_key).upper()}: {file_path}")
+        # Charger les plateformes Excel validées
+        for valid_file in validation_report.get('valid_files', []):
+            platform_key = valid_file['platform']
+            file_path = valid_file['path']
+            if self.load_platform_data(file_path, platform_key, user_id):
+                success_count += 1
 
-        # Charger tous les fichiers du dossier PEA
-        
-        if not platforms_to_load or 'pea' in platforms_to_load:
-            logging.info(f"[DEBUG] Entrée dans le bloc de chargement PEA.") # NOUVELLE LIGNE DE DEBUG
+        # Charger les fichiers PEA validés
+        if 'pea_files' in validation_report and validation_report['pea_files']:
             pea_folder = os.path.join(data_folder, "pea")
-            if os.path.exists(pea_folder):
-                if self.load_all_pea_files(user_id, pea_folder):
-                    success_count += 1
-            else:
-                logging.warning(f"⚠️  Dossier 'pea' non trouvé dans {data_folder}")
+            if self.load_all_pea_files(user_id, pea_folder):
+                success_count += 1
 
         logging.info(f"📋 RÉSUMÉ CHARGEMENT: {success_count} source(s) de données chargée(s) avec succès.")
         return success_count > 0
@@ -360,87 +347,71 @@ class DataLoader:
             return False
     
     def validate_all_files(self, data_folder: str = "data/raw", platforms_to_load: Optional[List[str]] = None) -> Dict:
-        """
-        [CORRIGÉ] Valider tous les fichiers avant chargement, avec filtre optionnel par plateforme.
-        Retourne un rapport de validation.
-        """
-        
+        """[CORRIGÉ V2] Valider les fichiers en se basant sur le début du nom de fichier."""
         logging.info(f"Validation des fichiers dans {data_folder}")
         if platforms_to_load:
             logging.info(f"Validation filtrée pour les plateformes : {', '.join(platforms_to_load)}")
-        
-        validation_report = {
-            'valid_files': [],
-            'missing_files': [],
-            'invalid_files': [],
-            'total_files': 0,
-            'valid_count': 0
-        }
-        
-        # Fichiers attendus
-        expected_files = {
-            'lpb': 'Portefeuille LPB.xlsx',
-            'pretup': 'Portefeuille PretUp.xlsx', 
-            'bienpreter': 'Portefeuille BienPreter.xlsx',
-            'homunity': 'Portefeuille Homunity.xlsx',
-            'assurance_vie': 'Portefeuille Linxea.xlsx'
-        }
-        
-        # Compter les fichiers attendus en fonction du filtre
-        validation_report['total_files'] = len(platforms_to_load) if platforms_to_load else len(expected_files) + 1 # +1 pour PEA
-        
-        for platform_key, filename in expected_files.items():
-            if platforms_to_load and platform_key not in platforms_to_load:
-                continue # Ignorer si pas dans la liste demandée
 
-            file_path = os.path.join(data_folder, filename)
+        validation_report = {
+            'valid_files': [], 'missing_files': [], 'invalid_files': [],
+            'total_files': 0, 'valid_count': 0
+        }
+
+        expected_prefixes = {
+            'lpb': 'Portefeuille LPB',
+            'pretup': 'Portefeuille PretUp',
+            'bienpreter': 'Portefeuille BienPreter',
+            'homunity': 'Portefeuille Homunity',
+            'assurance_vie': 'Portefeuille Linxea'
+        }
+
+        all_files_in_folder = os.listdir(data_folder)
+
+        platforms_to_check = platforms_to_load if platforms_to_load else expected_prefixes.keys()
+        validation_report['total_files'] = len(platforms_to_check)
+
+        for platform_key in platforms_to_check:
+            if platform_key.lower() == 'pea': continue
             
-            if os.path.exists(file_path):
+            prefix = expected_prefixes.get(platform_key.lower())
+            if not prefix:
+                logging.warning(f"Clé de plateforme inconnue: {platform_key}")
+                continue
+            found_file = None
+            for filename in all_files_in_folder:
+                if filename.startswith(prefix) and filename.lower().endswith(('.xlsx', '.xls')):
+                    found_file = filename
+                    break
+            
+            if found_file:
+                file_path = os.path.join(data_folder, found_file)
                 try:
-                    # Test d'ouverture Excel
-                    import pandas as pd
                     pd.read_excel(file_path, nrows=1)
-                    
                     validation_report['valid_files'].append({
-                        'platform': platform_key,
-                        'filename': filename,
-                        'path': file_path
+                        'platform': platform_key, 'filename': found_file, 'path': file_path
                     })
                     validation_report['valid_count'] += 1
-                    logging.info(f"Fichier valide: {PLATFORM_MAPPING.get(platform_key.lower(), platform_key).upper()}: {filename}")
-                    
+                    logging.info(f"Fichier valide: {PLATFORM_MAPPING.get(platform_key, platform_key).upper()}: {found_file}")
                 except Exception as e:
                     validation_report['invalid_files'].append({
-                        'platform': platform_key,
-                        'filename': filename,
-                        'error': str(e)
+                        'platform': platform_key, 'filename': found_file, 'error': str(e)
                     })
-                    logging.error(f"Fichier corrompu: {PLATFORM_MAPPING.get(platform_key.lower(), platform_key).upper()} - {e}")
+                    logging.error(f"Fichier corrompu: {PLATFORM_MAPPING.get(platform_key, platform_key).upper()} - {e}")
             else:
                 validation_report['missing_files'].append({
-                    'platform': platform_key,
-                    'filename': filename
+                    'platform': platform_key, 'filename': f"{prefix}*.xlsx"
                 })
-                logging.warning(f"Fichier manquant: {PLATFORM_MAPPING.get(platform_key.lower(), platform_key).upper()}: {filename}")
-        
-        # Vérifier PEA uniquement si demandé ou si aucun filtre
-         # NOUVELLE LIGNE DE DEBUG
+                logging.warning(f"Fichier manquant pour {PLATFORM_MAPPING.get(platform_key, platform_key).upper()}")
+
         if not platforms_to_load or 'pea' in platforms_to_load:
             pea_folder = os.path.join(data_folder, "pea")
             if os.path.exists(pea_folder):
                 pea_files = [f for f in os.listdir(pea_folder) if f.lower().endswith('.pdf')]
                 if pea_files:
-                    validation_report['pea_files'] = pea_files
+                    validation_report['valid_count'] += 1
                     logging.info(f"PEA: {len(pea_files)} fichier(s) PDF trouvé(s)")
-                    if not platforms_to_load: # Si pas de filtre, on compte le PEA comme valide
-                        validation_report['valid_count'] += 1
-                else:
-                    logging.warning("PEA: Aucun fichier PDF trouvé")
-            else:
-                logging.warning(f"⚠️  Dossier 'pea' non trouvé dans {data_folder}")
         
         logging.info(f"VALIDATION: {validation_report['valid_count']}/{validation_report['total_files']} fichiers valides")
-        
         return validation_report
     
     def get_platform_summary(self, user_id: str) -> Dict:
