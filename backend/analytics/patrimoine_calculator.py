@@ -59,7 +59,7 @@ class PatrimoineCalculator:
         logging.debug(f"Positions DF head:\n{self.positions_df.head()}")
         logging.debug(f"Liquidity DF head:\n{self.liquidity_df.head()}")
 
-    def _get_benchmark_data(self, start_date: datetime, end_date: datetime, ticker: str = "IWDA.AS") -> pd.Series:
+    def _get_benchmark_data(self, start_date: datetime, end_date: datetime, ticker: str = "CW8.PA") -> pd.Series:
         """
         Récupère les données historiques d'un benchmark (ex: ETF World) via yfinance.
         Retourne une série Pandas avec DatetimeIndex.

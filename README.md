@@ -14,11 +14,11 @@ Une solution complète d'analyse patrimoniale développée par un agent expert e
 - **Duration moyenne pondérée** et répartition par échéance par plateforme
 - **Taux de réinvestissement** et effet boule de neige par plateforme
 - **Performance mensuelle** et annualisée
-- **Outperformance vs benchmarks** (OAT 10Y, Immobilier)
+- **Outperformance vs benchmarks** (OAT 10Y, Immobilier, ETF World via `yfinance`)
 
 ### 🎯 **Analyse de Risque**
 - **Concentration par émetteur** (Indice de Herfindahl)
-- **Stress testing** multi-scénarios
+- **Stress testing** multi-scénarios (Simulation Monte Carlo via `financial_freedom.py`)
 - **Analyse de retards** et projets en difficulté
 - **Diversification géographique** et sectorielle
 - **Ratio de Sharpe** adapté au crowdfunding
@@ -26,7 +26,7 @@ Une solution complète d'analyse patrimoniale développée par un agent expert e
 ### 🔄 **Gestion Fiscale Intelligente**
 - **Calcul automatique des taxes** (Flat tax 30%, CSG/CRDS)
 - **Suivi de la fiscalité** par type d'investissement
-- **Optimisation Fiscale des Flux Entrants** : Analyse des dépôts et réinvestissements pour des stratégies d'optimisation fiscale (ex: utilisation d'enveloppes fiscales).
+- **Optimisation Fiscale des Flux Entrants** : Analyse des dépôts et réinvestissements pour des stratégies d'optimisation fiscale (ex: utilisation d'enveloppes fiscales, via `analyze_tax_optimization_of_flows`).
 
 ### 🏢 **Support Multi-Plateformes**
 - **LPB (La Première Brique)** - Crowdfunding immobilier
@@ -333,7 +333,7 @@ Le parser s'appuie sur des fonctions externes pour :
 ### **TRI Expert (XIRR)**
 - Calcul avec **dates réelles** d'investissement (vs signatures) en utilisant `scipy.optimize.fsolve` pour une robustesse accrue (multiples tentatives de convergence).
 - Prise en compte des **flux d'argent frais uniquement** et de la **valorisation actuelle du patrimoine** comme flux final.
-- **Benchmark automatique** vs OAT 10Y (3.5%) et immobilier (5.5%), normalisé par rapport aux apports réels via `yfinance`.
+- **Benchmark automatique** vs OAT 10Y (3.5%), Immobilier (5.5%) et ETF World (via `yfinance`), normalisé par rapport aux apports réels.
 - **Analyse par plateforme** pour optimiser l'allocation
 
 ### **Capital en Cours**
@@ -343,6 +343,8 @@ Capital en Cours = Capital Investi - Capital Remboursé + Valorisation Actuelle
 - **Suivi de l'exposition** par plateforme
 - **Taux de remboursement** et rotation du capital
 - **Projections de liquidité** à court/moyen terme
+- **Taux de réinvestissement** et effet boule de neige
+- **Indicateur de Maturité du Portefeuille**
 
 
 
@@ -351,6 +353,7 @@ Capital en Cours = Capital Investi - Capital Remboursé + Valorisation Actuelle
 - **Répartition par échéance** : <6m, 6-12m, >12m
 - **Analyse des retards** vs dates prévues
 - **Impact liquidité** et optimisation des flux
+- **Indicateur de Maturité du Portefeuille**
 
 ### **Indicateur de Maturité du Portefeuille**
 - **Indicateur de Maturité du Portefeuille** : Un score composite par plateforme évaluant la proportion d'investissements arrivant à terme, la liquidité disponible et la capacité de réinvestissement, donnant une idée de la "vieillesse" ou de la "jeunesse" du portefeuille.

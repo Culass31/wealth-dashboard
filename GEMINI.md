@@ -62,9 +62,9 @@
 **Étape 2 : Fourniture du Contexte Complet (Votre rôle)**
 *   **Action** : Vous me fournissez **tous les artefacts pertinents** en utilisant la syntaxe `@`. C'est l'étape la plus cruciale pour moi.
 *   **Checklist du Contexte Essentiel** :
-    *   **Le(s) Fichier(s) de Code Source** : Le ou les fichiers `.py` où la logique réside (`@backend/data/unified_parser.py`).
-    *   **Le(s) Fichier(s) d'Input** : Les données brutes que le code utilise (`@data/raw/Portefeuille PretUp.xlsx`).
-    *   **Le(s) Fichier(s) d'Output (si applicable)** : Un exemple de ce que vous obtenez et qui est incorrect (`@cash_flows_rows.csv`).
+    *   **Le(s) Fichier(s) de Code Source** : Le ou les fichiers `.py` où la logique réside.
+    *   **Le(s) Fichier(s) d'Input** : Les données brutes que le code utilise.
+    *   **Le(s) Fichier(s) d'Output (si applicable)** : Un exemple de ce que vous obtenez et qui est incorrect.
     *   **La Logique Métier** : Vos explications et règles précises (comme vous l'avez fait pour les impôts et la classification des flux PretUp).
 
 **Étape 3 : Mon Analyse d'Expert et Plan d'Action (Mon rôle)**
@@ -90,7 +90,7 @@
 
 *   Toujours lire `README.md` au début d'une nouvelle conversation pour comprendre l'architecture, les objectifs, le style et les contraintes du projet.
 *   Vérifier `ROADMAP.md` avant de commencer une nouvelle tâche. Si la tâche n'est pas listée, l'ajouter avec une brève description et la date du jour.
-*   Utiliser des conventions de nommage, une structure de fichiers et des modèles d'architecture cohérents, tels que décrits dans `PLANNING.md`.
+*   Utiliser des conventions de nommage, une structure de fichiers et des modèles d'architecture cohérents, tels que décrits dans `README.md`.
 *   Utiliser `venv_linux` (l'environnement virtuel) chaque fois que des commandes Python sont exécutées, y compris pour les tests unitaires.
 
 ### 🧱 Structure du Code et Modularité
@@ -105,7 +105,7 @@
 
 ### 🧪 Tests et Fiabilité
 
-*   Toujours créer des tests unitaires Pytest pour les nouvelles fonctionnalités (fonctions, classes, routes, etc.).
+*   Toujours créer des tests unitaires Pytest pour les nouvelles fonctionnalités (fonctions, classes, routes, etc.) via des scripts de dégogage (`debug_...`).
 *   Après la mise à jour de toute logique, vérifier si les tests unitaires existants doivent être mis à jour. Si c'est le cas, le faire.
 *   Les tests doivent se trouver dans un dossier `/tests` reflétant la structure de l'application principale.
     *   Inclure au moins :
@@ -122,7 +122,7 @@
 
 *   Mettre à jour `README.md` lorsque de nouvelles fonctionnalités sont ajoutées, les dépendances changent ou les étapes de configuration sont modifiées.
 *   Commenter le code non évident et s'assurer que tout est compréhensible pour un développeur de niveau intermédiaire.
-*   Lors de l'écriture de logique complexe, ajouter un commentaire en ligne `# Reason:` expliquant le *pourquoi*, pas seulement le *quoi*.
+*   Lors de l'écriture de logique complexe, ajouter un commentaire en ligne `# Raison:` expliquant le *pourquoi*, pas seulement le *quoi*.
 
 ### 🤖 Règles de Comportement de l'IA
 

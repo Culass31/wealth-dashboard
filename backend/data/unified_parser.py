@@ -307,7 +307,7 @@ class UnifiedPortfolioParser:
                 'platform': 'BienPrêter',
                 'platform_id': platform_id,
                 'investment_type': 'crowdfunding',
-                'asset_class': 'real_estate',
+                'asset_class': 'fixed_income',
                 'project_name': project_name,
                 'company_name': safe_get(row, 'Entreprise', ''),
                 'invested_amount': clean_amount(safe_get(row, 'Montant', 0)),
@@ -524,6 +524,26 @@ class UnifiedPortfolioParser:
                         'created_at': datetime.now().isoformat(),
                         'updated_at': datetime.now().isoformat(),
                     }
+
+                    # Calcul de duration_months
+                    start_date_obj = None
+                    end_date_obj = None
+                    try:
+                        if investment['signature_date']:
+                            start_date_obj = datetime.strptime(investment['signature_date'], '%Y-%m-%d')
+                        if investment['expected_end_date']:
+                            end_date_obj = datetime.strptime(investment['expected_end_date'], '%Y-%m-%d')
+
+                        if start_date_obj and end_date_obj:
+                            from dateutil.relativedelta import relativedelta
+                            delta = relativedelta(end_date_obj, start_date_obj)
+                            duration_months = delta.years * 12 + delta.months
+                            if delta.days > 0:
+                                duration_months += 1
+                            investment['duration_months'] = duration_months
+                    except Exception as e:
+                        logging.warning(f"Erreur lors du calcul de duration_months pour {project_name}: {e}")
+
                     investments.append(investment)
                     investment_map[current_lookup_key] = investment
 
@@ -575,7 +595,6 @@ class UnifiedPortfolioParser:
                     gross_amount = net_amount
                     if investment and not investment.get('investment_date'):
                         investment['investment_date'] = transaction_date
-                        investment['signature_date'] = transaction_date
 
                 elif 'remboursement' in message.lower():
                     flow_type = 'repayment'
@@ -751,6 +770,7 @@ class UnifiedPortfolioParser:
                     if not echeances_projet.empty:
                         inv['duration_months'] = len(echeances_projet)
                         inv['signature_date'] = standardize_date(echeances_projet[date_col].min())
+                        inv['investment_date'] = standardize_date(echeances_projet[date_col].min())
                         inv['expected_end_date'] = standardize_date(echeances_projet[date_col].max())
 
         return investments, investment_map_by_key
@@ -789,13 +809,11 @@ class UnifiedPortfolioParser:
 
             if flow_type in ['repayment', 'investment']:
                 libelle_norm = unidecode(libelle)
-                match = re.search(r'-\s*(.+?)\s*/\s*(.+?)(?:Part|Prélèvement|$)', libelle_norm)
-                if not match:
-                    match = re.search(r'(.+?)\s*/\s*(.+)', libelle_norm)
-
+                # Regex plus robuste pour capturer "Entreprise / Projet"
+                match = re.search(r'([^/]+?)\s*/\s*(.+?)(?:Part|Pr\xc3\xa9l\xc3\xa8vement|$)', libelle_norm)
                 if match:
-                    company_name, project_name = match.groups()[0], match.groups()[1]
-                    lookup_key = normalize_text(company_name) + normalize_text(project_name.strip())
+                    company_name, project_name = match.groups()[0].strip(), match.groups()[1].strip()
+                    lookup_key = normalize_text(company_name) + normalize_text(project_name)
                     if lookup_key in investment_map:
                         linked_investment_id = investment_map[lookup_key]['id']
                         if flow_type == 'investment':
@@ -807,8 +825,22 @@ class UnifiedPortfolioParser:
                 interest_match = re.search(r'Part interet\s*:\s*([\d,\.]+)', libelle_norm)
                 capital_amount = clean_amount(capital_match.group(1)) if capital_match else 0.0
                 interest_amount = clean_amount(interest_match.group(1)) if interest_match else 0.0
-                net_amount = gross_amount
+                
+                # Extraction des taxes directement des colonnes
+                # Utiliser get_column_by_normalized_name pour trouver les colonnes réelles
+                social_tax_col = get_column_by_normalized_name(df_releve, normalize_text('retenue a la source (cotisations sociales)'))
+                income_tax_col = get_column_by_normalized_name(df_releve, normalize_text('retenue a la source (prelevement forfaitaire)'))
+
+                raw_social_tax = safe_get(row, social_tax_col, 0) if social_tax_col else 0.0
+                raw_income_tax = safe_get(row, income_tax_col, 0) if income_tax_col else 0.0
+
+                social_tax = clean_amount(raw_social_tax)
+                income_tax = clean_amount(raw_income_tax)
+
+                tax_amount = social_tax + income_tax
+                
                 gross_amount = capital_amount + interest_amount
+                net_amount = gross_amount - tax_amount
             else:
                 net_amount = gross_amount if flow_direction == 'in' else -gross_amount
 

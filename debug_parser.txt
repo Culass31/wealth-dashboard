@@ -1,5 +1,5 @@
-2025-07-14 15:59:41,690 - INFO - Nettoyage et rechargement pour l'utilisateur : e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9
-2025-07-14 15:59:42,677 - INFO - Connexion Ó Supabase rÚussie.
+2025-07-14 19:10:27,249 - INFO - Nettoyage et rechargement pour l'utilisateur : e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9
+2025-07-14 19:10:29,033 - INFO - Connexion Ó Supabase rÚussie.
 --- Logging error ---
 Traceback (most recent call last):
   File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
@@ -16,17 +16,17 @@ Call stack:
     logging.info("\U0001f5d1\ufe0f Suppression des donnÚes existantes...")
 Message: '\U0001f5d1\ufe0f Suppression des donnÚes existantes...'
 Arguments: ()
-2025-07-14 15:59:42,685 - INFO - Suppression de toutes les donnÚes pour l'utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9...
-2025-07-14 15:59:44,031 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/expert_metrics_cache?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 "HTTP/2 200 OK"
-2025-07-14 15:59:44,035 - INFO - DonnÚes de la table expert_metrics_cache supprimÚes avec succÞs pour l'utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9.
-2025-07-14 15:59:44,136 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/cash_flows?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 "HTTP/2 200 OK"
-2025-07-14 15:59:44,164 - INFO - DonnÚes de la table cash_flows supprimÚes avec succÞs pour l'utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9.
-2025-07-14 15:59:44,235 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/portfolio_positions?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 "HTTP/2 200 OK"
-2025-07-14 15:59:44,236 - INFO - DonnÚes de la table portfolio_positions supprimÚes avec succÞs pour l'utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9.
-2025-07-14 15:59:44,340 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/investments?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 "HTTP/2 200 OK"
-2025-07-14 15:59:44,342 - INFO - DonnÚes de la table investments supprimÚes avec succÞs pour l'utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9.
-2025-07-14 15:59:44,342 - INFO - Toutes les donnÚes pour l'utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 ont ÚtÚ supprimÚes.
-2025-07-14 15:59:44,343 - INFO - Rechargement des donnÚes...
+2025-07-14 19:10:29,046 - INFO - Suppression de toutes les donnÚes pour l'utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9...
+2025-07-14 19:10:31,012 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/expert_metrics_cache?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 "HTTP/2 200 OK"
+2025-07-14 19:10:31,019 - INFO - DonnÚes de la table expert_metrics_cache supprimÚes avec succÞs pour l'utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9.
+2025-07-14 19:10:31,106 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/cash_flows?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 "HTTP/2 200 OK"
+2025-07-14 19:10:31,151 - INFO - DonnÚes de la table cash_flows supprimÚes avec succÞs pour l'utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9.
+2025-07-14 19:10:31,245 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/portfolio_positions?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 "HTTP/2 200 OK"
+2025-07-14 19:10:31,246 - INFO - DonnÚes de la table portfolio_positions supprimÚes avec succÞs pour l'utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9.
+2025-07-14 19:10:31,355 - INFO - HTTP Request: DELETE https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/investments?user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 "HTTP/2 200 OK"
+2025-07-14 19:10:31,357 - INFO - DonnÚes de la table investments supprimÚes avec succÞs pour l'utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9.
+2025-07-14 19:10:31,357 - INFO - Toutes les donnÚes pour l'utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 ont ÚtÚ supprimÚes.
+2025-07-14 19:10:31,357 - INFO - Rechargement des donnÚes...
 --- Logging error ---
 Traceback (most recent call last):
   File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
@@ -45,16 +45,16 @@ Call stack:
     logging.info("\U0001f680 CHARGEMENT AUTOMATIQUE DONN╔ES PATRIMOINE")
 Message: '\U0001f680 CHARGEMENT AUTOMATIQUE DONN╔ES PATRIMOINE'
 Arguments: ()
-2025-07-14 15:59:44,344 - INFO - ==================================================
-2025-07-14 15:59:44,777 - INFO - Connexion Ó Supabase rÚussie.
-2025-07-14 15:59:44,777 - INFO - Validation des fichiers dans data/raw
-2025-07-14 15:59:45,360 - INFO - Fichier valide: LA PREMI╚RE BRIQUE: Portefeuille LPB.xlsx
-2025-07-14 15:59:45,394 - INFO - Fichier valide: PRETUP: Portefeuille PretUp.xlsx
-2025-07-14 15:59:45,422 - INFO - Fichier valide: BIENPR╩TER: Portefeuille BienPreter.xlsx
-2025-07-14 15:59:45,433 - INFO - Fichier valide: HOMUNITY: Portefeuille Homunity.xlsx
-2025-07-14 15:59:45,446 - INFO - Fichier valide: ASSURANCE_VIE: Portefeuille Linxea.xlsx
-2025-07-14 15:59:45,447 - INFO - PEA: 69 fichier(s) PDF trouvÚ(s)
-2025-07-14 15:59:45,447 - INFO - VALIDATION: 6/5 fichiers valides
+2025-07-14 19:10:31,359 - INFO - ==================================================
+2025-07-14 19:10:32,733 - INFO - Connexion Ó Supabase rÚussie.
+2025-07-14 19:10:32,733 - INFO - Validation des fichiers dans data/raw
+2025-07-14 19:10:34,368 - INFO - Fichier valide: LA PREMI╚RE BRIQUE: Portefeuille LPB.xlsx
+2025-07-14 19:10:34,369 - ERROR - Fichier corrompu: PRETUP - [Errno 13] Permission denied: 'data/raw\\Portefeuille PretUp.xlsx'
+2025-07-14 19:10:34,395 - INFO - Fichier valide: BIENPR╩TER: Portefeuille BienPreter.xlsx
+2025-07-14 19:10:34,444 - INFO - Fichier valide: HOMUNITY: Portefeuille Homunity.xlsx
+2025-07-14 19:10:34,518 - INFO - Fichier valide: ASSURANCE_VIE: Portefeuille Linxea.xlsx
+2025-07-14 19:10:34,520 - INFO - PEA: 69 fichier(s) PDF trouvÚ(s)
+2025-07-14 19:10:34,520 - INFO - VALIDATION: 5/5 fichiers valides
 --- Logging error ---
 Traceback (most recent call last):
   File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
@@ -93,67 +93,67 @@ Call stack:
     logging.info(f"\U0001f4c2 Chargement complet pour utilisateur {user_id} depuis {data_folder}")
 Message: '\U0001f4c2 Chargement complet pour utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 depuis data/raw'
 Arguments: ()
-2025-07-14 15:59:45,451 - INFO - Validation des fichiers dans data/raw
-2025-07-14 15:59:45,540 - INFO - Fichier valide: LA PREMI╚RE BRIQUE: Portefeuille LPB.xlsx
-2025-07-14 15:59:45,580 - INFO - Fichier valide: PRETUP: Portefeuille PretUp.xlsx
-2025-07-14 15:59:45,593 - INFO - Fichier valide: BIENPR╩TER: Portefeuille BienPreter.xlsx
-2025-07-14 15:59:45,603 - INFO - Fichier valide: HOMUNITY: Portefeuille Homunity.xlsx
-2025-07-14 15:59:45,625 - INFO - Fichier valide: ASSURANCE_VIE: Portefeuille Linxea.xlsx
-2025-07-14 15:59:45,627 - INFO - PEA: 69 fichier(s) PDF trouvÚ(s)
-2025-07-14 15:59:45,627 - INFO - VALIDATION: 6/5 fichiers valides
-2025-07-14 15:59:45,627 - INFO - Chargement LA PREMI╚RE BRIQUE pour utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9
-2025-07-14 15:59:45,628 - INFO - Parsing La PremiÞre Brique...
-2025-07-14 15:59:45,628 - INFO - DÚbut du parsing pour la plateforme LA PREMI╚RE BRIQUE avec le fichier : data/raw\Portefeuille LPB.xlsx
-2025-07-14 15:59:45,628 - INFO - DÚbut du parsing pour La PremiÞre Brique avec la logique finale V4.
-2025-07-14 15:59:45,764 - INFO - LPB: DurÚe (42.0 mois) mise Ó jour pour le projet L'Isoir
-2025-07-14 15:59:45,767 - WARNING - LPB: Prolongation dÚtectÚe pour le projet L'Isoir. Statut mis Ó jour Ó 'delayed'.
-2025-07-14 15:59:45,777 - INFO - LPB: DurÚe (45.0 mois) mise Ó jour pour le projet Le Quattuor
-2025-07-14 15:59:45,781 - WARNING - LPB: Prolongation dÚtectÚe pour le projet Le Quattuor. Statut mis Ó jour Ó 'delayed'.
-2025-07-14 15:59:45,789 - INFO - LPB: DurÚe (42.0 mois) mise Ó jour pour le projet Le Canard
-2025-07-14 15:59:45,792 - WARNING - LPB: Prolongation dÚtectÚe pour le projet Le Canard. Statut mis Ó jour Ó 'delayed'.
-2025-07-14 15:59:45,801 - INFO - LPB: DurÚe (42.0 mois) mise Ó jour pour le projet L'Envol
-2025-07-14 15:59:45,804 - WARNING - LPB: Prolongation dÚtectÚe pour le projet L'Envol. Statut mis Ó jour Ó 'delayed'.
-2025-07-14 15:59:45,813 - INFO - LPB: DurÚe (36.0 mois) mise Ó jour pour le projet La Plumeria 
-2025-07-14 15:59:45,816 - WARNING - LPB: Prolongation dÚtectÚe pour le projet La Plumeria . Statut mis Ó jour Ó 'delayed'.
-2025-07-14 15:59:45,821 - INFO - LPB: DurÚe (9.0 mois) mise Ó jour pour le projet Le HÚrisson
-2025-07-14 15:59:45,829 - INFO - LPB: DurÚe (4.0 mois) mise Ó jour pour le projet Le Windsor
-2025-07-14 15:59:45,844 - INFO - LPB: DurÚe (26.0 mois) mise Ó jour pour le projet L'Ange
-2025-07-14 15:59:45,851 - WARNING - LPB: Prolongation dÚtectÚe pour le projet L'Ange. Statut mis Ó jour Ó 'delayed'.
-2025-07-14 15:59:45,860 - INFO - LPB: DurÚe (3.0 mois) mise Ó jour pour le projet Le Raisin
-2025-07-14 15:59:45,882 - INFO - LPB: DurÚe (34.0 mois) mise Ó jour pour le projet Le Gaillard 
-2025-07-14 15:59:45,889 - WARNING - LPB: Prolongation dÚtectÚe pour le projet Le Gaillard . Statut mis Ó jour Ó 'delayed'.
-2025-07-14 15:59:45,899 - INFO - LPB: DurÚe (13.0 mois) mise Ó jour pour le projet Le Pommier 
-2025-07-14 15:59:45,910 - INFO - LPB: DurÚe (4.0 mois) mise Ó jour pour le projet La Voile 
-2025-07-14 15:59:45,922 - INFO - LPB: DurÚe (8.0 mois) mise Ó jour pour le projet L'Iliade
-2025-07-14 15:59:45,936 - INFO - LPB: DurÚe (20.0 mois) mise Ó jour pour le projet La Mangue 
-2025-07-14 15:59:45,951 - INFO - LPB: DurÚe (30.0 mois) mise Ó jour pour le projet L'OmÚga 
-2025-07-14 15:59:45,957 - WARNING - LPB: Prolongation dÚtectÚe pour le projet L'OmÚga . Statut mis Ó jour Ó 'delayed'.
-2025-07-14 15:59:45,973 - INFO - LPB: DurÚe (22.0 mois) mise Ó jour pour le projet Le Magenta
-2025-07-14 15:59:45,977 - WARNING - LPB: Prolongation dÚtectÚe pour le projet Le Magenta. Statut mis Ó jour Ó 'delayed'.
-2025-07-14 15:59:45,987 - INFO - LPB: DurÚe (24.0 mois) mise Ó jour pour le projet L'Europe
-2025-07-14 15:59:45,997 - INFO - LPB: DurÚe (24.0 mois) mise Ó jour pour le projet L'Olive 
-2025-07-14 15:59:46,000 - WARNING - LPB: Prolongation dÚtectÚe pour le projet L'Olive . Statut mis Ó jour Ó 'delayed'.
-2025-07-14 15:59:46,006 - INFO - LPB: DurÚe (3.0 mois) mise Ó jour pour le projet Le Cayenne
-2025-07-14 15:59:46,018 - INFO - LPB: DurÚe (18.0 mois) mise Ó jour pour le projet L'Aiguille
-2025-07-14 15:59:46,033 - INFO - LPB: DurÚe (36.0 mois) mise Ó jour pour le projet Le Coach
-2025-07-14 15:59:46,047 - INFO - LPB: DurÚe (12.0 mois) mise Ó jour pour le projet Le Vitton
-2025-07-14 15:59:46,054 - INFO - LPB: DurÚe (8.0 mois) mise Ó jour pour le projet Le Zola
-2025-07-14 15:59:46,064 - INFO - LPB: DurÚe (16.0 mois) mise Ó jour pour le projet Les Nuages 
-2025-07-14 15:59:46,074 - INFO - LPB: DurÚe (22.0 mois) mise Ó jour pour le projet Le Cuivre
-2025-07-14 15:59:46,077 - WARNING - LPB: Prolongation dÚtectÚe pour le projet Le Cuivre. Statut mis Ó jour Ó 'delayed'.
-2025-07-14 15:59:46,083 - INFO - LPB: DurÚe (24.0 mois) mise Ó jour pour le projet Le CÞdre
-2025-07-14 15:59:46,092 - INFO - LPB: DurÚe (18.0 mois) mise Ó jour pour le projet Le Leclerc
-2025-07-14 15:59:46,101 - INFO - LPB: DurÚe (12.0 mois) mise Ó jour pour le projet Le SoufflÚ
-2025-07-14 15:59:46,108 - INFO - LPB: DurÚe (24.0 mois) mise Ó jour pour le projet La Berge
-2025-07-14 15:59:46,115 - INFO - LPB: DurÚe (18.0 mois) mise Ó jour pour le projet Le Cygne
-2025-07-14 15:59:46,124 - INFO - LPB: DurÚe (20.0 mois) mise Ó jour pour le projet Le Corsaire
-2025-07-14 15:59:46,134 - INFO - LPB: DurÚe (18.0 mois) mise Ó jour pour le projet LÆOlympique
-2025-07-14 15:59:46,144 - INFO - LPB: DurÚe (24.0 mois) mise Ó jour pour le projet Le Arnold
-2025-07-14 15:59:46,156 - INFO - LPB: DurÚe (30.0 mois) mise Ó jour pour le projet Le Virtuose 
-2025-07-14 15:59:46,168 - INFO - LPB: DurÚe (24.0 mois) mise Ó jour pour le projet La Papalia
-2025-07-14 15:59:46,178 - INFO - LPB: DurÚe (22.0 mois) mise Ó jour pour le projet LÆHumoriste
-2025-07-14 15:59:46,186 - INFO - LPB: DurÚe (18.0 mois) mise Ó jour pour le projet Le Brillant
-2025-07-14 15:59:46,427 - INFO - Parsing LPB terminÚ. 37 investissements et 172 flux trouvÚs.
+2025-07-14 19:10:34,531 - INFO - Validation des fichiers dans data/raw
+2025-07-14 19:10:34,756 - INFO - Fichier valide: LA PREMI╚RE BRIQUE: Portefeuille LPB.xlsx
+2025-07-14 19:10:34,757 - ERROR - Fichier corrompu: PRETUP - [Errno 13] Permission denied: 'data/raw\\Portefeuille PretUp.xlsx'
+2025-07-14 19:10:34,838 - INFO - Fichier valide: BIENPR╩TER: Portefeuille BienPreter.xlsx
+2025-07-14 19:10:34,897 - INFO - Fichier valide: HOMUNITY: Portefeuille Homunity.xlsx
+2025-07-14 19:10:35,002 - INFO - Fichier valide: ASSURANCE_VIE: Portefeuille Linxea.xlsx
+2025-07-14 19:10:35,008 - INFO - PEA: 69 fichier(s) PDF trouvÚ(s)
+2025-07-14 19:10:35,008 - INFO - VALIDATION: 5/5 fichiers valides
+2025-07-14 19:10:35,008 - INFO - Chargement LA PREMI╚RE BRIQUE pour utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9
+2025-07-14 19:10:35,008 - INFO - Parsing La PremiÞre Brique...
+2025-07-14 19:10:35,008 - INFO - DÚbut du parsing pour la plateforme LA PREMI╚RE BRIQUE avec le fichier : data/raw\Portefeuille LPB.xlsx
+2025-07-14 19:10:35,008 - INFO - DÚbut du parsing pour La PremiÞre Brique avec la logique finale V4.
+2025-07-14 19:10:35,685 - INFO - LPB: DurÚe (42.0 mois) mise Ó jour pour le projet L'Isoir
+2025-07-14 19:10:35,812 - WARNING - LPB: Prolongation dÚtectÚe pour le projet L'Isoir. Statut mis Ó jour Ó 'delayed'.
+2025-07-14 19:10:35,822 - INFO - LPB: DurÚe (45.0 mois) mise Ó jour pour le projet Le Quattuor
+2025-07-14 19:10:35,832 - WARNING - LPB: Prolongation dÚtectÚe pour le projet Le Quattuor. Statut mis Ó jour Ó 'delayed'.
+2025-07-14 19:10:35,859 - INFO - LPB: DurÚe (42.0 mois) mise Ó jour pour le projet Le Canard
+2025-07-14 19:10:35,871 - WARNING - LPB: Prolongation dÚtectÚe pour le projet Le Canard. Statut mis Ó jour Ó 'delayed'.
+2025-07-14 19:10:35,887 - INFO - LPB: DurÚe (42.0 mois) mise Ó jour pour le projet L'Envol
+2025-07-14 19:10:35,890 - WARNING - LPB: Prolongation dÚtectÚe pour le projet L'Envol. Statut mis Ó jour Ó 'delayed'.
+2025-07-14 19:10:35,897 - INFO - LPB: DurÚe (36.0 mois) mise Ó jour pour le projet La Plumeria 
+2025-07-14 19:10:35,900 - WARNING - LPB: Prolongation dÚtectÚe pour le projet La Plumeria . Statut mis Ó jour Ó 'delayed'.
+2025-07-14 19:10:35,912 - INFO - LPB: DurÚe (9.0 mois) mise Ó jour pour le projet Le HÚrisson
+2025-07-14 19:10:35,930 - INFO - LPB: DurÚe (4.0 mois) mise Ó jour pour le projet Le Windsor
+2025-07-14 19:10:35,949 - INFO - LPB: DurÚe (26.0 mois) mise Ó jour pour le projet L'Ange
+2025-07-14 19:10:35,954 - WARNING - LPB: Prolongation dÚtectÚe pour le projet L'Ange. Statut mis Ó jour Ó 'delayed'.
+2025-07-14 19:10:35,959 - INFO - LPB: DurÚe (3.0 mois) mise Ó jour pour le projet Le Raisin
+2025-07-14 19:10:35,974 - INFO - LPB: DurÚe (34.0 mois) mise Ó jour pour le projet Le Gaillard 
+2025-07-14 19:10:35,977 - WARNING - LPB: Prolongation dÚtectÚe pour le projet Le Gaillard . Statut mis Ó jour Ó 'delayed'.
+2025-07-14 19:10:35,988 - INFO - LPB: DurÚe (13.0 mois) mise Ó jour pour le projet Le Pommier 
+2025-07-14 19:10:36,061 - INFO - LPB: DurÚe (4.0 mois) mise Ó jour pour le projet La Voile 
+2025-07-14 19:10:36,096 - INFO - LPB: DurÚe (8.0 mois) mise Ó jour pour le projet L'Iliade
+2025-07-14 19:10:36,143 - INFO - LPB: DurÚe (20.0 mois) mise Ó jour pour le projet La Mangue 
+2025-07-14 19:10:36,177 - INFO - LPB: DurÚe (30.0 mois) mise Ó jour pour le projet L'OmÚga 
+2025-07-14 19:10:36,196 - WARNING - LPB: Prolongation dÚtectÚe pour le projet L'OmÚga . Statut mis Ó jour Ó 'delayed'.
+2025-07-14 19:10:36,214 - INFO - LPB: DurÚe (22.0 mois) mise Ó jour pour le projet Le Magenta
+2025-07-14 19:10:36,228 - WARNING - LPB: Prolongation dÚtectÚe pour le projet Le Magenta. Statut mis Ó jour Ó 'delayed'.
+2025-07-14 19:10:36,252 - INFO - LPB: DurÚe (24.0 mois) mise Ó jour pour le projet L'Europe
+2025-07-14 19:10:36,294 - INFO - LPB: DurÚe (24.0 mois) mise Ó jour pour le projet L'Olive 
+2025-07-14 19:10:36,308 - WARNING - LPB: Prolongation dÚtectÚe pour le projet L'Olive . Statut mis Ó jour Ó 'delayed'.
+2025-07-14 19:10:36,325 - INFO - LPB: DurÚe (3.0 mois) mise Ó jour pour le projet Le Cayenne
+2025-07-14 19:10:36,369 - INFO - LPB: DurÚe (18.0 mois) mise Ó jour pour le projet L'Aiguille
+2025-07-14 19:10:36,399 - INFO - LPB: DurÚe (36.0 mois) mise Ó jour pour le projet Le Coach
+2025-07-14 19:10:36,436 - INFO - LPB: DurÚe (12.0 mois) mise Ó jour pour le projet Le Vitton
+2025-07-14 19:10:36,481 - INFO - LPB: DurÚe (8.0 mois) mise Ó jour pour le projet Le Zola
+2025-07-14 19:10:36,513 - INFO - LPB: DurÚe (16.0 mois) mise Ó jour pour le projet Les Nuages 
+2025-07-14 19:10:36,605 - INFO - LPB: DurÚe (22.0 mois) mise Ó jour pour le projet Le Cuivre
+2025-07-14 19:10:36,657 - WARNING - LPB: Prolongation dÚtectÚe pour le projet Le Cuivre. Statut mis Ó jour Ó 'delayed'.
+2025-07-14 19:10:36,693 - INFO - LPB: DurÚe (24.0 mois) mise Ó jour pour le projet Le CÞdre
+2025-07-14 19:10:36,735 - INFO - LPB: DurÚe (18.0 mois) mise Ó jour pour le projet Le Leclerc
+2025-07-14 19:10:36,811 - INFO - LPB: DurÚe (12.0 mois) mise Ó jour pour le projet Le SoufflÚ
+2025-07-14 19:10:36,835 - INFO - LPB: DurÚe (24.0 mois) mise Ó jour pour le projet La Berge
+2025-07-14 19:10:36,903 - INFO - LPB: DurÚe (18.0 mois) mise Ó jour pour le projet Le Cygne
+2025-07-14 19:10:36,966 - INFO - LPB: DurÚe (20.0 mois) mise Ó jour pour le projet Le Corsaire
+2025-07-14 19:10:37,048 - INFO - LPB: DurÚe (18.0 mois) mise Ó jour pour le projet LÆOlympique
+2025-07-14 19:10:37,192 - INFO - LPB: DurÚe (24.0 mois) mise Ó jour pour le projet Le Arnold
+2025-07-14 19:10:37,292 - INFO - LPB: DurÚe (30.0 mois) mise Ó jour pour le projet Le Virtuose 
+2025-07-14 19:10:37,508 - INFO - LPB: DurÚe (24.0 mois) mise Ó jour pour le projet La Papalia
+2025-07-14 19:10:37,579 - INFO - LPB: DurÚe (22.0 mois) mise Ó jour pour le projet LÆHumoriste
+2025-07-14 19:10:37,630 - INFO - LPB: DurÚe (18.0 mois) mise Ó jour pour le projet Le Brillant
+2025-07-14 19:10:38,563 - INFO - Parsing LPB terminÚ. 37 investissements et 172 flux trouvÚs.
 --- Logging error ---
 Traceback (most recent call last):
   File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
@@ -176,10 +176,10 @@ Call stack:
     logging.info(f"\U0001f4ca DonnÚes parsÚes: {len(investments)} investissements, {len(cash_flows)} flux")
 Message: '\U0001f4ca DonnÚes parsÚes: 37 investissements, 172 flux'
 Arguments: ()
-2025-07-14 15:59:47,399 - INFO - HTTP Request: POST https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/investments?columns=%22invested_amount%22%2C%22expected_end_date%22%2C%22status%22%2C%22is_short_term%22%2C%22is_delayed%22%2C%22user_id%22%2C%22platform%22%2C%22investment_date%22%2C%22project_name%22%2C%22remaining_capital%22%2C%22duration_months%22%2C%22platform_id%22%2C%22capital_repaid%22%2C%22asset_class%22%2C%22company_name%22%2C%22signature_date%22%2C%22actual_end_date%22%2C%22annual_rate%22%2C%22isin%22%2C%22monthly_payment%22%2C%22investment_type%22%2C%22id%22 "HTTP/2 201 Created"
-2025-07-14 15:59:47,404 - INFO - 37 investissements insÚrÚs avec succÞs.
-2025-07-14 15:59:47,682 - INFO - HTTP Request: POST https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/cash_flows?columns=%22status%22%2C%22description%22%2C%22net_amount%22%2C%22flow_direction%22%2C%22transaction_date%22%2C%22user_id%22%2C%22capital_amount%22%2C%22flow_type%22%2C%22platform%22%2C%22investment_id%22%2C%22interest_amount%22%2C%22payment_method%22%2C%22gross_amount%22%2C%22tax_amount%22%2C%22id%22 "HTTP/2 201 Created"
-2025-07-14 15:59:47,713 - INFO - 172 flux de trÚsorerie insÚrÚs avec succÞs.
+2025-07-14 19:10:40,024 - INFO - HTTP Request: POST https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/investments?columns=%22project_name%22%2C%22capital_repaid%22%2C%22monthly_payment%22%2C%22investment_type%22%2C%22is_short_term%22%2C%22isin%22%2C%22actual_end_date%22%2C%22platform%22%2C%22status%22%2C%22expected_end_date%22%2C%22user_id%22%2C%22asset_class%22%2C%22remaining_capital%22%2C%22is_delayed%22%2C%22annual_rate%22%2C%22signature_date%22%2C%22duration_months%22%2C%22investment_date%22%2C%22company_name%22%2C%22platform_id%22%2C%22invested_amount%22%2C%22id%22 "HTTP/2 201 Created"
+2025-07-14 19:10:40,034 - INFO - 37 investissements insÚrÚs avec succÞs.
+2025-07-14 19:10:40,271 - INFO - HTTP Request: POST https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/cash_flows?columns=%22interest_amount%22%2C%22gross_amount%22%2C%22user_id%22%2C%22flow_type%22%2C%22investment_id%22%2C%22flow_direction%22%2C%22tax_amount%22%2C%22capital_amount%22%2C%22payment_method%22%2C%22net_amount%22%2C%22transaction_date%22%2C%22description%22%2C%22platform%22%2C%22id%22%2C%22status%22 "HTTP/2 201 Created"
+2025-07-14 19:10:40,277 - INFO - 172 flux de trÚsorerie insÚrÚs avec succÞs.
 --- Logging error ---
 Traceback (most recent call last):
   File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
@@ -202,81 +202,11 @@ Call stack:
     logging.info(f"\u2705 {platform_name.upper()} chargÚ avec succÞs")
 Message: '\u2705 LA PREMI╚RE BRIQUE chargÚ avec succÞs'
 Arguments: ()
-2025-07-14 15:59:47,715 - INFO - Chargement PRETUP pour utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9
-2025-07-14 15:59:47,716 - INFO - Parsing PretUp...
-2025-07-14 15:59:47,716 - INFO - DÚbut du parsing pour la plateforme PRETUP avec le fichier : data/raw\Portefeuille PretUp.xlsx
-2025-07-14 15:59:47,716 - INFO - DÚbut du parsing PretUp avec la logique finale V3.
-2025-07-14 15:59:47,754 - INFO - Onglets dÚtectÚs : ['RelevÚ compte', 'Recapitulatif', 'Projet Sains - Offres', 'Projets Sains - EchÚances', 'ProcÚdures - Offres', 'ProcÚdures - EchÚances', 'Perdu - Offres', 'Perdu - EchÚances', 'Worksheet']
-2025-07-14 15:59:47,757 - INFO - Onglet 'Projet Sains - Offres' (attendu: 'Projet Sains - Offres') chargÚ.
-2025-07-14 15:59:47,760 - INFO - Onglet 'ProcÚdures - Offres' (attendu: 'ProcÚdures - Offres') chargÚ.
-2025-07-14 15:59:47,763 - INFO - Onglet 'Perdu - Offres' (attendu: 'Perdu - Offres') chargÚ.
-2025-07-14 15:59:47,784 - INFO - Onglet 'Projets Sains - EchÚances' (attendu: 'Projets Sains - EchÚances') chargÚ.
-2025-07-14 15:59:47,789 - INFO - Onglet 'ProcÚdures - EchÚances' (attendu: 'ProcÚdures - EchÚances') chargÚ.
-2025-07-14 15:59:47,791 - INFO - Onglet 'Perdu - EchÚances' (attendu: 'Perdu - EchÚances') chargÚ.
-2025-07-14 15:59:47,835 - INFO - Onglet 'RelevÚ compte' (attendu: 'RelevÚ compte') chargÚ.
-2025-07-14 15:59:47,958 - INFO - Parsing PretUp terminÚ. 11 investissements et 165 flux trouvÚs.
---- Logging error ---
-Traceback (most recent call last):
-  File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
-    stream.write(msg + self.terminator)
-    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
-    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
-           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-UnicodeEncodeError: 'charmap' codec can't encode character '\U0001f4ca' in position 33: character maps to <undefined>
-Call stack:
-  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 175, in <module>
-    clean_and_reload_data(args.user_id, platforms=args.platforms)
-  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 93, in clean_and_reload_data
-    success = load_user_data_auto(user_id, platforms=platforms)
-  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 51, in load_user_data_auto
-    success = loader.load_all_user_files(user_id, data_folder, platforms_to_load=platforms)
-  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\backend\data\data_loader.py", line 252, in load_all_user_files
-    if self.load_platform_data(file_path, platform_key, user_id):
-  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\backend\data\data_loader.py", line 44, in load_platform_data
-    logging.info(f"\U0001f4ca DonnÚes parsÚes: {len(investments)} investissements, {len(cash_flows)} flux")
-Message: '\U0001f4ca DonnÚes parsÚes: 11 investissements, 165 flux'
-Arguments: ()
-2025-07-14 15:59:48,100 - INFO - HTTP Request: POST https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/investments?columns=%22invested_amount%22%2C%22expected_end_date%22%2C%22status%22%2C%22is_short_term%22%2C%22is_delayed%22%2C%22user_id%22%2C%22platform%22%2C%22investment_date%22%2C%22project_name%22%2C%22remaining_capital%22%2C%22duration_months%22%2C%22platform_id%22%2C%22capital_repaid%22%2C%22asset_class%22%2C%22company_name%22%2C%22signature_date%22%2C%22actual_end_date%22%2C%22annual_rate%22%2C%22isin%22%2C%22monthly_payment%22%2C%22investment_type%22%2C%22id%22 "HTTP/2 201 Created"
-2025-07-14 15:59:48,103 - INFO - 11 investissements insÚrÚs avec succÞs.
-2025-07-14 15:59:48,350 - INFO - HTTP Request: POST https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/cash_flows?columns=%22status%22%2C%22description%22%2C%22net_amount%22%2C%22flow_direction%22%2C%22transaction_date%22%2C%22user_id%22%2C%22capital_amount%22%2C%22flow_type%22%2C%22platform%22%2C%22investment_id%22%2C%22interest_amount%22%2C%22payment_method%22%2C%22gross_amount%22%2C%22tax_amount%22%2C%22id%22 "HTTP/2 201 Created"
-2025-07-14 15:59:48,391 - INFO - 165 flux de trÚsorerie insÚrÚs avec succÞs.
-2025-07-14 15:59:48,521 - INFO - HTTP Request: POST https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/liquidity_balances "HTTP/2 409 Conflict"
-2025-07-14 15:59:48,524 - ERROR - Erreur lors de l'insertion/mise Ó jour du solde de liquiditÚs : {'message': 'duplicate key value violates unique constraint "liquidity_balances_user_id_platform_balance_date_key"', 'code': '23505', 'hint': None, 'details': 'Key (user_id, platform, balance_date)=(e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9, PretUp, 2025-06-18) already exists.'}
-Traceback (most recent call last):
-  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\backend\models\database.py", line 274, in insert_liquidity_balance
-    result = self.supabase.table('liquidity_balances').upsert(balance_entry.model_dump(mode='json')).execute()
-  File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\site-packages\postgrest\_sync\request_builder.py", line 78, in execute
-    raise APIError(dict(json_obj))
-postgrest.exceptions.APIError: {'message': 'duplicate key value violates unique constraint "liquidity_balances_user_id_platform_balance_date_key"', 'code': '23505', 'hint': None, 'details': 'Key (user_id, platform, balance_date)=(e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9, PretUp, 2025-06-18) already exists.'}
-2025-07-14 15:59:48,535 - ERROR - ╔chec de l'insertion du solde de liquiditÚs pour PretUp
---- Logging error ---
-Traceback (most recent call last):
-  File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
-    stream.write(msg + self.terminator)
-    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
-    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
-           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-UnicodeEncodeError: 'charmap' codec can't encode character '\u274c' in position 34: character maps to <undefined>
-Call stack:
-  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 175, in <module>
-    clean_and_reload_data(args.user_id, platforms=args.platforms)
-  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 93, in clean_and_reload_data
-    success = load_user_data_auto(user_id, platforms=platforms)
-  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 51, in load_user_data_auto
-    success = loader.load_all_user_files(user_id, data_folder, platforms_to_load=platforms)
-  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\backend\data\data_loader.py", line 252, in load_all_user_files
-    if self.load_platform_data(file_path, platform_key, user_id):
-  File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\backend\data\data_loader.py", line 63, in load_platform_data
-    logging.error(f"\u274c ╔chec insertion BDD pour {platform_name}")
-Message: '\u274c ╔chec insertion BDD pour PretUp'
-Arguments: ()
-2025-07-14 15:59:48,538 - INFO - Chargement BIENPR╩TER pour utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9
-2025-07-14 15:59:48,539 - INFO - Parsing BienPrÛter...
-2025-07-14 15:59:48,539 - INFO - DÚbut du parsing pour la plateforme BIENPR╩TER avec le fichier : data/raw\Portefeuille BienPreter.xlsx
-2025-07-14 15:59:48,539 - INFO - DÚbut du parsing pour BienPrÛter.
-2025-07-14 15:59:48,657 - INFO - Parsing BienPrÛter terminÚ. 20 investissements et 202 flux trouvÚs.
+2025-07-14 19:10:40,284 - INFO - Chargement BIENPR╩TER pour utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9
+2025-07-14 19:10:40,284 - INFO - Parsing BienPrÛter...
+2025-07-14 19:10:40,287 - INFO - DÚbut du parsing pour la plateforme BIENPR╩TER avec le fichier : data/raw\Portefeuille BienPreter.xlsx
+2025-07-14 19:10:40,288 - INFO - DÚbut du parsing pour BienPrÛter.
+2025-07-14 19:10:40,735 - INFO - Parsing BienPrÛter terminÚ. 20 investissements et 202 flux trouvÚs.
 --- Logging error ---
 Traceback (most recent call last):
   File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
@@ -299,10 +229,10 @@ Call stack:
     logging.info(f"\U0001f4ca DonnÚes parsÚes: {len(investments)} investissements, {len(cash_flows)} flux")
 Message: '\U0001f4ca DonnÚes parsÚes: 20 investissements, 202 flux'
 Arguments: ()
-2025-07-14 15:59:48,786 - INFO - HTTP Request: POST https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/investments?columns=%22invested_amount%22%2C%22expected_end_date%22%2C%22status%22%2C%22is_short_term%22%2C%22is_delayed%22%2C%22user_id%22%2C%22platform%22%2C%22investment_date%22%2C%22project_name%22%2C%22remaining_capital%22%2C%22duration_months%22%2C%22platform_id%22%2C%22capital_repaid%22%2C%22asset_class%22%2C%22company_name%22%2C%22signature_date%22%2C%22actual_end_date%22%2C%22annual_rate%22%2C%22isin%22%2C%22monthly_payment%22%2C%22investment_type%22%2C%22id%22 "HTTP/2 201 Created"
-2025-07-14 15:59:48,788 - INFO - 20 investissements insÚrÚs avec succÞs.
-2025-07-14 15:59:49,031 - INFO - HTTP Request: POST https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/cash_flows?columns=%22status%22%2C%22description%22%2C%22net_amount%22%2C%22flow_direction%22%2C%22transaction_date%22%2C%22user_id%22%2C%22capital_amount%22%2C%22flow_type%22%2C%22platform%22%2C%22investment_id%22%2C%22interest_amount%22%2C%22payment_method%22%2C%22gross_amount%22%2C%22tax_amount%22%2C%22id%22 "HTTP/2 201 Created"
-2025-07-14 15:59:49,053 - INFO - 202 flux de trÚsorerie insÚrÚs avec succÞs.
+2025-07-14 19:10:40,890 - INFO - HTTP Request: POST https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/investments?columns=%22project_name%22%2C%22capital_repaid%22%2C%22monthly_payment%22%2C%22investment_type%22%2C%22is_short_term%22%2C%22isin%22%2C%22actual_end_date%22%2C%22platform%22%2C%22status%22%2C%22expected_end_date%22%2C%22user_id%22%2C%22asset_class%22%2C%22remaining_capital%22%2C%22is_delayed%22%2C%22annual_rate%22%2C%22signature_date%22%2C%22duration_months%22%2C%22investment_date%22%2C%22company_name%22%2C%22platform_id%22%2C%22invested_amount%22%2C%22id%22 "HTTP/2 201 Created"
+2025-07-14 19:10:40,892 - INFO - 20 investissements insÚrÚs avec succÞs.
+2025-07-14 19:10:41,116 - INFO - HTTP Request: POST https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/cash_flows?columns=%22interest_amount%22%2C%22gross_amount%22%2C%22user_id%22%2C%22flow_type%22%2C%22investment_id%22%2C%22flow_direction%22%2C%22tax_amount%22%2C%22capital_amount%22%2C%22payment_method%22%2C%22net_amount%22%2C%22transaction_date%22%2C%22description%22%2C%22platform%22%2C%22id%22%2C%22status%22 "HTTP/2 201 Created"
+2025-07-14 19:10:41,153 - INFO - 202 flux de trÚsorerie insÚrÚs avec succÞs.
 --- Logging error ---
 Traceback (most recent call last):
   File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
@@ -325,11 +255,11 @@ Call stack:
     logging.info(f"\u2705 {platform_name.upper()} chargÚ avec succÞs")
 Message: '\u2705 BIENPR╩TER chargÚ avec succÞs'
 Arguments: ()
-2025-07-14 15:59:49,055 - INFO - Chargement HOMUNITY pour utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9
-2025-07-14 15:59:49,056 - INFO - Parsing Homunity...
-2025-07-14 15:59:49,056 - INFO - DÚbut du parsing pour la plateforme HOMUNITY avec le fichier : data/raw\Portefeuille Homunity.xlsx
-2025-07-14 15:59:49,056 - INFO - DÚbut du parsing pour Homunity avec la logique de liaison par date.
-2025-07-14 15:59:49,114 - INFO - Parsing Homunity terminÚ. 5 investissements et 24 flux trouvÚs.
+2025-07-14 19:10:41,155 - INFO - Chargement HOMUNITY pour utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9
+2025-07-14 19:10:41,157 - INFO - Parsing Homunity...
+2025-07-14 19:10:41,157 - INFO - DÚbut du parsing pour la plateforme HOMUNITY avec le fichier : data/raw\Portefeuille Homunity.xlsx
+2025-07-14 19:10:41,157 - INFO - DÚbut du parsing pour Homunity avec la logique de liaison par date.
+2025-07-14 19:10:41,307 - INFO - Parsing Homunity terminÚ. 5 investissements et 24 flux trouvÚs.
 --- Logging error ---
 Traceback (most recent call last):
   File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
@@ -352,10 +282,10 @@ Call stack:
     logging.info(f"\U0001f4ca DonnÚes parsÚes: {len(investments)} investissements, {len(cash_flows)} flux")
 Message: '\U0001f4ca DonnÚes parsÚes: 5 investissements, 24 flux'
 Arguments: ()
-2025-07-14 15:59:49,212 - INFO - HTTP Request: POST https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/investments?columns=%22invested_amount%22%2C%22expected_end_date%22%2C%22status%22%2C%22is_short_term%22%2C%22is_delayed%22%2C%22user_id%22%2C%22platform%22%2C%22investment_date%22%2C%22project_name%22%2C%22remaining_capital%22%2C%22duration_months%22%2C%22platform_id%22%2C%22capital_repaid%22%2C%22asset_class%22%2C%22company_name%22%2C%22signature_date%22%2C%22actual_end_date%22%2C%22annual_rate%22%2C%22isin%22%2C%22monthly_payment%22%2C%22investment_type%22%2C%22id%22 "HTTP/2 201 Created"
-2025-07-14 15:59:49,243 - INFO - 5 investissements insÚrÚs avec succÞs.
-2025-07-14 15:59:49,342 - INFO - HTTP Request: POST https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/cash_flows?columns=%22status%22%2C%22description%22%2C%22net_amount%22%2C%22flow_direction%22%2C%22transaction_date%22%2C%22user_id%22%2C%22capital_amount%22%2C%22flow_type%22%2C%22platform%22%2C%22investment_id%22%2C%22interest_amount%22%2C%22payment_method%22%2C%22gross_amount%22%2C%22tax_amount%22%2C%22id%22 "HTTP/2 201 Created"
-2025-07-14 15:59:49,344 - INFO - 24 flux de trÚsorerie insÚrÚs avec succÞs.
+2025-07-14 19:10:41,413 - INFO - HTTP Request: POST https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/investments?columns=%22project_name%22%2C%22capital_repaid%22%2C%22monthly_payment%22%2C%22investment_type%22%2C%22is_short_term%22%2C%22isin%22%2C%22actual_end_date%22%2C%22platform%22%2C%22status%22%2C%22expected_end_date%22%2C%22user_id%22%2C%22asset_class%22%2C%22remaining_capital%22%2C%22is_delayed%22%2C%22annual_rate%22%2C%22signature_date%22%2C%22duration_months%22%2C%22investment_date%22%2C%22company_name%22%2C%22platform_id%22%2C%22invested_amount%22%2C%22id%22 "HTTP/2 201 Created"
+2025-07-14 19:10:41,416 - INFO - 5 investissements insÚrÚs avec succÞs.
+2025-07-14 19:10:41,530 - INFO - HTTP Request: POST https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/cash_flows?columns=%22interest_amount%22%2C%22gross_amount%22%2C%22user_id%22%2C%22flow_type%22%2C%22investment_id%22%2C%22flow_direction%22%2C%22tax_amount%22%2C%22capital_amount%22%2C%22payment_method%22%2C%22net_amount%22%2C%22transaction_date%22%2C%22description%22%2C%22platform%22%2C%22id%22%2C%22status%22 "HTTP/2 201 Created"
+2025-07-14 19:10:41,531 - INFO - 24 flux de trÚsorerie insÚrÚs avec succÞs.
 --- Logging error ---
 Traceback (most recent call last):
   File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
@@ -378,13 +308,13 @@ Call stack:
     logging.info(f"\u2705 {platform_name.upper()} chargÚ avec succÞs")
 Message: '\u2705 HOMUNITY chargÚ avec succÞs'
 Arguments: ()
-2025-07-14 15:59:49,346 - INFO - Chargement ASSURANCE_VIE pour utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9
-2025-07-14 15:59:49,347 - INFO - Parsing Assurance_Vie...
-2025-07-14 15:59:49,347 - INFO - DÚbut du parsing pour la plateforme ASSURANCE_VIE avec le fichier : data/raw\Portefeuille Linxea.xlsx
-2025-07-14 15:59:49,368 - INFO - Lecture du fichier d'assurance vie : 101 lignes trouvÚes
+2025-07-14 19:10:41,533 - INFO - Chargement ASSURANCE_VIE pour utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9
+2025-07-14 19:10:41,535 - INFO - Parsing Assurance_Vie...
+2025-07-14 19:10:41,535 - INFO - DÚbut du parsing pour la plateforme ASSURANCE_VIE avec le fichier : data/raw\Portefeuille Linxea.xlsx
+2025-07-14 19:10:41,575 - INFO - Lecture du fichier d'assurance vie : 101 lignes trouvÚes
 C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\backend\utils\file_helpers.py:82: FutureWarning: Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
   value = row.get(column, default)
-2025-07-14 15:59:49,394 - INFO - Parsing de l'assurance vie terminÚ : 101 flux extraits.
+2025-07-14 19:10:41,633 - INFO - Parsing de l'assurance vie terminÚ : 101 flux extraits.
 --- Logging error ---
 Traceback (most recent call last):
   File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
@@ -407,8 +337,8 @@ Call stack:
     logging.info(f"\U0001f4ca DonnÚes parsÚes: {len(investments)} investissements, {len(cash_flows)} flux")
 Message: '\U0001f4ca DonnÚes parsÚes: 0 investissements, 101 flux'
 Arguments: ()
-2025-07-14 15:59:49,519 - INFO - HTTP Request: POST https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/cash_flows?columns=%22status%22%2C%22description%22%2C%22net_amount%22%2C%22flow_direction%22%2C%22transaction_date%22%2C%22user_id%22%2C%22capital_amount%22%2C%22flow_type%22%2C%22platform%22%2C%22investment_id%22%2C%22interest_amount%22%2C%22payment_method%22%2C%22gross_amount%22%2C%22tax_amount%22%2C%22id%22 "HTTP/2 201 Created"
-2025-07-14 15:59:49,548 - INFO - 101 flux de trÚsorerie insÚrÚs avec succÞs.
+2025-07-14 19:10:41,736 - INFO - HTTP Request: POST https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/cash_flows?columns=%22interest_amount%22%2C%22gross_amount%22%2C%22user_id%22%2C%22flow_type%22%2C%22investment_id%22%2C%22flow_direction%22%2C%22tax_amount%22%2C%22capital_amount%22%2C%22payment_method%22%2C%22net_amount%22%2C%22transaction_date%22%2C%22description%22%2C%22platform%22%2C%22id%22%2C%22status%22 "HTTP/2 201 Created"
+2025-07-14 19:10:41,742 - INFO - 101 flux de trÚsorerie insÚrÚs avec succÞs.
 --- Logging error ---
 Traceback (most recent call last):
   File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
@@ -469,10 +399,10 @@ Call stack:
     logging.info("\U0001f389 CHARGEMENT TERMIN╔ AVEC SUCC╚S!")
 Message: '\U0001f389 CHARGEMENT TERMIN╔ AVEC SUCC╚S!'
 Arguments: ()
-2025-07-14 15:59:49,656 - INFO - HTTP Request: GET https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/investments?select=%2A&user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 "HTTP/2 200 OK"
-2025-07-14 15:59:49,657 - INFO - RÚcupÚration de 73 investissements pour l'utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9.
-2025-07-14 15:59:49,752 - INFO - HTTP Request: GET https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/cash_flows?select=%2A&user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 "HTTP/2 200 OK"
-2025-07-14 15:59:49,762 - INFO - RÚcupÚration de 664 flux de trÚsorerie pour l'utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9.
+2025-07-14 19:10:41,865 - INFO - HTTP Request: GET https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/investments?select=%2A&user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 "HTTP/2 200 OK"
+2025-07-14 19:10:41,867 - INFO - RÚcupÚration de 62 investissements pour l'utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9.
+2025-07-14 19:10:41,982 - INFO - HTTP Request: GET https://ksgdkuixdxoeysmfwgyi.supabase.co/rest/v1/cash_flows?select=%2A&user_id=eq.e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9 "HTTP/2 200 OK"
+2025-07-14 19:10:42,054 - INFO - RÚcupÚration de 499 flux de trÚsorerie pour l'utilisateur e8bb01e2-454c-4edb-ba99-f1d2b7dcf4b9.
 --- Logging error ---
 Traceback (most recent call last):
   File "C:\Users\culas\AppData\Local\Programs\Python\Python313\Lib\logging\__init__.py", line 1153, in emit
@@ -507,7 +437,7 @@ Call stack:
     success = load_user_data_auto(user_id, platforms=platforms)
   File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 63, in load_user_data_auto
     logging.info(f"  \U0001f4b0 Capital total: {total_capital:,.0f} Ç")
-Message: '  \U0001f4b0 Capital total: 30,242 Ç'
+Message: '  \U0001f4b0 Capital total: 29,027 Ç'
 Arguments: ()
 --- Logging error ---
 Traceback (most recent call last):
@@ -525,7 +455,7 @@ Call stack:
     success = load_user_data_auto(user_id, platforms=platforms)
   File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 64, in load_user_data_auto
     logging.info(f"  \U0001f4c8 Positions totales: {total_positions}")
-Message: '  \U0001f4c8 Positions totales: 73'
+Message: '  \U0001f4c8 Positions totales: 62'
 Arguments: ()
 --- Logging error ---
 Traceback (most recent call last):
@@ -543,7 +473,7 @@ Call stack:
     success = load_user_data_auto(user_id, platforms=platforms)
   File "C:\Users\culas\OneDrive\Documents\Finances\Projets\wealth-dashboard\scripts\load_sample_data.py", line 65, in load_user_data_auto
     logging.info(f"  \U0001f3e2 Plateformes: {len(summary)}")
-Message: '  \U0001f3e2 Plateformes: 4'
+Message: '  \U0001f3e2 Plateformes: 3'
 Arguments: ()
 --- Logging error ---
 Traceback (most recent call last):

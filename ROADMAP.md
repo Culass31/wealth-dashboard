@@ -29,6 +29,17 @@ Cette feuille de route détaille les fonctionnalités futures envisagées pour e
         *   **Backend (`PatrimoineCalculator`) :** Implémenter le calcul du Ratio de Sharpe. Cela nécessiterait de définir un "taux sans risque" et de calculer la volatilité des rendements du crowdfunding (ce qui pourrait être complexe sans une série historique de rendements agrégés).
         *   **Data :** Potentiellement, collecter ou estimer des données de volatilité pour les plateformes de crowdfunding.
 
+*   **1.4. Stress testing multi-scénarios** - **TERMINÉ (via simulation Monte Carlo dans `financial_freedom.py`)**
+    *   **Valeur Ajoutée :** Permet d'évaluer la résilience du portefeuille face à différents scénarios de marché.
+    *   **Considérations Techniques :**
+        *   **Backend (`financial_freedom.py`) :** Implémenté des simulations Monte Carlo pour projeter l'évolution du patrimoine sous différentes conditions.
+
+*   **1.5. Analyse de retards et projets en difficulté** - **TERMINÉ**
+    *   **Valeur Ajoutée :** Identification rapide des investissements à risque pour une gestion proactive.
+    *   **Considérations Techniques :**
+        *   **Base de Données :** La colonne `is_delayed` dans la table `investments` permet de marquer les projets en retard.
+        *   **Frontend (`dashboard.py`) :** Afficher les projets en retard et leur impact potentiel sur le portefeuille.
+
 ### 2. Approfondissement de l'Analyse de Liquidité et de Rendement
 
 **Objectif :** Offrir une vision plus granulaire de la liquidité du portefeuille et des flux de capital.
