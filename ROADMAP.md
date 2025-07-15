@@ -94,11 +94,20 @@ Cette feuille de route détaille les fonctionnalités futures envisagées pour e
 
 ### 5. Fonctionnalités Temporairement Désactivées
 
+### 6. Refonte Complète du Dashboard
+
+**Objectif :** Refondre entièrement le dashboard pour intégrer de nouveaux indicateurs de performance, de projection et d'analyse des risques, avec un design moderne et ergonomique.
+
+*   **Plan Détaillé :** Se référer à [DASHBOARD_REFACTORING_PLAN.md](DASHBOARD_REFACTORING_PLAN.md) pour le plan d'action complet.
+
+---
+
+### 5. Fonctionnalités Temporairement Désactivées
+
 **Objectif :** Suivre les fonctionnalités qui ont été temporairement désactivées et qui nécessitent une réimplémentation ou une correction.
 
-*   **5.1. Évolution du Patrimoine vs. Benchmark (ETF World)** - **TERMINÉ**
+*   **5.1. Évolution du Patrimoine vs. Benchmark (ETF World)** - **EN PAUSE**
     *   **Valeur Ajoutée :** Permet de comparer la performance du portefeuille de l'utilisateur à un indice de référence (ETF World) pour évaluer l'outperformance ou la sous-performance.
     *   **Considérations Techniques :**
-        *   **Problème Identifié :** Erreur `Only valid with DatetimeIndex, TimedeltaIndex or PeriodIndex, but got an instance of 'Index'` lors de l'affichage dans le frontend.
-        *   **Action :** Correction appliquée dans `backend/analytics/patrimoine_calculator.py` pour assurer la cohérence des index de dates.
-        *   **Prochaine Étape :** Vérifier l'affichage dans le frontend et s'assurer que le graphique est correctement généré.
+        *   **Problème Identifié :** Erreur `Only valid with DatetimeIndex, TimedeltaIndex or PeriodIndex, but got an instance of 'Index'` lors de l'affichage dans le frontend. La section graphique s'affiche désormais après simplification temporaire de la fonction `get_charts_data()`.
+        *   **Action :** La logique de calcul originale a été restaurée dans `backend/analytics/patrimoine_calculator.py`. L'analyse approfondie de cette section est mise en pause pour le moment et sera reprise ultérieurement.

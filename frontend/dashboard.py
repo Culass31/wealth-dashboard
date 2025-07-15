@@ -128,22 +128,28 @@ def display_global_charts(charts_data: Dict[str, Any]):
         patrimoine_total_evolution = evolution_data.get('patrimoine_total_evolution')
         benchmark = evolution_data.get('benchmark')
 
-        if not patrimoine_total_evolution.empty:
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(x=patrimoine_total_evolution.index, y=patrimoine_total_evolution.values, mode='lines', name='Mon Patrimoine', line=dict(color='#1E88E5')))
-            if not benchmark.empty:
-                fig.add_trace(go.Scatter(x=benchmark.index, y=benchmark.values, mode='lines', name='Benchmark (ETF World)', line=dict(color='#00ACC1', dash='dash')))
-            
-            fig.update_layout(
-                title_text='Évolution du Patrimoine et Benchmark',
-                xaxis_title='Date',
-                yaxis_title='Valeur (Indexée)',
-                hovermode="x unified",
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        else:
+        # S'assurer que patrimoine_total_evolution est une série valide avant de continuer
+        if patrimoine_total_evolution is None or patrimoine_total_evolution.empty or patrimoine_total_evolution.isnull().all():
             st.warning("Pas de données d'évolution du patrimoine disponibles pour le graphique.")
+            return
+
+        fig = go.Figure()
+
+        # Ajouter la courbe du patrimoine
+        fig.add_trace(go.Scatter(x=patrimoine_total_evolution.index, y=patrimoine_total_evolution, mode='lines', name='Mon Patrimoine', line=dict(color='#1E88E5')))
+
+        # Ajouter la courbe du benchmark si elle est valide
+        if benchmark is not None and not benchmark.empty and not benchmark['CW8.PA'].isnull().all().item():
+            fig.add_trace(go.Scatter(x=benchmark.index.tolist(), y=benchmark['CW8.PA'].tolist(), mode='lines', name='Benchmark (ETF World)', line=dict(color='#00ACC1', dash='dash')))
+        
+        fig.update_layout(
+            title_text='Évolution du Patrimoine et Benchmark',
+            xaxis_title='Date',
+            yaxis_title='Valeur (Indexée à 100)',
+            hovermode="x unified",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
 def display_periodic_performance(calculator: PatrimoineCalculator):
     st.markdown("<div class='section-header'>Performance Périodique</div>", unsafe_allow_html=True)
@@ -174,6 +180,13 @@ def display_platform_analysis(calculator: PatrimoineCalculator):
         if selected_platform in project_details:
             st.markdown("#### Détail des Projets")
             st.dataframe(project_details[selected_platform].style.format({'Montant Investi': "{:.2f}€", 'Capital Restant Dû': "{:.2f}€", 'Intérêts Reçus (Nets)': "{:.2f}€", 'TRI du Projet (%)': "{:.2f}%"}))
+
+def display_performance_analysis(calculator: PatrimoineCalculator):
+    st.markdown("<div class='section-header'>Analyse de Performance Détaillée</div>", unsafe_allow_html=True)
+    # Contenu de l'analyse de performance détaillée
+    st.write("Cette section affichera l'attribution de performance, les performances glissantes, etc.")
+
+
 
 # --- Application Principale ---
 def main():
@@ -213,8 +226,11 @@ def main():
 
     try:
         calculator = load_calculator(user_id)
-        display_global_kpis(calculator.get_global_kpis())
-        display_global_charts(calculator.get_charts_data())
+        global_kpis = calculator.get_global_kpis()
+        charts_data = calculator.get_charts_data()
+        
+        display_global_kpis(global_kpis)
+        display_global_charts(charts_data)
         display_periodic_performance(calculator)
         display_platform_analysis(calculator)
     except Exception as e:
