@@ -55,9 +55,12 @@ def clean_amount(amount: Union[str, float, int]) -> float:
         # Supprimer les symboles monétaires
         cleaned = re.sub(r'[€$£¥₹\s]', '', cleaned)
         
+        # Supprimer les espaces (séparateurs de milliers)
+        cleaned = cleaned.replace(' ', '')
+        
         # Remplacer la virgule décimale par un point
         if ',' in cleaned:
-            cleaned = cleaned.replace('.', '').replace(',', '.')
+            cleaned = cleaned.replace(',', '.')
             
         try:
             return float(cleaned)

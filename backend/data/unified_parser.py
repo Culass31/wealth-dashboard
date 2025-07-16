@@ -1203,6 +1203,7 @@ class UnifiedPortfolioParser:
                 current_price = clean_amount(price_raw)
                 market_value = clean_amount(value_raw)
                 percentage = clean_amount(percentage_raw)
+                logging.debug(f"Cleaned values: Qty={quantity}, Price={current_price}, Value={market_value}, Pct={percentage}")
                 designation_upper = designation.upper()
                 
                 logging.debug(f"Test de la ligne {i}: '{designation}'")
@@ -1239,10 +1240,10 @@ class UnifiedPortfolioParser:
                 asset_name = re.sub(r'\s*\d+,', '', asset_name).strip()
                 
                 # Valeurs numériques
-                quantity = clean_amount(quantities[i]) if i < len(quantities) else 0
-                current_price = clean_amount(prices[i]) if i < len(prices) else 0
-                market_value = clean_amount(values[i]) if i < len(values) else 0
-                percentage = clean_amount(percentages[i]) if i < len(percentages) else 0
+                quantity = clean_amount(quantity_raw)
+                current_price = clean_amount(price_raw)
+                market_value = clean_amount(value_raw)
+                percentage = clean_amount(percentage_raw)
                 
                 # Validation
                 if quantity <= 0 and market_value <= 0:
@@ -1349,7 +1350,7 @@ class UnifiedPortfolioParser:
             flow_type = 'sale'
             flow_direction = 'in'
         elif 'TTF' in line_upper or 'TAXE' in line_upper:
-            flow_type = 'fee'
+            flow_type = 'tax'
             flow_direction = 'out'
         elif 'INVESTISSEMENT ESPECES' in line_upper:
             flow_type = 'deposit'
@@ -1679,6 +1680,10 @@ class UnifiedPortfolioParser:
         # RÈGLE 1 : Si la ligne contient un ISIN, ce n'est PAS une section
         isin_match = re.search(r'[A-Z]{2}[A-Z0-9]{10}', designation_clean)
         if isin_match:
+            # Nouvelle condition: si l'ISIN est un mot-clé de totalisation, le traiter comme une section
+            if isin_match.group(0) in ['PORTEFEUILLE', 'TOTAL']:
+                logging.debug(f"_is_section_header: ISIN is a total keyword ({isin_match.group(0)}), treating as section.")
+                return True
             logging.debug(f"_is_section_header: ISIN found ({isin_match.group(0)}), returning False.")
             return False
         

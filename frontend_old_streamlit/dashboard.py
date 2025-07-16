@@ -183,8 +183,149 @@ def display_platform_analysis(calculator: PatrimoineCalculator):
 
 def display_performance_analysis(calculator: PatrimoineCalculator):
     st.markdown("<div class='section-header'>Analyse de Performance Détaillée</div>", unsafe_allow_html=True)
-    # Contenu de l'analyse de performance détaillée
-    st.write("Cette section affichera l'attribution de performance, les performances glissantes, etc.")
+
+    st.subheader("Attribution de Performance par Plateforme")
+    platform_attribution = calculator.get_performance_attribution_by_platform()
+    if platform_attribution:
+        df_platform_attribution = pd.DataFrame(platform_attribution)
+        fig_platform = px.bar(df_platform_attribution, x='platform', y='contribution_to_global_tri', 
+                              title='Contribution des Plateformes au TRI Global',
+                              labels={'platform': 'Plateforme', 'contribution_to_global_tri': 'Contribution au TRI Global (%)'},
+                              color='contribution_to_global_tri', color_continuous_scale=px.colors.sequential.Plasma)
+        st.plotly_chart(fig_platform, use_container_width=True)
+        st.dataframe(df_platform_attribution.style.format({'platform_tri_net': "{:.2f}%", 'platform_invested_amount': "{:.0f}€", 'contribution_to_global_tri': "{:.2f}%"}))
+    else:
+        st.info("Aucune donnée d'attribution de performance par plateforme disponible.")
+
+    st.subheader("Attribution de Performance par Classe d'Actifs")
+    asset_class_attribution = calculator.get_performance_attribution_by_asset_class()
+    if asset_class_attribution:
+        df_asset_class_attribution = pd.DataFrame(asset_class_attribution)
+        fig_asset_class = px.bar(df_asset_class_attribution, x='asset_class', y='contribution_to_global_tri', 
+                                 title='Contribution des Classes d\'Actifs au TRI Global',
+                                 labels={'asset_class': 'Classe d\'Actifs', 'contribution_to_global_tri': 'Contribution au TRI Global (%)'},
+                                 color='contribution_to_global_tri', color_continuous_scale=px.colors.sequential.Viridis)
+        st.plotly_chart(fig_asset_class, use_container_width=True)
+        st.dataframe(df_asset_class_attribution.style.format({'asset_class_return': "{:.2f}%", 'asset_class_invested_amount': "{:.0f}€", 'contribution_to_global_tri': "{:.2f}%"}))
+    else:
+        st.info("Aucune donnée d'attribution de performance par classe d'actifs disponible.")
+
+    st.subheader("Performances Glissantes (TRI Net)")
+    rolling_returns = calculator.get_rolling_returns()
+    if rolling_returns:
+        # Convertir le dictionnaire en DataFrame pour un affichage facile
+        df_rolling_returns = pd.DataFrame.from_dict(rolling_returns, orient='index')
+        df_rolling_returns.index.name = "Période"
+        df_rolling_returns.reset_index(inplace=True)
+        
+        # Afficher les métriques sous forme de colonnes pour les périodes clés
+        cols = st.columns(len(rolling_returns))
+        for i, (period, data) in enumerate(rolling_returns.items()):
+            with cols[i]:
+                st.metric(label=f"TRI Net {period}", value=f"{data['tri_net']:.2f}%")
+        
+        st.dataframe(df_rolling_returns.style.format({'tri_net': "{:.2f}%"}))
+    else:
+        st.info("Aucune donnée de performance glissante disponible.")
+
+    st.subheader("Contribution aux Flux (Revenus et Dépenses)")
+    flow_breakdown = calculator.get_flow_contribution_breakdown()
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("##### Répartition des Revenus")
+        if not flow_breakdown["revenues"].empty:
+            fig_revenues = px.pie(flow_breakdown["revenues"], values='amount', names='flow_type',
+                                  title='Revenus par Type de Flux',
+                                  color_discrete_sequence=px.colors.sequential.Greens)
+            st.plotly_chart(fig_revenues, use_container_width=True)
+            st.dataframe(flow_breakdown["revenues"].style.format({'amount': "{:.2f}€", 'percentage': "{:.2f}%"}))
+        else:
+            st.info("Aucune donnée de revenus disponible.")
+
+    with col2:
+        st.markdown("##### Répartition des Dépenses")
+        if not flow_breakdown["expenses"].empty:
+            fig_expenses = px.pie(flow_breakdown["expenses"], values='amount', names='flow_type',
+                                  title='Dépenses par Type de Flux',
+                                  color_discrete_sequence=px.colors.sequential.Reds)
+            st.plotly_chart(fig_expenses, use_container_width=True)
+            st.dataframe(flow_breakdown["expenses"].style.format({'amount': "{:.2f}€", 'percentage': "{:.2f}%"}))
+        else:
+            st.info("Aucune donnée de dépenses disponible.")
+
+def display_projections_analysis(calculator: PatrimoineCalculator):
+    st.markdown("<div class='section-header'>Projections Détaillées</div>", unsafe_allow_html=True)
+
+    st.subheader("Projections de Liquidité (Remboursements Attendus)")
+    projected_liquidity = calculator.get_projected_liquidity_timeline()
+
+    if not projected_liquidity["total"].empty:
+        fig_total_liquidity = px.bar(projected_liquidity["total"], x='month', y='projected_amount',
+                                     title='Liquidité Totale Projetée par Mois',
+                                     labels={'month': 'Mois', 'projected_amount': 'Montant Projeté (€)'},
+                                     color_discrete_sequence=px.colors.sequential.Blues)
+        st.plotly_chart(fig_total_liquidity, use_container_width=True)
+
+        st.markdown("##### Liquidité Projetée par Plateforme")
+        if not projected_liquidity["by_platform"].empty:
+            # Melt the DataFrame for stacked bar chart
+            df_melted = projected_liquidity["by_platform"].melt(id_vars=['month'], var_name='platform', value_name='projected_amount')
+            fig_platform_liquidity = px.bar(df_melted, x='month', y='projected_amount', color='platform',
+                                            title='Liquidité Projetée par Plateforme et par Mois',
+                                            labels={'month': 'Mois', 'projected_amount': 'Montant Projeté (€)', 'platform': 'Plateforme'},
+                                            color_discrete_map={'La Première Brique': '#1E88E5', 'PretUp': '#00ACC1', 'BienPrêter': '#FFC107', 'Homunity': '#FF5722', 'PEA': '#4CAF50', 'Assurance_Vie': '#9C27B0'})
+            st.plotly_chart(fig_platform_liquidity, use_container_width=True)
+            st.dataframe(projected_liquidity["by_platform"].style.format(formatter="{:.2f}€"))
+        else:
+            st.info("Aucune donnée de liquidité projetée par plateforme disponible.")
+    else:
+            st.info("Aucune donnée de liquidité projetée disponible.")
+
+def display_risk_analysis(calculator: PatrimoineCalculator):
+    st.markdown("<div class='section-header'>Analyse des Risques</div>", unsafe_allow_html=True)
+
+    st.subheader("Volatilité et Drawdown")
+    volatility_drawdown = calculator.get_volatility_and_drawdown()
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Volatilité Annualisée", f"{volatility_drawdown['global_annualized_volatility']:.2f}%")
+    with col2:
+        st.metric("Max Drawdown", f"{volatility_drawdown['global_max_drawdown']:.2f}%")
+
+    if not volatility_drawdown['drawdown_series'].empty:
+        fig_drawdown = px.line(volatility_drawdown['drawdown_series'], 
+                               title='Historique du Drawdown',
+                               labels={'value': 'Drawdown (%)', 'index': 'Date'},
+                               color_discrete_sequence=['red'])
+        st.plotly_chart(fig_drawdown, use_container_width=True)
+    else:
+        st.info("Aucune donnée d'historique de drawdown disponible.")
+
+    st.subheader("Concentration du Portefeuille (Indice de Herfindahl)")
+    herfindahl_index = calculator.get_global_kpis().get('herfindahl_index', 0)
+    st.metric("Indice de Herfindahl (HHI)", f"{herfindahl_index:.2f}")
+
+    if herfindahl_index < 1500:
+        st.info("Interprétation: Faible concentration (HHI < 1500)")
+    elif 1500 <= herfindahl_index <= 2500:
+        st.warning("Interprétation: Concentration modérée (1500 <= HHI <= 2500)")
+    else:
+        st.error("Interprétation: Forte concentration (HHI > 2500)")
+
+    st.subheader("Analyse des Retards et Projets en Difficulté")
+    delayed_defaulted_projects = calculator.get_delayed_and_defaulted_projects()
+    if not delayed_defaulted_projects.empty:
+        st.dataframe(delayed_defaulted_projects.style.format({
+            'invested_amount': "{:.2f}€",
+            'remaining_capital': "{:.2f}€",
+            'expected_end_date': "{:%Y-%m-%d}",
+            'actual_end_date': "{:%Y-%m-%d}"
+        }))
+    else:
+        st.info("Aucun projet en retard ou en défaut trouvé.")
 
 
 
@@ -233,6 +374,9 @@ def main():
         display_global_charts(charts_data)
         display_periodic_performance(calculator)
         display_platform_analysis(calculator)
+        display_performance_analysis(calculator)
+        display_projections_analysis(calculator)
+        display_risk_analysis(calculator)
     except Exception as e:
         st.error(f"Une erreur est survenue: {e}")
         st.warning("Veuillez vérifier que des données ont été chargées ou actualiser.")

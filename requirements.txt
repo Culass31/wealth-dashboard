@@ -2,6 +2,11 @@
 # Dépendances pour l'application Expert Patrimoine
 # Installation: pip install -r requirements.txt
 
+# ===== API FRAMEWORK (New) =====
+fastapi>=0.111.0                  # Framework API haute performance
+uvicorn[standard]>=0.29.0         # Serveur ASGI pour FastAPI
+sqlmodel>=0.0.18                  # ORM moderne (Pydantic + SQLAlchemy)
+
 # ===== CORE FRAMEWORK =====
 streamlit>=1.28.0                 # Interface web principale
 plotly>=5.17.0                    # Graphiques interactifs avancés
